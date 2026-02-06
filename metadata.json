@@ -1,0 +1,5 @@
+{
+  "name": "Sistem Informasi Laboratorium FTI UKSW",
+  "description": "A comprehensive Laboratory Information System for FTI UKSW featuring room management, equipment loans, and scheduling. Built as a high-fidelity frontend prototype with AI assistance.",
+  "requestFramePermissions": []
+}
