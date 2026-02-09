@@ -1,5 +1,5 @@
 -- ==========================================
--- SKEMA DATABASE SILAB FTI (PostgreSQL)
+-- SKEMA DATABASE CORE.FTI (PostgreSQL)
 -- ==========================================
 
 -- 1. Tabel Users

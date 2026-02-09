@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Role } from '../types';
-import { User, Mail, Phone, MapPin, Shield, Camera, Save, Lock, Building, CreditCard, X, KeyRound } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Shield, Save, Lock, Building, CreditCard, X, KeyRound } from 'lucide-react';
 
 interface ProfileProps {
   role: Role;
@@ -77,9 +77,6 @@ const Profile: React.FC<ProfileProps> = ({ role }) => {
              <div className="relative flex items-end -mt-12 mb-4">
                 <div className="relative">
                    <img src={userData.avatar} alt="Profile" className="w-24 h-24 rounded-full border-4 border-white dark:border-gray-800 shadow-md bg-white" />
-                   <button className="absolute bottom-0 right-0 p-1.5 bg-gray-100 dark:bg-gray-700 rounded-full border border-white dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
-                      <Camera className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-                   </button>
                 </div>
                 <div className="ml-4 mb-1">
                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{userData.name}</h1>

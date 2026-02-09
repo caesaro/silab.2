@@ -98,7 +98,7 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
         autoRotate: -2, // Rotate to the left at 2 degrees per second
         compass: true,
         title: "360° View",
-        author: "SILAB FTI"
+        author: "CORE.FTI"
       });
     }
   }, [viewMode, selectedRoom]);

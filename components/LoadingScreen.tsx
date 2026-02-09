@@ -21,7 +21,7 @@ const LoadingScreen: React.FC = () => {
       </div>
       
       <div className="text-center space-y-2">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white tracking-tight">SILAB FTI</h2>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-white tracking-tight">CORE.FTI</h2>
         <div className="flex items-center justify-center space-x-1">
           <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
           <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>

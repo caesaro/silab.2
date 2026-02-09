@@ -114,7 +114,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
             className="w-16 h-16 object-contain"/>
           </div>
   
-            <span className="text-2xl font-bold tracking-wide">SILAB FTI</span>
+            <span className="text-2xl font-bold tracking-wide">CORE.FTI</span>
           </div>
           <h1 className="text-4xl lg:text-5xl font-bold leading-tight mb-4">
             Sistem Informasi <br/> Laboratorium

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Menu, Moon, Sun, Bell, Search, Sparkles, LogOut, User, ChevronDown, Check } from 'lucide-react';
+import { Menu, Moon, Sun, Bell, Search, LogOut, User, ChevronDown, Check, Box, Calendar, Users } from 'lucide-react';
 import { Role, Notification } from '../types';
+import { MOCK_ROOMS, MOCK_EQUIPMENT, MOCK_USERS } from '../services/mockData';
 
 interface TopBarProps {
   onToggleSidebar: () => void;
@@ -19,6 +20,36 @@ const TopBar: React.FC<TopBarProps> = ({
 }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+
+    if (query.length > 1) {
+      const lowerQuery = query.toLowerCase();
+      const results = [
+        ...MOCK_ROOMS.filter(r => r.name.toLowerCase().includes(lowerQuery)).map(r => ({ ...r, type: 'Ruangan', page: 'rooms', icon: Calendar })),
+        ...(currentRole !== Role.USER ? MOCK_EQUIPMENT.filter(e => e.name.toLowerCase().includes(lowerQuery)).map(e => ({ ...e, type: 'Barang', page: 'inventory', icon: Box })) : []),
+        ...(currentRole === Role.ADMIN ? MOCK_USERS.filter(u => u.name.toLowerCase().includes(lowerQuery)).map(u => ({ ...u, type: 'User', page: 'users', icon: Users })) : [])
+      ].slice(0, 5);
+      setSearchResults(results);
+      setIsSearchOpen(true);
+    } else {
+      setSearchResults([]);
+      setIsSearchOpen(false);
+    }
+  };
+
+  const handleResultClick = (page: string) => {
+    onNavigate(page);
+    setIsSearchOpen(false);
+    setSearchQuery('');
+  };
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -29,14 +60,42 @@ const TopBar: React.FC<TopBarProps> = ({
           <Menu className="w-6 h-6" />
         </button>
         
-        {/* Search Mockup */}
+        {/* Global Search */}
         <div className="hidden md:flex items-center ml-4 relative">
           <Search className="w-4 h-4 text-gray-400 absolute left-3" />
           <input 
             type="text" 
-            placeholder="Search anything..." 
+            placeholder="Cari ruangan, barang, user..." 
+            value={searchQuery}
+            onChange={handleSearch}
+            onFocus={() => searchQuery.length > 1 && setIsSearchOpen(true)}
             className="pl-9 pr-4 py-2 bg-gray-100 dark:bg-gray-700 border-none rounded-full text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 w-64 transition-all"
           />
+          
+          {/* Search Results Dropdown */}
+          {isSearchOpen && searchResults.length > 0 && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setIsSearchOpen(false)}></div>
+              <div className="absolute top-full left-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50 animate-fade-in-up">
+                 <div className="py-2">
+                    <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase bg-gray-50 dark:bg-gray-700/50">Hasil Pencarian</p>
+                    {searchResults.map((result, idx) => (
+                      <button 
+                        key={idx}
+                        onClick={() => handleResultClick(result.page)}
+                        className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center group border-b border-gray-100 dark:border-gray-700 last:border-0"
+                      >
+                         <result.icon className="w-4 h-4 text-gray-400 mr-3 group-hover:text-blue-500" />
+                         <div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-blue-600">{result.name}</p>
+                            <p className="text-xs text-gray-500">{result.type}</p>
+                         </div>
+                      </button>
+                    ))}
+                 </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

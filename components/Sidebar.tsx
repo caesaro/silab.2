@@ -29,13 +29,16 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
   return (
     <aside className={`${isOpen ? 'translate-x-0' : '-translate-x-full'} fixed md:relative md:translate-x-0 z-40 w-64 h-screen transition-transform duration-300 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 print:hidden`}>
       <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center space-x-3">
-        <div className="flex items-center justify-center"></div>
         <img
           src={nocLogo}
           alt="NOC Logo"
-          className="w-10 h-10 object-contain"
+          className="w-16 h-16 object-contain"
         />
-        <span className="text-xl font-bold text-gray-800 dark:text-white">SILAB FTI</span>
+        <div>
+          <span className="text-xl font-bold text-gray-800 dark:text-white block leading-none">CORE.FTI</span>
+          {/* SIMARA - Sistem Informasi Manajemen Rasarana Akademik */}
+          <span className="text-[0.65rem] text-gray-500 dark:text-gray-400 font-medium leading-tight block mt-1">Campus Operational Resource Environment</span>
+        </div>
       </div>
 
       <div className="p-4">
