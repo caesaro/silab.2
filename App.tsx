@@ -199,8 +199,16 @@ const App: React.FC = () => {
             onNavigate={(page) => setCurrentPage(page)}
           />
 
-          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 print:overflow-visible print:h-auto print:p-0 print:block">
-            {renderPage()}
+            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 print:overflow-visible print:h-auto print:p-0 print:block flex flex-col">
+            <div className="flex-1">
+              {renderPage()}
+            </div>
+            
+            {/* Footer added here */}
+            <footer className="mt-12 py-6 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-800 print:hidden">
+               <p>&copy; {new Date().getFullYear()} Sistem Informasi Laboratorium FTI UKSW. All rights reserved.</p>
+               <p className="mt-1 text-[10px] text-gray-400">Developed for FTI UKSW - by. Nauval Caesaro Premana & laboran</p>
+            </footer>
           </main>
         </div>
       </div>

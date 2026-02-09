@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Mail, Lock, User, ArrowLeft, Eye, EyeOff, Loader2, Moon, Sun } from 'lucide-react';
 import { Role } from '../types';
+import fti from "../src/assets/fti.jpg";
+import nocLogo from "../src/assets/noc.png";
 
 interface LoginProps {
   onLogin: (role: Role) => void;
@@ -101,10 +103,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
 
       {/* Left Side - Branding & Image */}
       <div className="lg:w-1/2 bg-blue-600 dark:bg-blue-800 relative overflow-hidden flex flex-col justify-between p-12 text-white">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=2560&auto=format&fit=crop')] bg-cover bg-center opacity-20 mix-blend-overlay"></div>
+      <div className="absolute inset-0 bg-cover bg-center opacity-20 mix-blend-overlay"
+      style={{ backgroundImage: `url(${fti})` }}></div>
         <div className="relative z-10">
           <div className="flex items-center space-x-3 mb-6">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-blue-600 font-bold text-xl">F</div>
+          <div className="flex items-center justify-center">
+          <img
+            src={nocLogo}
+            alt="NOC Logo"
+            className="w-16 h-16 object-contain"/>
+          </div>
+  
             <span className="text-2xl font-bold tracking-wide">SILAB FTI</span>
           </div>
           <h1 className="text-4xl lg:text-5xl font-bold leading-tight mb-4">

@@ -1,4 +1,5 @@
 import React from 'react';
+import nocLogo from "../src/assets/noc.png"; 
 
 const LoadingScreen: React.FC = () => {
   return (
@@ -14,9 +15,9 @@ const LoadingScreen: React.FC = () => {
         <div className="absolute w-20 h-20 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
         
         {/* Center Logo */}
-        <div className="absolute flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl shadow-lg shadow-blue-600/30 animate-pulse">
-           <span className="text-xl font-bold text-white">F</span>
-        </div>
+        <div className="absolute flex items-center justify-center"><img
+         src={nocLogo} alt="NOC Logo" className="w-20 h-20 animate-pulse drop-shadow-lg"/>
+      </div>
       </div>
       
       <div className="text-center space-y-2">

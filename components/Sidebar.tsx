@@ -1,6 +1,7 @@
 import React from 'react';
 import { LayoutDashboard, Calendar, Box, Monitor, Users, FileText, Settings, Shield, Wrench, CalendarRange } from 'lucide-react';
 import { Role } from '../types';
+import nocLogo from "../src/assets/noc.png"; 
 
 interface SidebarProps {
   currentRole: Role;
@@ -28,7 +29,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
   return (
     <aside className={`${isOpen ? 'translate-x-0' : '-translate-x-full'} fixed md:relative md:translate-x-0 z-40 w-64 h-screen transition-transform duration-300 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 print:hidden`}>
       <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center space-x-3">
-        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">F</div>
+        <div className="flex items-center justify-center"></div>
+        <img
+          src={nocLogo}
+          alt="NOC Logo"
+          className="w-10 h-10 object-contain"
+        />
         <span className="text-xl font-bold text-gray-800 dark:text-white">SILAB FTI</span>
       </div>
 

@@ -94,7 +94,7 @@ export const MOCK_EQUIPMENT: Equipment[] = [
     category: 'Elektronik',
     condition: 'Baik', 
     isAvailable: true,
-    image: 'https://images.unsplash.com/photo-1535016120720-40c6874c3b1c?auto=format&fit=crop&q=80&w=200'
+    image: 'https://F.unsplash.com/photo-1535016120720-40c6874c3b1c?auto=format&fit=crop&q=80&w=200'
   },
   { 
     id: 'E2', 
