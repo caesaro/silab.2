@@ -15,7 +15,6 @@ const Profile: React.FC<ProfileProps> = ({ role }) => {
     department: 'Teknik Informatika',
     phone: '081234567890',
     address: 'Jl. Diponegoro No. 52, Salatiga',
-    bio: 'Mahasiswa tingkat akhir yang berminat pada Artificial Intelligence dan Web Development.',
     avatar: `https://ui-avatars.com/api/?name=John+Doe&background=0D8ABC&color=fff`
   } : role === Role.ADMIN ? {
     name: 'Administrator FTI',
@@ -24,7 +23,6 @@ const Profile: React.FC<ProfileProps> = ({ role }) => {
     department: 'Biro Administrasi FTI',
     phone: '0298-321212',
     address: 'Gedung FTI Lt. 1, Kampus Notohamidjojo',
-    bio: 'Administrator sistem informasi laboratorium Fakultas Teknologi Informasi.',
     avatar: `https://ui-avatars.com/api/?name=Admin+FTI&background=0D8ABC&color=fff`
   } : {
     name: 'Bpk. Budi Santoso',
@@ -33,7 +31,6 @@ const Profile: React.FC<ProfileProps> = ({ role }) => {
     department: 'Laboratorium',
     phone: '08123456789',
     address: 'Salatiga',
-    bio: 'Kepala Laboratorium Rekayasa Perangkat Lunak.',
     avatar: `https://ui-avatars.com/api/?name=Budi+Santoso&background=0D8ABC&color=fff`
   };
 
@@ -107,11 +104,6 @@ const Profile: React.FC<ProfileProps> = ({ role }) => {
                       </button>
                    )}
                 </div>
-             </div>
-             
-             {/* Bio Section */}
-             <div className="mt-2 text-gray-600 dark:text-gray-300 text-sm">
-                {userData.bio}
              </div>
           </div>
        </div>
@@ -236,16 +228,6 @@ const Profile: React.FC<ProfileProps> = ({ role }) => {
                        >
                          Ubah
                        </button>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                       <div className="flex items-center">
-                          <Shield className="w-5 h-5 text-gray-400 mr-3" />
-                          <div>
-                             <p className="text-sm font-medium text-gray-900 dark:text-white">2-Factor Auth</p>
-                             <p className="text-xs text-gray-500">Non-aktif</p>
-                          </div>
-                       </div>
-                       <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">Aktifkan</button>
                     </div>
                  </div>
              </div>

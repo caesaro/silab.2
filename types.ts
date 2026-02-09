@@ -18,7 +18,7 @@ export interface Room {
   pic: string;
   image: string;
   facilities: string[];
-  googleCalendarId?: string; // New field for Calendar Sync
+  googleCalendarUrl?: string; // Public Embed URL
 }
 
 export interface Booking {
@@ -37,13 +37,12 @@ export interface Booking {
 }
 
 export interface Equipment {
-  id: string;
+  id: string; // Kode FTI (Primary Key)
+  ukswCode: string; // Kode UKSW
   name: string;
-  code: string;
   category: string; // New field
   condition: 'Baik' | 'Rusak Ringan' | 'Rusak Berat';
   isAvailable: boolean;
-  image?: string; // New field
 }
 
 export interface Loan {
@@ -54,8 +53,9 @@ export interface Loan {
   officerName: string; // Petugas
   guarantee: string; // KTM / KTP
   borrowDate: string;
-  returnDate: string;
+  borrowTime?: string; // Jam Peminjaman
   actualReturnDate?: string;
+  actualReturnTime?: string; // Jam realisasi kembali
   status: 'Dipinjam' | 'Dikembalikan' | 'Terlambat';
 }
 

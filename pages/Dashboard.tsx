@@ -1,24 +1,12 @@
-import React from 'react';
-import { Role } from '../types';
+import React, { useMemo } from 'react';
+import { Role, BookingStatus } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Users, Calendar, AlertCircle, CheckCircle } from 'lucide-react';
+import { MOCK_BOOKINGS, MOCK_LOANS, MOCK_ROOMS, MOCK_USERS } from '../services/mockData';
 
 interface DashboardProps {
   role: Role;
 }
-
-const data = [
-  { name: 'Lab RPL', bookings: 12 },
-  { name: 'Lab Jarkom', bookings: 8 },
-  { name: 'Lab Robotik', bookings: 5 },
-  { name: 'Lab MM', bookings: 10 },
-];
-
-const pieData = [
-  { name: 'Disetujui', value: 400, color: '#22c55e' },
-  { name: 'Pending', value: 100, color: '#f59e0b' },
-  { name: 'Ditolak', value: 50, color: '#ef4444' },
-];
 
 const StatCard: React.FC<{ title: string; value: string; icon: React.ElementType; color: string }> = ({ title, value, icon: Icon, color }) => (
   <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
@@ -35,6 +23,45 @@ const StatCard: React.FC<{ title: string; value: string; icon: React.ElementType
 );
 
 const Dashboard: React.FC<DashboardProps> = ({ role }) => {
+  // Calculate Statistics Dynamically
+  const stats = useMemo(() => {
+    const totalBookings = MOCK_BOOKINGS.length;
+    const activeLoans = MOCK_LOANS.filter(l => l.status === 'Dipinjam').length;
+    
+    // Simple availability check: Rooms not booked today (ignoring time for simplicity in mock)
+    const today = new Date().toLocaleDateString('en-CA');
+    const bookedRoomIds = new Set(
+        MOCK_BOOKINGS
+            .filter(b => b.date === today && b.status === BookingStatus.APPROVED)
+            .map(b => b.roomId)
+    );
+    const availableRooms = MOCK_ROOMS.length - bookedRoomIds.size;
+    
+    const totalUsers = MOCK_USERS.length;
+
+    return { totalBookings, activeLoans, availableRooms, totalUsers };
+  }, []);
+
+  // Calculate Chart Data
+  const barData = useMemo(() => {
+      return MOCK_ROOMS.map(room => ({
+          name: room.name.split(' ').slice(0, 2).join(' '), // Shorten name for display
+          bookings: MOCK_BOOKINGS.filter(b => b.roomId === room.id).length
+      }));
+  }, []);
+
+  const pieData = useMemo(() => {
+      const approved = MOCK_BOOKINGS.filter(b => b.status === BookingStatus.APPROVED).length;
+      const pending = MOCK_BOOKINGS.filter(b => b.status === BookingStatus.PENDING).length;
+      const rejected = MOCK_BOOKINGS.filter(b => b.status === BookingStatus.REJECTED).length;
+
+      return [
+          { name: 'Disetujui', value: approved, color: '#22c55e' },
+          { name: 'Pending', value: pending, color: '#f59e0b' },
+          { name: 'Ditolak', value: rejected, color: '#ef4444' },
+      ];
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -48,10 +75,10 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Pemesanan" value="124" icon={Calendar} color="bg-blue-500" />
-        <StatCard title="Peminjaman Aktif" value="8" icon={AlertCircle} color="bg-orange-500" />
-        <StatCard title="Ruangan Tersedia" value="3" icon={CheckCircle} color="bg-green-500" />
-        <StatCard title="Total User" value="1,203" icon={Users} color="bg-purple-500" />
+        <StatCard title="Total Pemesanan" value={stats.totalBookings.toString()} icon={Calendar} color="bg-blue-500" />
+        <StatCard title="Peminjaman Aktif" value={stats.activeLoans.toString()} icon={AlertCircle} color="bg-orange-500" />
+        <StatCard title="Ruangan Tersedia" value={stats.availableRooms.toString()} icon={CheckCircle} color="bg-green-500" />
+        <StatCard title="Total User" value={stats.totalUsers.toString()} icon={Users} color="bg-purple-500" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -59,7 +86,7 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
           <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Statistik Penggunaan Ruangan</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data}>
+              <BarChart data={barData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
                 <XAxis dataKey="name" stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} />
@@ -107,10 +134,6 @@ const Dashboard: React.FC<DashboardProps> = ({ role }) => {
       </div>
     </div>
   );
-
- 
-
 };
-
 
 export default Dashboard;

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { MOCK_LOANS, MOCK_EQUIPMENT } from '../services/mockData';
 import { Role, Loan } from '../types';
-import { Search, Filter, Plus, Check, X, Clock, Box, User, Save, Trash2, CreditCard } from 'lucide-react';
+import { Search, Filter, Plus, Check, X, Clock, Box, User, Save, Trash2, CreditCard, Eye, Calendar } from 'lucide-react';
 
 interface EquipmentProps {
   role: Role;
@@ -15,13 +15,18 @@ const Equipment: React.FC<EquipmentProps> = ({ role, showToast }) => {
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    equipmentId: '',
+  const [formData, setFormData] = useState<{equipmentIds: string[], borrowerName: string, guarantee: string, nim: string, borrowDate: string, borrowTime: string}>({
+    equipmentIds: [''],
     borrowerName: '',
     guarantee: 'KTM',
     nim: '',
-    returnDate: ''
+    borrowDate: new Date().toISOString().split('T')[0], // Default hari ini
+    borrowTime: new Date().toTimeString().slice(0, 5)   // Default jam sekarang
   });
+
+  // Detail & Return Modal State
+  const [selectedGroup, setSelectedGroup] = useState<{key: string, loans: Loan[]} | null>(null);
+  const [returnConfirmation, setReturnConfirmation] = useState<{loan: Loan, returnTime: string, returnDate: string} | null>(null);
 
   // Derived data - recalculated on every render
   const availableEquipment = MOCK_EQUIPMENT.filter(e => e.isAvailable);
@@ -35,63 +40,93 @@ const Equipment: React.FC<EquipmentProps> = ({ role, showToast }) => {
     }
   };
 
-  const handleReturnItem = (id: string) => {
-    if (confirm("Konfirmasi pengembalian barang ini?")) {
-      const today = new Date().toISOString().split('T')[0];
-      
-      const loan = loans.find(l => l.id === id);
-      if (loan) {
-         // Update Mock Equipment Availability
-         const eqIndex = MOCK_EQUIPMENT.findIndex(e => e.id === loan.equipmentId);
-         if (eqIndex !== -1) {
-             MOCK_EQUIPMENT[eqIndex].isAvailable = true;
-         }
-      }
+  const initiateReturn = (loan: Loan) => {
+    const now = new Date();
+    setReturnConfirmation({
+        loan,
+        returnDate: now.toLocaleDateString('en-CA'), // YYYY-MM-DD
+        returnTime: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+    });
+  };
 
-      // Update Mock Loans for persistence
-      const loanIndex = MOCK_LOANS.findIndex(l => l.id === id);
-      if (loanIndex !== -1) {
-          MOCK_LOANS[loanIndex] = { ...MOCK_LOANS[loanIndex], status: 'Dikembalikan', actualReturnDate: today } as Loan;
-      }
+  const confirmReturn = () => {
+    if (!returnConfirmation) return;
 
-      // Update Local State
-      setLoans(prev => prev.map(l => 
-        l.id === id ? { ...l, status: 'Dikembalikan', actualReturnDate: today } as Loan : l
-      ));
+    const { loan, returnDate, returnTime } = returnConfirmation;
+    
+    // Update Mock Equipment Availability
+    const eqIndex = MOCK_EQUIPMENT.findIndex(e => e.id === loan.equipmentId);
+    if (eqIndex !== -1) {
+        MOCK_EQUIPMENT[eqIndex].isAvailable = true;
+    }
 
-      showToast("Barang berhasil dikembalikan.", "success");
+    // Update Local State
+    setLoans(prev => prev.map(l => 
+        l.id === loan.id ? { ...l, status: 'Dikembalikan', actualReturnDate: returnDate, actualReturnTime: returnTime } as Loan : l
+    ));
+
+    // Update Mock Loans (Persistence Simulation)
+    const loanIndex = MOCK_LOANS.findIndex(l => l.id === loan.id);
+    if (loanIndex !== -1) {
+        MOCK_LOANS[loanIndex].status = 'Dikembalikan';
+        MOCK_LOANS[loanIndex].actualReturnDate = returnDate;
+        MOCK_LOANS[loanIndex].actualReturnTime = returnTime;
     }
   };
 
-  const handleDeleteLoan = (id: string) => {
-    if (confirm("Hapus riwayat peminjaman ini? Data tidak dapat dikembalikan.")) {
-      const loanToDelete = loans.find(l => l.id === id);
-
-      // If deleting an active loan, make equipment available again
-      if (loanToDelete && loanToDelete.status === 'Dipinjam') {
-          const eqIndex = MOCK_EQUIPMENT.findIndex(e => e.id === loanToDelete.equipmentId);
-          if (eqIndex !== -1) {
-              MOCK_EQUIPMENT[eqIndex].isAvailable = true;
+  const handleDeleteGroup = (groupLoans: Loan[]) => {
+    if (confirm(`Hapus riwayat peminjaman untuk ${groupLoans.length} barang ini? Data tidak dapat dikembalikan.`)) {
+      
+      groupLoans.forEach(loanToDelete => {
+          // If deleting an active loan, make equipment available again
+          if (loanToDelete.status === 'Dipinjam') {
+              const eqIndex = MOCK_EQUIPMENT.findIndex(e => e.id === loanToDelete.equipmentId);
+              if (eqIndex !== -1) {
+                  MOCK_EQUIPMENT[eqIndex].isAvailable = true;
+              }
           }
-      }
 
-      // Update Mock Loans
-      const loanIndex = MOCK_LOANS.findIndex(l => l.id === id);
-      if (loanIndex !== -1) {
-          MOCK_LOANS.splice(loanIndex, 1);
-      }
+          // Update Mock Loans
+          const loanIndex = MOCK_LOANS.findIndex(l => l.id === loanToDelete.id);
+          if (loanIndex !== -1) {
+              MOCK_LOANS.splice(loanIndex, 1);
+          }
+      });
 
       // Update Local State
-      setLoans(prev => prev.filter(loan => loan.id !== id));
+      const idsToDelete = groupLoans.map(l => l.id);
+      setLoans(prev => prev.filter(loan => !idsToDelete.includes(loan.id)));
+      
       showToast("Data peminjaman dihapus.", "info");
     }
+  };
+
+  const addEquipmentRow = () => {
+    setFormData(prev => ({ ...prev, equipmentIds: [...prev.equipmentIds, ''] }));
+  };
+
+  const removeEquipmentRow = (index: number) => {
+    if (formData.equipmentIds.length > 1) {
+      setFormData(prev => ({
+        ...prev,
+        equipmentIds: prev.equipmentIds.filter((_, i) => i !== index)
+      }));
+    }
+  };
+
+  const updateEquipmentRow = (index: number, value: string) => {
+    const newIds = [...formData.equipmentIds];
+    newIds[index] = value;
+    setFormData(prev => ({ ...prev, equipmentIds: newIds }));
   };
 
   const handleSubmitLoan = (e: React.FormEvent) => {
     e.preventDefault();
     
+    const selectedIds = formData.equipmentIds.filter(id => id !== '');
+
     // Validasi
-    if (!formData.equipmentId || !formData.borrowerName || !formData.returnDate) {
+    if (selectedIds.length === 0 || !formData.borrowerName || !formData.borrowDate || !formData.borrowTime) {
       showToast("Mohon lengkapi data peminjaman.", "error");
       return;
     }
@@ -101,39 +136,50 @@ const Equipment: React.FC<EquipmentProps> = ({ role, showToast }) => {
        return;
     }
 
-    const equipmentIndex = MOCK_EQUIPMENT.findIndex(e => e.id === formData.equipmentId);
-    if (equipmentIndex === -1) return;
-    const equipment = MOCK_EQUIPMENT[equipmentIndex];
+    // Combine Name and Identifier
+    const displayName = `${formData.borrowerName} (${formData.nim})`;
 
-    // Combine Name and NIM if KTM
-    const displayName = formData.guarantee === 'KTM' 
-        ? `${formData.borrowerName} (${formData.nim})` 
-        : formData.borrowerName;
+    const newLoans: Loan[] = [];
 
-    const newLoan: Loan = {
-      id: `L-${Date.now()}`,
-      equipmentId: equipment.id,
-      equipmentName: equipment.name,
-      borrowerName: displayName,
-      officerName: role === Role.ADMIN ? 'Admin' : 'Laboran',
-      guarantee: formData.guarantee,
-      borrowDate: new Date().toISOString().split('T')[0],
-      returnDate: formData.returnDate,
-      status: 'Dipinjam'
-    };
+    selectedIds.forEach(eqId => {
+        const equipmentIndex = MOCK_EQUIPMENT.findIndex(e => e.id === eqId);
+        if (equipmentIndex !== -1) {
+            const equipment = MOCK_EQUIPMENT[equipmentIndex];
+            
+            const newLoan: Loan = {
+              id: `L-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              equipmentId: equipment.id,
+              equipmentName: equipment.name,
+              borrowerName: displayName,
+              officerName: role === Role.ADMIN ? 'Admin' : 'Laboran',
+              guarantee: formData.guarantee,
+              borrowDate: formData.borrowDate,
+              borrowTime: formData.borrowTime,
+              status: 'Dipinjam'
+            };
 
-    // Update Mock Equipment (Availability)
-    MOCK_EQUIPMENT[equipmentIndex].isAvailable = false;
+            // Update Mock Equipment (Availability)
+            MOCK_EQUIPMENT[equipmentIndex].isAvailable = false;
+            newLoans.push(newLoan);
+        }
+    });
 
     // Update Mock Loans
-    MOCK_LOANS.unshift(newLoan);
+    MOCK_LOANS.unshift(...newLoans);
 
     // Update Local State
-    setLoans([newLoan, ...loans]);
+    setLoans([...newLoans, ...loans]);
 
     setIsModalOpen(false);
-    setFormData({ equipmentId: '', borrowerName: '', guarantee: 'KTM', nim: '', returnDate: '' });
-    showToast("Peminjaman berhasil dicatat.", "success");
+    setFormData({ 
+        equipmentIds: [''], 
+        borrowerName: '', 
+        guarantee: 'KTM', 
+        nim: '', 
+        borrowDate: new Date().toISOString().split('T')[0],
+        borrowTime: new Date().toTimeString().slice(0, 5)
+    });
+    showToast(`${newLoans.length} Peminjaman berhasil dicatat.`, "success");
   };
 
   const filteredLoans = loans.filter(loan => {
@@ -142,6 +188,18 @@ const Equipment: React.FC<EquipmentProps> = ({ role, showToast }) => {
       const matchesFilter = filter === 'All' || loan.status === filter;
       return matchesSearch && matchesFilter;
   });
+
+  // Group Loans by Borrower + Date + Time
+  const groupedLoans = filteredLoans.reduce((groups, loan) => {
+      const key = `${loan.borrowerName}|${loan.borrowDate}|${loan.borrowTime || '00:00'}`;
+      if (!groups[key]) {
+          groups[key] = [];
+      }
+      groups[key].push(loan);
+      return groups;
+  }, {} as Record<string, Loan[]>);
+
+  const sortedGroupKeys = Object.keys(groupedLoans).sort((a, b) => b.localeCompare(a)); // Sort by date desc (part of key)
 
   return (
     <div className="space-y-6">
@@ -189,61 +247,58 @@ const Equipment: React.FC<EquipmentProps> = ({ role, showToast }) => {
           <table className="w-full text-sm text-left">
             <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 font-medium">
               <tr>
-                <th className="px-6 py-4">Barang</th>
                 <th className="px-6 py-4">Peminjam</th>
-                <th className="px-6 py-4">Tgl Pinjam</th>
-                <th className="px-6 py-4">Tgl Kembali</th>
+                <th className="px-6 py-4">Waktu Pinjam</th>
+                <th className="px-6 py-4">Jumlah Barang</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredLoans.length > 0 ? filteredLoans.map((loan) => (
-                <tr key={loan.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="font-medium text-gray-900 dark:text-white">{loan.equipmentName}</div>
-                    <div className="text-xs text-gray-500">{loan.equipmentId}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-gray-900 dark:text-white font-medium">{loan.borrowerName}</div>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 mt-1">
-                        Jaminan: {loan.guarantee}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{loan.borrowDate}</td>
-                  <td className="px-6 py-4 text-gray-600 dark:text-gray-300">{loan.returnDate}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(loan.status)}`}>
-                      {loan.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center space-x-2">
-                        {loan.status === 'Dipinjam' ? (
-                           <button 
-                             onClick={() => handleReturnItem(loan.id)}
-                             className="text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-md text-xs font-medium flex items-center shadow-sm transition-colors"
-                             title="Proses Pengembalian"
-                           >
-                              <Check className="w-3 h-3 mr-1" /> Kembalikan
-                           </button>
-                        ) : (
-                            <span className="text-gray-400 text-xs flex items-center px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800">
-                                <Clock className="w-3 h-3 mr-1"/> Selesai
-                            </span>
-                        )}
-                        
-                        <button 
-                            onClick={() => handleDeleteLoan(loan.id)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
-                            title="Hapus Data"
-                        >
-                            <Trash2 className="w-4 h-4" />
+              {sortedGroupKeys.length > 0 ? sortedGroupKeys.map((key) => {
+                const groupLoans = groupedLoans[key];
+                const firstLoan = groupLoans[0];
+                const [borrowerName, borrowDate, borrowTime] = key.split('|');
+                
+                // Determine aggregate status
+                const allReturned = groupLoans.every(l => l.status === 'Dikembalikan');
+                const anyLate = groupLoans.some(l => l.status === 'Terlambat');
+                const displayStatus = allReturned ? 'Dikembalikan' : (anyLate ? 'Terlambat' : 'Dipinjam');
+
+                return (
+                  <tr 
+                    key={key} 
+                    onClick={() => setSelectedGroup({ key, loans: groupLoans })}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer group"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="text-gray-900 dark:text-white font-medium">{borrowerName}</div>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 mt-1">
+                          Jaminan: {firstLoan.guarantee}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                        <div className="text-gray-900 dark:text-white text-sm">{borrowDate}</div>
+                        <div className="text-xs text-gray-500">{borrowTime}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                            <Box className="w-3 h-3 mr-1" /> {groupLoans.length} Barang
+                        </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(displayStatus)}`}>
+                        {displayStatus}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                        <button className="text-blue-600 hover:text-blue-800 text-xs font-medium flex items-center justify-center mx-auto">
+                            <Eye className="w-4 h-4 mr-1" /> Detail
                         </button>
-                    </div>
-                  </td>
-                </tr>
-              )) : (
+                    </td>
+                  </tr>
+                );
+              }) : (
                  <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                        <div className="flex flex-col items-center">
@@ -272,41 +327,22 @@ const Equipment: React.FC<EquipmentProps> = ({ role, showToast }) => {
                  </button>
               </div>
               <form onSubmit={handleSubmitLoan} className="p-6 space-y-4">
-                 <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pilih Barang</label>
-                    <div className="relative">
-                       <Box className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                       <select 
-                          required
-                          value={formData.equipmentId}
-                          onChange={(e) => setFormData({...formData, equipmentId: e.target.value})}
-                          className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                       >
-                          <option value="">-- Pilih Barang --</option>
-                          {availableEquipment.map(item => (
-                             <option key={item.id} value={item.id}>
-                                {item.name} ({item.code})
-                             </option>
-                          ))}
-                       </select>
-                    </div>
-                 </div>
-                 
-                 <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nama Peminjam</label>
-                    <div className="relative">
-                       <User className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                       <input 
-                          type="text" required
-                          value={formData.borrowerName}
-                          onChange={(e) => setFormData({...formData, borrowerName: e.target.value})}
-                          placeholder="Nama Mahasiswa / Dosen"
-                          className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                       />
-                    </div>
-                 </div>
-
-                 <div className="grid grid-cols-2 gap-4">
+                 {/* Informasi Peminjam */}
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nama Peminjam</label>
+                        <div className="relative">
+                           <User className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                           <input 
+                              type="text" required
+                              value={formData.borrowerName}
+                              onChange={(e) => setFormData({...formData, borrowerName: e.target.value})}
+                              placeholder="Nama Lengkap"
+                              className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
+                           />
+                        </div>
+                     </div>
+                     
                      <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Jenis Jaminan</label>
                         <select 
@@ -314,40 +350,99 @@ const Equipment: React.FC<EquipmentProps> = ({ role, showToast }) => {
                             onChange={(e) => setFormData({...formData, guarantee: e.target.value})}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
                         >
-                            <option value="KTM">KTM</option>
-                            <option value="KTP">KTP</option>
+                            <option value="KTM">KTM (Mahasiswa)</option>
+                            <option value="KTP">KTP (Umum)</option>
                             <option value="SIM">SIM</option>
                             <option value="Lainnya">Lainnya</option>
                         </select>
                      </div>
+
                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tgl Kembali</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {formData.guarantee === 'KTM' ? 'NIM' : 
+                             formData.guarantee === 'KTP' ? 'NIK' : 
+                             formData.guarantee === 'SIM' ? 'No. SIM' : 'Nomor Identitas'}
+                        </label>
+                        <div className="relative">
+                            <CreditCard className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                            <input 
+                                type="text" required
+                                value={formData.nim}
+                                onChange={(e) => setFormData({...formData, nim: e.target.value})}
+                                placeholder={formData.guarantee === 'KTM' ? '6720xxxx' : 'Nomor Identitas'}
+                                className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                     </div>
+                 </div>
+
+                 <div className="grid grid-cols-2 gap-4">
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tanggal Pinjam</label>
                         <input 
                             type="date" required
-                            value={formData.returnDate}
-                            onChange={(e) => setFormData({...formData, returnDate: e.target.value})}
+                            value={formData.borrowDate}
+                            onChange={(e) => setFormData({...formData, borrowDate: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
+                        />
+                     </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Jam Pinjam</label>
+                        <input 
+                            type="time" required
+                            value={formData.borrowTime}
+                            onChange={(e) => setFormData({...formData, borrowTime: e.target.value})}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
                         />
                      </div>
                  </div>
 
-                 {/* NIM Input - Conditionally Rendered */}
-                 {formData.guarantee === 'KTM' && (
-                     <div className="animate-fade-in-up bg-blue-50 dark:bg-blue-900/10 p-3 rounded-lg border border-blue-100 dark:border-blue-800/30">
-                        <label className="block text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">NIM (Nomor Induk Mahasiswa)</label>
-                        <div className="relative">
-                            <CreditCard className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-400" />
-                            <input 
-                                type="text" 
-                                required
-                                value={formData.nim}
-                                onChange={(e) => setFormData({...formData, nim: e.target.value})}
-                                placeholder="Cth: 672019xxx"
-                                className="w-full pl-9 pr-4 py-2 border border-blue-300 dark:border-blue-700 rounded-lg bg-white dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 dark:text-white font-mono"
-                            />
-                        </div>
-                     </div>
-                 )}
+                 {/* Daftar Barang */}
+                 <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <div className="flex justify-between items-center mb-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Barang yang Dipinjam</label>
+                        <button type="button" onClick={addEquipmentRow} className="text-xs text-blue-600 hover:underline flex items-center font-medium">
+                            <Plus className="w-3 h-3 mr-1" /> Tambah Barang
+                        </button>
+                    </div>
+                    
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        {formData.equipmentIds.map((selectedId, index) => (
+                            <div key={index} className="flex gap-2 animate-fade-in-up">
+                                <div className="relative flex-1">
+                                   <Box className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                   <select 
+                                      required
+                                      value={selectedId}
+                                      onChange={(e) => updateEquipmentRow(index, e.target.value)}
+                                      className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 text-sm"
+                                   >
+                                      <option value="">-- Pilih Barang --</option>
+                                      {availableEquipment.map(item => (
+                                         <option 
+                                            key={item.id} 
+                                            value={item.id}
+                                            disabled={formData.equipmentIds.includes(item.id) && item.id !== selectedId}
+                                         >
+                                            {item.name} ({item.id})
+                                         </option>
+                                      ))}
+                                   </select>
+                                </div>
+                                {formData.equipmentIds.length > 1 && (
+                                    <button 
+                                        type="button" 
+                                        onClick={() => removeEquipmentRow(index)}
+                                        className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                        title="Hapus baris"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                 </div>
 
                  <div className="pt-4 flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 mt-2">
                     <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
@@ -360,6 +455,134 @@ const Equipment: React.FC<EquipmentProps> = ({ role, showToast }) => {
               </form>
            </div>
         </div>
+      )}
+
+      {/* Detail Modal */}
+      {selectedGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-2xl overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
+                 <h3 className="font-bold text-gray-900 dark:text-white flex items-center">
+                    <User className="w-5 h-5 mr-2 text-blue-600" />
+                    Detail Peminjaman
+                 </h3>
+                 <button onClick={() => setSelectedGroup(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <X className="w-5 h-5" />
+                 </button>
+              </div>
+              <div className="p-6">
+                  <div className="flex justify-between items-start mb-6 bg-blue-50 dark:bg-blue-900/10 p-4 rounded-lg">
+                      <div>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Peminjam</p>
+                          <p className="text-lg font-bold text-gray-900 dark:text-white">{selectedGroup.loans[0].borrowerName}</p>
+                          <p className="text-xs text-gray-500 mt-1">Jaminan: {selectedGroup.loans[0].guarantee}</p>
+                      </div>
+                      <div className="text-right">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Waktu Pinjam</p>
+                          <p className="text-md font-medium text-gray-900 dark:text-white flex items-center justify-end">
+                              <Calendar className="w-4 h-4 mr-1" /> {selectedGroup.loans[0].borrowDate}
+                          </p>
+                          <p className="text-md font-medium text-gray-900 dark:text-white flex items-center justify-end mt-1">
+                              <Clock className="w-4 h-4 mr-1" /> {selectedGroup.loans[0].borrowTime || '-'}
+                          </p>
+                      </div>
+                  </div>
+
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Daftar Barang Dipinjam</h4>
+                  <div className="space-y-3">
+                      {selectedGroup.loans.map((loan) => (
+                          <div key={loan.id} className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                              <div className="flex items-center">
+                                  <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg mr-3">
+                                      <Box className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                                  </div>
+                                  <div>
+                                      <p className="text-sm font-medium text-gray-900 dark:text-white">{loan.equipmentName}</p>
+                                      <p className="text-xs text-gray-500">ID: {loan.equipmentId}</p>
+                                  </div>
+                              </div>
+                              <div>
+                                  {loan.status === 'Dipinjam' ? (
+                                      <button 
+                                        onClick={() => initiateReturn(loan)}
+                                        className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors flex items-center"
+                                      >
+                                          <Check className="w-3 h-3 mr-1" /> Kembalikan
+                                      </button>
+                                  ) : (
+                                      <span className="px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-xs font-medium rounded flex items-center">
+                                          <Check className="w-3 h-3 mr-1" /> Dikembalikan
+                                      </span>
+                                  )}
+                              </div>
+                          </div>
+                      ))}
+                  </div>
+              </div>
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex justify-between">
+                  <button 
+                    onClick={() => {
+                        handleDeleteGroup(selectedGroup.loans);
+                        setSelectedGroup(null);
+                    }}
+                    className="text-red-600 hover:text-red-800 text-sm font-medium flex items-center"
+                  >
+                      <Trash2 className="w-4 h-4 mr-1" /> Hapus Riwayat
+                  </button>
+                  <button onClick={() => setSelectedGroup(null)} className="px-4 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-500">
+                      Tutup
+                  </button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* Return Confirmation Modal */}
+      {returnConfirmation && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6 animate-fade-in-up">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Konfirmasi Pengembalian</h3>
+                  <div className="space-y-3 mb-6">
+                      <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Barang</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{returnConfirmation.loan.equipmentName}</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                          <div>
+                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Tanggal Kembali</label>
+                              <input 
+                                type="date" 
+                                value={returnConfirmation.returnDate}
+                                onChange={e => setReturnConfirmation({...returnConfirmation, returnDate: e.target.value})}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
+                              />
+                          </div>
+                          <div>
+                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Jam Kembali</label>
+                              <input 
+                                type="time" 
+                                value={returnConfirmation.returnTime}
+                                onChange={e => setReturnConfirmation({...returnConfirmation, returnTime: e.target.value})}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
+                              />
+                          </div>
+                      </div>
+                  </div>
+                  <div className="flex space-x-3">
+                      <button onClick={() => setReturnConfirmation(null)} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Batal</button>
+                      <button 
+                        onClick={() => {
+                            confirmReturn();
+                            setReturnConfirmation(null);
+                            showToast("Barang berhasil dikembalikan", "success");
+                        }} 
+                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      >
+                          Konfirmasi
+                      </button>
+                  </div>
+              </div>
+          </div>
       )}
     </div>
   );

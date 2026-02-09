@@ -1,15 +1,18 @@
 import { Room, Booking, BookingStatus, Equipment, Loan, LabStaff, AppUser, Notification } from '../types';
 
+// Helper to get local date string YYYY-MM-DD
+const getLocalISOString = () => new Date().toLocaleDateString('en-CA'); // en-CA returns YYYY-MM-DD
+
 export const MOCK_ROOMS: Room[] = [
   {
     id: '1',
-    name: 'Lab Rekayasa Perangkat Lunak',
+    name: 'Lab Rekayasa Perangkat Lunak 461',
     description: 'Laboratorium untuk pengembangan perangkat lunak, dilengkapi dengan PC high-end dan server lokal.',
     capacity: 40,
     pic: 'Bpk. Budi Santoso',
     image: 'https://pannellum.org/images/alma.jpg', // Valid 360
     facilities: ['AC', 'Projector', 'Whiteboard', '40 PC Core i7'],
-    googleCalendarId: 'lab.rpl.uksw@gmail.com'
+    googleCalendarUrl: 'https://calendar.google.com/calendar/embed?src=adm.uksw.edu_i394lo68heo5ouen6eitoppqdc%40group.calendar.google.com&ctz=Asia%2FJakarta'
   },
   {
     id: '2',
@@ -19,7 +22,7 @@ export const MOCK_ROOMS: Room[] = [
     pic: 'Ibu Siti Aminah',
     image: 'https://pannellum.org/images/cerro-toco-0.jpg', // Valid 360
     facilities: ['AC', 'Smart TV', 'Cisco Routers', 'Server Rack'],
-    googleCalendarId: 'lab.jarkom.uksw@gmail.com'
+    googleCalendarUrl: 'https://calendar.google.com/calendar/embed?src=c_3ou2lfumin3q7k32648i1gbvv0%40group.calendar.google.com&ctz=Asia%2FJakarta'
   },
   {
     id: '3',
@@ -38,7 +41,6 @@ export const MOCK_ROOMS: Room[] = [
     pic: 'Ibu Sarah',
     image: 'https://pannellum.org/images/jfk.jpg', // Updated to valid 360
     facilities: ['Mac Studio', 'Green Screen', 'Sound System'],
-    googleCalendarId: 'lab.mm.uksw@gmail.com'
   },
 ];
 
@@ -51,7 +53,7 @@ export const MOCK_BOOKINGS: Booking[] = [
     responsiblePerson: 'John Doe',
     contactPerson: '081234567890',
     purpose: 'Rapat HMP',
-    date: new Date().toISOString().split('T')[0],
+    date: getLocalISOString(),
     startTime: '10:00',
     endTime: '12:00',
     status: BookingStatus.APPROVED,
@@ -65,7 +67,7 @@ export const MOCK_BOOKINGS: Booking[] = [
     responsiblePerson: 'Jane Smith',
     contactPerson: '089876543210',
     purpose: 'Praktikum Pengganti Jarkom',
-    date: new Date().toISOString().split('T')[0],
+    date: getLocalISOString(),
     startTime: '13:00',
     endTime: '15:00',
     status: BookingStatus.PENDING,
@@ -88,74 +90,70 @@ export const MOCK_BOOKINGS: Booking[] = [
 
 export const MOCK_EQUIPMENT: Equipment[] = [
   { 
-    id: 'E1', 
+    id: 'FTI-PRJ-001', 
+    ukswCode: 'UKSW-INV-2023-001',
     name: 'Projector Epson X1', 
-    code: 'PRJ-001', 
     category: 'Elektronik',
     condition: 'Baik', 
     isAvailable: true,
-    image: 'https://F.unsplash.com/photo-1535016120720-40c6874c3b1c?auto=format&fit=crop&q=80&w=200'
   },
   { 
-    id: 'E2', 
+    id: 'FTI-CBL-005', 
+    ukswCode: 'UKSW-INV-2023-045',
     name: 'Kabel HDMI 10m', 
-    code: 'CBL-005', 
     category: 'Aksesoris',
     condition: 'Baik', 
     isAvailable: false,
-    image: 'https://images.unsplash.com/photo-1558517260-252a11b64082?auto=format&fit=crop&q=80&w=200'
   },
   { 
-    id: 'E3', 
+    id: 'FTI-CAM-012', 
+    ukswCode: 'UKSW-INV-2022-112',
     name: 'DSLR Canon 600D', 
-    code: 'CAM-012', 
     category: 'Multimedia',
     condition: 'Rusak Ringan', 
     isAvailable: true,
-    image: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80&w=200'
   },
   { 
-    id: 'E4', 
+    id: 'FTI-IOT-099', 
+    ukswCode: 'UKSW-INV-2023-099',
     name: 'Arduino Uno Kit', 
-    code: 'IOT-099', 
     category: 'IoT',
     condition: 'Baik', 
     isAvailable: true,
-    image: 'https://images.unsplash.com/photo-1553406830-ef2513450d76?auto=format&fit=crop&q=80&w=200'
   },
   { 
-    id: 'E5', 
+    id: 'FTI-AUD-002', 
+    ukswCode: 'UKSW-INV-2021-002',
     name: 'Microphone Wireless', 
-    code: 'AUD-002', 
     category: 'Audio',
     condition: 'Rusak Berat', 
     isAvailable: false,
-    image: 'https://images.unsplash.com/photo-1574516327858-4573756eb72f?auto=format&fit=crop&q=80&w=200'
   },
 ];
 
 export const MOCK_LOANS: Loan[] = [
   {
-    id: 'L1',
-    equipmentId: 'E2',
+    id: 'L1', 
+    equipmentId: 'FTI-CBL-005',
     equipmentName: 'Kabel HDMI 10m',
     borrowerName: 'Michael (672021005)',
     officerName: 'Bpk. Budi',
     guarantee: 'KTM',
-    borrowDate: '2023-10-25',
-    returnDate: '2023-10-26',
+    borrowDate: getLocalISOString(),
+    borrowTime: '09:00',
     status: 'Dipinjam',
   },
   {
     id: 'L2',
-    equipmentId: 'E1',
+    equipmentId: 'FTI-PRJ-001',
     equipmentName: 'Projector Epson X1',
     borrowerName: 'Sarah (682020001)',
     officerName: 'Ibu Siti',
     guarantee: 'KTP',
     borrowDate: '2023-10-20',
-    returnDate: '2023-10-20',
+    borrowTime: '13:30',
     actualReturnDate: '2023-10-20',
+    actualReturnTime: '15:00',
     status: 'Dikembalikan',
   },
 ];

@@ -41,14 +41,6 @@ const TopBar: React.FC<TopBarProps> = ({
       </div>
 
       <div className="flex items-center space-x-3 sm:space-x-4">
-        {/* AI Assistant Button */}
-        <button 
-          onClick={onOpenAi}
-          className="flex items-center px-3 py-1.5 bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-xs font-bold rounded-full shadow-md hover:shadow-lg transition-all"
-        >
-          <Sparkles className="w-3 h-3 mr-1.5" />
-          Ask AI
-        </button>
 
         {/* Notifications */}
         <div className="relative">

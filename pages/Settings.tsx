@@ -14,9 +14,9 @@ const Settings: React.FC<SettingsProps> = ({ showToast }) => {
   // Database State
   const [dbConfig, setDbConfig] = useState({
     host: 'localhost',
-    port: '3306',
+    port: '5432',
     database: 'silab_fti',
-    username: 'root',
+    username: 'postgres',
     password: '',
   });
 
@@ -74,7 +74,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast }) => {
           }`}
         >
           <Database className="w-4 h-4 mr-2" />
-          Database (MySQL)
+          Database (PostgreSQL)
         </button>
         <button
           onClick={() => setActiveTab('sso')}
@@ -96,7 +96,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast }) => {
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
                    <Server className="w-5 h-5 mr-2 text-blue-500" /> Koneksi Database
                 </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Atur parameter koneksi ke server MySQL.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Atur parameter koneksi ke server PostgreSQL.</p>
              </div>
              <div className="flex items-center text-green-600 bg-green-50 dark:bg-green-900/20 px-3 py-1 rounded-full text-xs font-medium border border-green-200 dark:border-green-800">
                 <CheckCircle className="w-3 h-3 mr-1" /> Terhubung
@@ -122,7 +122,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast }) => {
                       value={dbConfig.port}
                       onChange={e => setDbConfig({...dbConfig, port: e.target.value})}
                       className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 font-mono"
-                      placeholder="3306"
+                      placeholder="5432"
                    />
                 </div>
                 <div className="md:col-span-2">
@@ -142,7 +142,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast }) => {
                       value={dbConfig.username}
                       onChange={e => setDbConfig({...dbConfig, username: e.target.value})}
                       className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 font-mono"
-                      placeholder="root"
+                      placeholder="postgres"
                    />
                 </div>
                 <div>

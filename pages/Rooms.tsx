@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MOCK_ROOMS, MOCK_BOOKINGS, MOCK_LAB_STAFF } from '../services/mockData';
 import { Room, Role, BookingStatus, Booking } from '../types';
 import { Search, MapPin, Users, Wifi, Edit2, Trash2, Calendar, Eye, Check, Plus, Upload, Loader2, ArrowUpDown, ExternalLink, FileText, User } from 'lucide-react';
-import { generateRoomDescription } from '../services/geminiService';
 
 // Declare Pannellum for TypeScript
 declare global {
@@ -13,57 +12,24 @@ declare global {
 
 interface RoomsProps {
   role: Role;
+  isDarkMode: boolean;
 }
 
 // Sub-component for 360 Thumbnail in List View
 const Room360Thumbnail: React.FC<{ room: Room }> = ({ room }) => {
-    const thumbnailRef = useRef<HTMLDivElement>(null);
-    const viewerRef = useRef<any>(null);
-
-    useEffect(() => {
-        if (thumbnailRef.current && window.pannellum) {
-            // Destroy existing viewer if exists
-            if (viewerRef.current) {
-                try {
-                    // Pannellum doesn't always expose clean destroy on instance, 
-                    // but we ensure the container is ready.
-                    thumbnailRef.current.innerHTML = ''; 
-                } catch(e) {}
-            }
-
-            try {
-                viewerRef.current = window.pannellum.viewer(thumbnailRef.current, {
-                    type: 'equirectangular',
-                    panorama: room.image,
-                    autoLoad: true,
-                    autoRotate: -4, // Auto rotate speed
-                    showControls: false, // Hide controls for cleaner look
-                    draggable: false, // Disable interaction to function as preview
-                    mouseZoom: false,
-                    keyboardZoom: false,
-                    compass: false
-                });
-            } catch (error) {
-                console.error("Pannellum Error:", error);
-            }
-        }
-
-        return () => {
-             // Cleanup logic
-             if (viewerRef.current) {
-                 // In a real implementation we would call viewer.destroy(), 
-                 // but basic pannellum JS removal is handled by React component unmount usually
-             }
-        };
-    }, [room.image]);
-
     return (
         <div className="w-full h-full relative group">
-            <div ref={thumbnailRef} className="w-full h-full" id={`pano-thumb-${room.id}`}></div>
-            {/* Overlay to prevent interaction stealing clicks */}
-            <div className="absolute inset-0 z-10 bg-transparent cursor-pointer"></div> 
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-4 z-20 pointer-events-none">
-                 <span className="text-white text-sm font-bold flex items-center"><Eye className="w-4 h-4 mr-1"/> Detail & Fullscreen</span>
+            <img 
+                src={room.image} 
+                alt={room.name} 
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+            />
+            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors"></div>
+            
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                 <span className="text-white text-xs font-bold flex items-center bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-sm border border-white/20">
+                    <Eye className="w-4 h-4 mr-2"/> Lihat 360°
+                 </span>
             </div>
             <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm flex items-center z-20 pointer-events-none">
                   <MapPin className="w-3 h-3 mr-1"/> FTI Lt. 4
@@ -72,7 +38,7 @@ const Room360Thumbnail: React.FC<{ room: Room }> = ({ room }) => {
     );
 };
 
-const Rooms: React.FC<RoomsProps> = ({ role }) => {
+const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
   const [rooms, setRooms] = useState<Room[]>(MOCK_ROOMS);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'capacity'>('name');
@@ -92,8 +58,11 @@ const Rooms: React.FC<RoomsProps> = ({ role }) => {
 
   // Booking Form State
   const [bookingForm, setBookingForm] = useState<Partial<Booking>>({
-    date: '', startTime: '', endTime: '', purpose: '', responsiblePerson: '', contactPerson: '', proposalFile: ''
+    purpose: '', responsiblePerson: '', contactPerson: '', proposalFile: ''
   });
+  const [bookingSchedules, setBookingSchedules] = useState<{date: string, startTime: string, endTime: string}[]>([
+    { date: '', startTime: '', endTime: '' }
+  ]);
   const [bookingFile, setBookingFile] = useState<File | null>(null);
 
   // Pannellum Ref
@@ -157,6 +126,23 @@ const Rooms: React.FC<RoomsProps> = ({ role }) => {
     }
   };
 
+  // Schedule Handlers
+  const addScheduleRow = () => {
+    setBookingSchedules([...bookingSchedules, { date: '', startTime: '', endTime: '' }]);
+  };
+
+  const removeScheduleRow = (index: number) => {
+    if (bookingSchedules.length > 1) {
+      setBookingSchedules(bookingSchedules.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateScheduleRow = (index: number, field: 'date' | 'startTime' | 'endTime', value: string) => {
+    const newSchedules = [...bookingSchedules];
+    newSchedules[index][field] = value;
+    setBookingSchedules(newSchedules);
+  };
+
   const handleBookingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!bookingFile) {
@@ -164,21 +150,16 @@ const Rooms: React.FC<RoomsProps> = ({ role }) => {
        return;
     }
     
+    const scheduleSummary = bookingSchedules.map(s => `- ${s.date} (${s.startTime} - ${s.endTime})`).join('\n');
+
     // In a real app, upload logic here
-    alert(`Permohonan berhasil dikirim!\nPenanggung Jawab: ${bookingForm.responsiblePerson}\nFile: ${bookingForm.proposalFile}`);
+    alert(`Permohonan berhasil dikirim!\n\nJadwal Kegiatan:\n${scheduleSummary}\n\nPenanggung Jawab: ${bookingForm.responsiblePerson}\nFile: ${bookingForm.proposalFile}`);
     
     // Reset and go back
     setBookingFile(null);
-    setBookingForm({
-        date: '', startTime: '', endTime: '', purpose: '', responsiblePerson: '', contactPerson: '', proposalFile: ''
-    });
+    setBookingForm({ purpose: '', responsiblePerson: '', contactPerson: '', proposalFile: '' });
+    setBookingSchedules([{ date: '', startTime: '', endTime: '' }]);
     setViewMode('list');
-  };
-
-  const handleGenerateDescription = async (room: Room) => {
-      if (!confirm("Generate deskripsi baru menggunakan AI?")) return;
-      const newDesc = await generateRoomDescription(room.name, room.facilities);
-      setRooms(prev => prev.map(r => r.id === room.id ? { ...r, description: newDesc } : r));
   };
 
   // CRUD Handlers
@@ -190,7 +171,7 @@ const Rooms: React.FC<RoomsProps> = ({ role }) => {
     }
 
     setFormData({
-      name: '', description: '', capacity: 0, pic: activeTechnicians[0]?.name || '', image: '', facilities: [], googleCalendarId: ''
+      name: '', description: '', capacity: 0, pic: activeTechnicians[0]?.name || '', image: '', facilities: [], googleCalendarUrl: ''
     });
     setIsEditing(false);
     setViewMode('form');
@@ -295,11 +276,11 @@ const Rooms: React.FC<RoomsProps> = ({ role }) => {
                <p className="text-xs text-gray-500 mt-1">*Hanya teknisi aktif yang ditampilkan</p>
             </div>
              <div>
-               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Google Calendar ID (untuk Sync)</label>
+               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Google Calendar Public URL (Embed)</label>
                <input 
-                  type="text" value={formData.googleCalendarId || ''} 
-                  onChange={e => setFormData({...formData, googleCalendarId: e.target.value})}
-                  placeholder="contoh: c_123abc@group.calendar.google.com"
+                  type="text" value={formData.googleCalendarUrl || ''} 
+                  onChange={e => setFormData({...formData, googleCalendarUrl: e.target.value})}
+                  placeholder='https://calendar.google.com/calendar/embed?src=...'
                   className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500" 
                />
             </div>
@@ -384,10 +365,10 @@ const Rooms: React.FC<RoomsProps> = ({ role }) => {
                                   ))}
                               </div>
 
-                              {selectedRoom.googleCalendarId && (
+                              {selectedRoom.googleCalendarUrl && (
                                  <div className="flex items-center text-green-600 dark:text-green-400 text-sm bg-green-50 dark:bg-green-900/20 p-3 rounded-lg border border-green-200 dark:border-green-800">
                                     <Check className="w-4 h-4 mr-2" />
-                                    <span>Tersinkronisasi dengan Google Calendar ({selectedRoom.googleCalendarId})</span>
+                                    <span>Jadwal tersedia via Google Calendar</span>
                                  </div>
                               )}
                           </div>
@@ -397,24 +378,23 @@ const Rooms: React.FC<RoomsProps> = ({ role }) => {
                                   <span className="flex items-center"><Calendar className="w-5 h-5 mr-2 text-blue-500"/> Jadwal Ruangan</span>
                                   <span className="text-xs font-normal text-gray-500">{new Date().toLocaleString('default', { month: 'long' })}</span>
                               </h3>
-                              <div className="grid grid-cols-7 gap-1 text-center text-xs mb-2 font-semibold text-gray-500">
-                                  {['S', 'S', 'R', 'K', 'J', 'S', 'M'].map(d => <span key={d}>{d}</span>)}
-                              </div>
-                              <div className="grid grid-cols-7 gap-1">
-                                  {getDaysInMonth().map(d => (
-                                      <div key={d} className={`aspect-square flex items-center justify-center rounded-md text-sm transition-colors cursor-pointer hover:ring-2 hover:ring-blue-400 ${isBooked(d) ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'}`}>
-                                          {d}
-                                      </div>
-                                  ))}
-                              </div>
-                              <div className="flex items-center gap-4 mt-4 text-xs text-gray-500">
-                                  <div className="flex items-center"><div className="w-2 h-2 bg-red-500 rounded-full mr-1"></div> Terpakai</div>
-                                  <div className="flex items-center"><div className="w-2 h-2 border border-gray-400 rounded-full mr-1"></div> Kosong</div>
-                              </div>
-                              {selectedRoom.googleCalendarId && (
-                                  <a href="#" className="block mt-4 text-center text-xs text-blue-600 hover:underline flex items-center justify-center">
-                                      Buka di Google Calendar <ExternalLink className="w-3 h-3 ml-1" />
-                                  </a>
+                              
+                              {selectedRoom.googleCalendarUrl ? (
+                                <div className="w-full h-64 bg-gray-100 rounded-lg overflow-hidden">
+                                    <iframe 
+                                        src={selectedRoom.googleCalendarUrl} 
+                                        style={{border: 0, filter: isDarkMode ? 'invert(1) hue-rotate(180deg)' : 'none'}} 
+                                        width="100%" 
+                                        height="100%" 
+                                        frameBorder="0" 
+                                        scrolling="no"
+                                    ></iframe>
+                                </div>
+                              ) : (
+                                <div className="h-64 flex flex-col items-center justify-center text-gray-400 bg-gray-100 dark:bg-gray-800 rounded-lg border border-dashed border-gray-300 dark:border-gray-600">
+                                    <Calendar className="w-8 h-8 mb-2 opacity-50" />
+                                    <span className="text-sm">Jadwal belum dikonfigurasi</span>
+                                </div>
                               )}
                           </div>
                       </div>
@@ -435,31 +415,47 @@ const Rooms: React.FC<RoomsProps> = ({ role }) => {
                   </div>
                   
                   {/* Schedule Section */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                       <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tanggal</label>
-                          <input type="date" required 
-                              value={bookingForm.date} 
-                              onChange={e => setBookingForm({...bookingForm, date: e.target.value})}
-                              className="w-full px-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500" 
-                          />
-                       </div>
-                       <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Jam Mulai</label>
-                          <input type="time" required 
-                              value={bookingForm.startTime} 
-                              onChange={e => setBookingForm({...bookingForm, startTime: e.target.value})}
-                              className="w-full px-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500" 
-                          />
-                       </div>
-                       <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Jam Selesai</label>
-                          <input type="time" required 
-                              value={bookingForm.endTime} 
-                              onChange={e => setBookingForm({...bookingForm, endTime: e.target.value})}
-                              className="w-full px-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500" 
-                          />
-                       </div>
+                  <div className="space-y-3 bg-gray-50 dark:bg-gray-700/30 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                      <div className="flex justify-between items-center">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Jadwal Pemakaian</label>
+                          <button type="button" onClick={addScheduleRow} className="text-sm text-blue-600 hover:underline flex items-center font-medium">
+                              <Plus className="w-4 h-4 mr-1" /> Tambah Hari
+                          </button>
+                      </div>
+                      
+                      {bookingSchedules.map((schedule, index) => (
+                          <div key={index} className="flex flex-col sm:flex-row gap-3 items-end animate-fade-in-up">
+                              <div className="flex-1 w-full">
+                                  <label className="block text-xs text-gray-500 mb-1">Tanggal</label>
+                                  <input type="date" required 
+                                      value={schedule.date} 
+                                      onChange={e => updateScheduleRow(index, 'date', e.target.value)}
+                                      className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 text-sm" 
+                                  />
+                              </div>
+                              <div className="w-full sm:w-32">
+                                  <label className="block text-xs text-gray-500 mb-1">Jam Mulai</label>
+                                  <input type="time" required 
+                                      value={schedule.startTime} 
+                                      onChange={e => updateScheduleRow(index, 'startTime', e.target.value)}
+                                      className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 text-sm" 
+                                  />
+                              </div>
+                              <div className="w-full sm:w-32">
+                                  <label className="block text-xs text-gray-500 mb-1">Jam Selesai</label>
+                                  <input type="time" required 
+                                      value={schedule.endTime} 
+                                      onChange={e => updateScheduleRow(index, 'endTime', e.target.value)}
+                                      className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 text-sm" 
+                                  />
+                              </div>
+                              {bookingSchedules.length > 1 && (
+                                  <button type="button" onClick={() => removeScheduleRow(index)} className="p-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg mb-[1px] transition-colors" title="Hapus baris">
+                                      <Trash2 className="w-4 h-4" />
+                                  </button>
+                              )}
+                          </div>
+                      ))}
                   </div>
 
                   {/* Purpose */}
@@ -588,7 +584,7 @@ const Rooms: React.FC<RoomsProps> = ({ role }) => {
                   <span className="text-xs font-semibold px-2 py-1 bg-blue-100 text-blue-700 rounded dark:bg-blue-900/30 dark:text-blue-300">
                      Cap: {room.capacity}
                   </span>
-                  {room.googleCalendarId && (
+                  {room.googleCalendarUrl && (
                     <span title="Calendar Synced">
                       <Check className="w-4 h-4 text-green-500" />
                     </span>
