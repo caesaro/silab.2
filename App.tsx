@@ -208,8 +208,11 @@ const App: React.FC = () => {
             onNavigate={(page) => setCurrentPage(page)}
           />
 
-          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 print:overflow-visible print:h-auto print:p-0 print:block">
-            {renderPage()}
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 print:overflow-visible print:h-auto print:p-0 print:block flex flex-col">
+            <div className="flex-1">{renderPage()}</div>
+            <footer className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 text-center text-sm text-gray-500 dark:text-gray-400 print:hidden">
+              CORE.FTI - Campus Operational Resource Environment &copy; {new Date().getFullYear()} FTI UKSW. All rights reserved.
+            </footer>
           </main>
         </div>
       </div>

@@ -117,7 +117,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
             <span className="text-2xl font-bold tracking-wide">CORE.FTI</span>
           </div>
           <h1 className="text-4xl lg:text-5xl font-bold leading-tight mb-4">
-            Sistem Informasi <br/> Laboratorium
+            Campus Operational <br/> Resource Environment
           </h1>
           <p className="text-blue-100 text-lg max-w-md">
             Fakultas Teknologi Informasi<br/> Universitas Kristen Satya Wacana
