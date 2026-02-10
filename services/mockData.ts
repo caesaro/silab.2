@@ -12,7 +12,7 @@ export const MOCK_ROOMS: Room[] = [
     pic: 'Bpk. Budi Santoso',
     image: 'https://pannellum.org/images/alma.jpg', // Valid 360
     facilities: ['AC', 'Projector', 'Whiteboard', '40 PC Core i7'],
-    googleCalendarUrl: 'https://calendar.google.com/calendar/embed?src=adm.uksw.edu_i394lo68heo5ouen6eitoppqdc%40group.calendar.google.com&ctz=Asia%2FJakarta'
+    googleCalendarUrl: 'c_ido2ic81c9n3h6vn2thut0u2eo@group.calendar.google.com'
   },
   {
     id: '2',
@@ -22,7 +22,7 @@ export const MOCK_ROOMS: Room[] = [
     pic: 'Ibu Siti Aminah',
     image: 'https://pannellum.org/images/cerro-toco-0.jpg', // Valid 360
     facilities: ['AC', 'Smart TV', 'Cisco Routers', 'Server Rack'],
-    googleCalendarUrl: 'https://calendar.google.com/calendar/embed?src=c_3ou2lfumin3q7k32648i1gbvv0%40group.calendar.google.com&ctz=Asia%2FJakarta'
+    googleCalendarUrl: 'c_694968ca4c0f78e1740367210f56c33a29c51bfbae5650ca5298f0da1a563628@group.calendar.google.com'
   },
   {
     id: '3',
@@ -32,6 +32,7 @@ export const MOCK_ROOMS: Room[] = [
     pic: 'Sdr. Andi Wijaya',
     image: 'https://pannellum.org/images/bma-0.jpg', // Updated to valid 360
     facilities: ['Soldering Station', '3D Printer', 'Oscilloscope'],
+    googleCalendarUrl: 'c_6fngm9a8sjj1d7rv8l2ckov4h4@group.calendar.google.com'
   },
   {
     id: '4',

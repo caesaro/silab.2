@@ -1,18 +1,36 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MOCK_ROOMS, MOCK_BOOKINGS, MOCK_LAB_STAFF } from '../services/mockData';
 import { Room, Role, BookingStatus, Booking } from '../types';
-import { Search, MapPin, Users, Wifi, Edit2, Trash2, Calendar, Eye, Check, Plus, Upload, Loader2, ArrowUpDown, ExternalLink, FileText, User } from 'lucide-react';
+import { Search, MapPin, Users, Wifi, Edit2, Trash2, Calendar, Eye, Check, Plus, Upload, Loader2, ArrowUpDown, ExternalLink, FileText, User, LogIn, RefreshCw, Clock, ChevronRight } from 'lucide-react';
 
 // Declare Pannellum for TypeScript
 declare global {
   interface Window {
     pannellum: any;
+    gapi: any;
+    google: any;
   }
 }
+
+// Google API Config
+const CLIENT_ID = '828476305239-7hilvfjvadt8ndn9br7n1upmdso38ou8.apps.googleusercontent.com';
+const API_KEY = 'AIzaSyDMKoa430rirp8g8bBU3Xt-IE5EKZjiZWQ';
+const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'];
+const SCOPES = 'https://www.googleapis.com/auth/calendar.events.readonly';
 
 interface RoomsProps {
   role: Role;
   isDarkMode: boolean;
+}
+
+interface GoogleEvent {
+  id: string;
+  summary: string;
+  description?: string;
+  start: { dateTime?: string; date?: string };
+  end: { dateTime?: string; date?: string };
+  location?: string;
+  htmlLink: string;
 }
 
 // Sub-component for 360 Thumbnail in List View
@@ -68,6 +86,14 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
   // Pannellum Ref
   const panoramaRef = useRef<HTMLDivElement>(null);
 
+  // Google API State
+  const [calendarEvents, setCalendarEvents] = useState<GoogleEvent[]>([]);
+  const [isCalendarLoading, setIsCalendarLoading] = useState(false);
+  const [isGapiReady, setIsGapiReady] = useState(false);
+  const [tokenClient, setTokenClient] = useState<any>(null);
+  const [isGoogleAuthenticated, setIsGoogleAuthenticated] = useState(false);
+  const [isBookingLoading, setIsBookingLoading] = useState(false);
+
   // Filter Active Technicians for PIC Dropdown
   const activeTechnicians = MOCK_LAB_STAFF.filter(s => s.type === 'Teknisi' && s.status === 'Aktif');
 
@@ -102,6 +128,128 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
       });
     }
   }, [viewMode, selectedRoom]);
+
+  // Initialize Google API
+  useEffect(() => {
+    const loadScripts = () => {
+      if (typeof window.gapi === 'undefined') {
+          const script1 = document.createElement('script');
+          script1.src = 'https://apis.google.com/js/api.js';
+          script1.onload = () => {
+            window.gapi.load('client', initializeGapiClient);
+          };
+          document.body.appendChild(script1);
+      } else {
+          window.gapi.load('client', initializeGapiClient);
+      }
+
+      if (typeof window.google === 'undefined') {
+          const script2 = document.createElement('script');
+          script2.src = 'https://accounts.google.com/gsi/client';
+          script2.onload = () => initializeGisClient();
+          document.body.appendChild(script2);
+      } else {
+          initializeGisClient();
+      }
+    };
+    loadScripts();
+  }, []);
+
+  const initializeGapiClient = async () => {
+    try {
+        await window.gapi.client.init({
+            apiKey: API_KEY,
+            discoveryDocs: DISCOVERY_DOCS,
+        });
+        setIsGapiReady(true);
+    } catch (error) {
+        console.error("Error initializing GAPI:", error);
+    }
+  };
+
+  const initializeGisClient = () => {
+    try {
+        const client = window.google.accounts.oauth2.initTokenClient({
+            client_id: CLIENT_ID,
+            scope: SCOPES,
+            callback: async (resp: any) => {
+                if (resp.error !== undefined) {
+                    throw resp;
+                }
+                setIsGoogleAuthenticated(true);
+            },
+        });
+        setTokenClient(client);
+    } catch (error) {
+        console.error("Error initializing GIS", error);
+    }
+  };
+
+  const handleAuthClick = () => {
+    if (tokenClient) {
+      tokenClient.requestAccessToken({ prompt: 'consent' });
+    }
+  };
+
+  const getCalendarId = (input: string) => {
+    if (!input) return null;
+    const cleanInput = input.trim();
+    // Jika input bukan URL (tidak ada http), asumsikan itu adalah Calendar ID langsung
+    if (!cleanInput.startsWith('http')) {
+        return cleanInput;
+    }
+    try {
+      const urlObj = new URL(input);
+      const src = urlObj.searchParams.get('src');
+      return src ? decodeURIComponent(src) : null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const fetchRoomEvents = async () => {
+      if (!selectedRoom?.googleCalendarUrl || !isGapiReady) return;
+      
+      const calendarId = getCalendarId(selectedRoom.googleCalendarUrl);
+      if (!calendarId) return;
+
+      setIsCalendarLoading(true);
+      try {
+          const request = {
+              'calendarId': calendarId,
+              'timeMin': (new Date()).toISOString(),
+              'showDeleted': false,
+              'singleEvents': true,
+              'maxResults': 5, // Limit for small view
+              'orderBy': 'startTime',
+          };
+          const response = await window.gapi.client.calendar.events.list(request);
+          setCalendarEvents(response.result.items);
+      } catch (e) {
+          console.error(e);
+      } finally {
+          setIsCalendarLoading(false);
+      }
+  };
+
+  // Fetch events when dependencies change
+  useEffect(() => {
+      if (viewMode === 'detail' && selectedRoom && isGapiReady) {
+          fetchRoomEvents();
+      }
+  }, [viewMode, selectedRoom, isGapiReady]);
+
+  const formatEventTime = (dateTime?: string, date?: string) => {
+    if (dateTime) {
+      return new Date(dateTime).toLocaleString('id-ID', { 
+        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' 
+      });
+    }
+    if (date) {
+      return new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) + " (All Day)";
+    }
+    return "-";
+  };
 
   const handleBookingFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -143,17 +291,64 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
     setBookingSchedules(newSchedules);
   };
 
-  const handleBookingSubmit = (e: React.FormEvent) => {
+  // Check Availability against Google Calendar
+  const checkGoogleCalendarAvailability = async (calendarId: string, date: string, startTime: string, endTime: string) => {
+    try {
+      const startDateTime = new Date(`${date}T${startTime}:00`);
+      const endDateTime = new Date(`${date}T${endTime}:00`);
+      
+      if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) return false;
+
+      const response = await window.gapi.client.calendar.events.list({
+        calendarId: calendarId,
+        timeMin: startDateTime.toISOString(),
+        timeMax: endDateTime.toISOString(),
+        singleEvents: true,
+        showDeleted: false
+      });
+
+      // Filter overlap: (StartA < EndB) && (EndA > StartB)
+      const conflicts = response.result.items.filter((event: any) => {
+          const eventStart = new Date(event.start.dateTime || event.start.date);
+          const eventEnd = new Date(event.end.dateTime || event.end.date);
+          return eventStart < endDateTime && eventEnd > startDateTime;
+      });
+
+      return conflicts.length > 0;
+    } catch (error) {
+      console.error("Error checking availability:", error);
+      return false; 
+    }
+  };
+
+  const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!bookingFile) {
        alert("Mohon upload surat permohonan peminjaman.");
        return;
     }
     
+    // Validasi Konflik dengan Google Calendar
+    if (selectedRoom?.googleCalendarUrl && isGapiReady) {
+        const calendarId = getCalendarId(selectedRoom.googleCalendarUrl);
+        if (calendarId) {
+            setIsBookingLoading(true);
+            for (const schedule of bookingSchedules) {
+                const isBusy = await checkGoogleCalendarAvailability(calendarId, schedule.date, schedule.startTime, schedule.endTime);
+                if (isBusy) {
+                    alert(`GAGAL: Jadwal bentrok! Ruangan sudah terpakai di Google Calendar pada tanggal ${schedule.date} pukul ${schedule.startTime} - ${schedule.endTime}.`);
+                    setIsBookingLoading(false);
+                    return;
+                }
+            }
+            setIsBookingLoading(false);
+        }
+    }
+
     const scheduleSummary = bookingSchedules.map(s => `- ${s.date} (${s.startTime} - ${s.endTime})`).join('\n');
 
-    // In a real app, upload logic here
-    alert(`Permohonan berhasil dikirim!\n\nJadwal Kegiatan:\n${scheduleSummary}\n\nPenanggung Jawab: ${bookingForm.responsiblePerson}\nFile: ${bookingForm.proposalFile}`);
+    // Simpan ke Mock Data (Simulasi Backend)
+    alert(`Permohonan berhasil dikirim dan jadwal TERSEDIA!\n\nJadwal Kegiatan:\n${scheduleSummary}\n\nPenanggung Jawab: ${bookingForm.responsiblePerson}\nFile: ${bookingForm.proposalFile}`);
     
     // Reset and go back
     setBookingFile(null);
@@ -276,13 +471,14 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
                <p className="text-xs text-gray-500 mt-1">*Hanya teknisi aktif yang ditampilkan</p>
             </div>
              <div>
-               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Google Calendar Public URL (Embed)</label>
+               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Google Calendar ID</label>
                <input 
                   type="text" value={formData.googleCalendarUrl || ''} 
                   onChange={e => setFormData({...formData, googleCalendarUrl: e.target.value})}
-                  placeholder='https://calendar.google.com/calendar/embed?src=...'
+                  placeholder='Contoh: fti.laboran@adm.uksw.edu atau c_...@group.calendar.google.com'
                   className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500" 
                />
+               <p className="text-xs text-gray-500 mt-1">Masukkan ID Kalender (email/group ID) atau URL Embed.</p>
             </div>
             <div className="md:col-span-2">
                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upload Gambar 360</label>
@@ -374,22 +570,37 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
                           </div>
 
                           <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
-                              <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white flex items-center justify-between">
+                              <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white flex items-center justify-between flex-shrink-0">
                                   <span className="flex items-center"><Calendar className="w-5 h-5 mr-2 text-blue-500"/> Jadwal Ruangan</span>
-                                  <span className="text-xs font-normal text-gray-500">{new Date().toLocaleString('default', { month: 'long' })}</span>
+                                  {isGapiReady && (
+                                     <button onClick={fetchRoomEvents} className="text-gray-500 hover:text-blue-500" title="Refresh">
+                                        <RefreshCw className={`w-4 h-4 ${isCalendarLoading ? 'animate-spin' : ''}`}/>
+                                     </button>
+                                  )}
                               </h3>
                               
-                              {selectedRoom.googleCalendarUrl ? (
-                                <div className="w-full h-64 bg-gray-100 rounded-lg overflow-hidden">
-                                    <iframe 
-                                        src={selectedRoom.googleCalendarUrl} 
-                                        style={{border: 0, filter: isDarkMode ? 'invert(1) hue-rotate(180deg)' : 'none'}} 
-                                        width="100%" 
-                                        height="100%" 
-                                        frameBorder="0" 
-                                        scrolling="no"
-                                    ></iframe>
-                                </div>
+                              {selectedRoom.googleCalendarUrl ? ( 
+                                <div className="min-h-[250px] max-h-[400px] overflow-y-auto pr-1">
+                                    {calendarEvents.length > 0 ? (
+                                        <div className="space-y-3">
+                                            {calendarEvents.map(event => (
+                                                <a key={event.id} href={event.htmlLink} target="_blank" rel="noopener noreferrer" className="block bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-500 transition-colors group">
+                                                    <div className="flex justify-between items-start">
+                                                        <h4 className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 line-clamp-1">{event.summary}</h4>
+                                                        <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-500" />
+                                                    </div>
+                                                    <div className="mt-2 flex items-center text-xs text-gray-500 dark:text-gray-400">
+                                                        <Clock className="w-3 h-3 mr-1" /> {formatEventTime(event.start.dateTime, event.start.date)}
+                                                    </div>
+                                                </a>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center h-48 text-center text-gray-500">
+                                            <p className="text-sm">Tidak ada agenda mendatang.</p>
+                                        </div>
+                                    )}
+                                </div> 
                               ) : (
                                 <div className="h-64 flex flex-col items-center justify-center text-gray-400 bg-gray-100 dark:bg-gray-800 rounded-lg border border-dashed border-gray-300 dark:border-gray-600">
                                     <Calendar className="w-8 h-8 mb-2 opacity-50" />
@@ -521,8 +732,9 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
 
                   <div className="flex space-x-3 pt-4">
                       <button type="button" onClick={() => setViewMode('detail')} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">Batal</button>
-                      <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center justify-center">
-                          <Check className="w-4 h-4 mr-2" /> Kirim Permohonan
+                      <button type="submit" disabled={isBookingLoading} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center justify-center disabled:opacity-50">
+                          {isBookingLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />} 
+                          {isBookingLoading ? 'Cek Jadwal...' : 'Kirim Permohonan'}
                       </button>
                   </div>
               </form>
