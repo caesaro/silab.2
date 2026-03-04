@@ -162,7 +162,7 @@ const Inventory: React.FC = () => {
                           condition: rowData.condition ? String(rowData.condition) as any : 'Baik',
                           isAvailable: true,
                           serialNumber: rowData.serialNumber ? String(rowData.serialNumber) : ''
-                      });
+                      } as Equipment);
                   }
               }
           });

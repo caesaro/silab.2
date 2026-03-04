@@ -43,6 +43,7 @@ export interface Equipment {
   category: string; // New field
   condition: 'Baik' | 'Rusak Ringan' | 'Rusak Berat';
   isAvailable: boolean;
+  serialNumber?: string;
 }
 
 export interface Loan {
