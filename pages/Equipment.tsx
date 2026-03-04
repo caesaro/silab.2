@@ -45,7 +45,7 @@ const Equipment: React.FC<EquipmentProps> = ({ role, showToast }) => {
     setReturnConfirmation({
         loan,
         returnDate: now.toLocaleDateString('en-CA'), // YYYY-MM-DD
-        returnTime: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+        returnTime: now.toTimeString().slice(0, 5)   // HH:MM format for input
     });
   };
 
@@ -280,6 +280,12 @@ const Equipment: React.FC<EquipmentProps> = ({ role, showToast }) => {
                     <td className="px-6 py-4">
                         <div className="text-gray-900 dark:text-white text-sm">{borrowDate}</div>
                         <div className="text-xs text-gray-500">{borrowTime}</div>
+                        {allReturned && firstLoan.actualReturnDate && (
+                            <div className="mt-2 pt-1 border-t border-gray-100 dark:border-gray-700">
+                                <div className="text-[10px] uppercase font-bold text-green-600 dark:text-green-400">Dikembalikan:</div>
+                                <div className="text-xs text-gray-500">{firstLoan.actualReturnDate} {firstLoan.actualReturnTime}</div>
+                            </div>
+                        )}
                     </td>
                     <td className="px-6 py-4">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
@@ -510,9 +516,14 @@ const Equipment: React.FC<EquipmentProps> = ({ role, showToast }) => {
                                           <Check className="w-3 h-3 mr-1" /> Kembalikan
                                       </button>
                                   ) : (
-                                      <span className="px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-xs font-medium rounded flex items-center">
-                                          <Check className="w-3 h-3 mr-1" /> Dikembalikan
-                                      </span>
+                                      <div className="text-right">
+                                          <span className="px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-xs font-medium rounded inline-flex items-center mb-1">
+                                              <Check className="w-3 h-3 mr-1" /> Dikembalikan
+                                          </span>
+                                          {loan.actualReturnDate && (
+                                              <p className="text-xs text-gray-500">{loan.actualReturnDate} • {loan.actualReturnTime}</p>
+                                          )}
+                                      </div>
                                   )}
                               </div>
                           </div>
@@ -551,7 +562,7 @@ const Equipment: React.FC<EquipmentProps> = ({ role, showToast }) => {
                           <div>
                               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Tanggal Kembali</label>
                               <input 
-                                type="date" 
+                                type="date" required
                                 value={returnConfirmation.returnDate}
                                 onChange={e => setReturnConfirmation({...returnConfirmation, returnDate: e.target.value})}
                                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
@@ -560,7 +571,7 @@ const Equipment: React.FC<EquipmentProps> = ({ role, showToast }) => {
                           <div>
                               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Jam Kembali</label>
                               <input 
-                                type="time" 
+                                type="time" required
                                 value={returnConfirmation.returnTime}
                                 onChange={e => setReturnConfirmation({...returnConfirmation, returnTime: e.target.value})}
                                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
@@ -571,12 +582,13 @@ const Equipment: React.FC<EquipmentProps> = ({ role, showToast }) => {
                   <div className="flex space-x-3">
                       <button onClick={() => setReturnConfirmation(null)} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Batal</button>
                       <button 
+                        disabled={!returnConfirmation.returnDate || !returnConfirmation.returnTime}
                         onClick={() => {
                             confirmReturn();
                             setReturnConfirmation(null);
                             showToast("Barang berhasil dikembalikan", "success");
                         }} 
-                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                           Konfirmasi
                       </button>

@@ -44,6 +44,8 @@ const Schedule: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedEvent, setSelectedEvent] = useState<GoogleEvent | null>(null);
+  const [selectedDayDetail, setSelectedDayDetail] = useState<{ date: number; events: GoogleEvent[]; fullDate: string } | null>(null);
   
   // Form State for Add Event
   const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
@@ -119,7 +121,7 @@ const Schedule: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) => {
   // 3. Initialize GIS Client (Auth)
   const initializeGisClient = () => {
     // Tentukan scope berdasarkan role: Admin dapat Write, User hanya Read
-    const scope = role === Role.ADMIN 
+    const scope = (role === Role.ADMIN || role === Role.LABORAN)
       ? 'https://www.googleapis.com/auth/calendar.events' 
       : 'https://www.googleapis.com/auth/calendar.events.readonly';
 
@@ -343,11 +345,27 @@ const Schedule: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) => {
     return days;
   }, [currentDate, events]);
 
+  // Helper to check overlap for styling (Visual indication only, not conflict)
+  const checkOverlap = (currentEvent: GoogleEvent, dayEvents: GoogleEvent[]) => {
+      if (!currentEvent.start.dateTime || !currentEvent.end.dateTime) return false;
+      const currentStart = new Date(currentEvent.start.dateTime).getTime();
+      const currentEnd = new Date(currentEvent.end.dateTime).getTime();
+
+      return dayEvents.some(other => {
+          if (other.id === currentEvent.id) return false;
+          if (!other.start.dateTime || !other.end.dateTime) return false;
+          const otherStart = new Date(other.start.dateTime).getTime();
+          const otherEnd = new Date(other.end.dateTime).getTime();
+
+          return currentStart < otherEnd && currentEnd > otherStart;
+      });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Jadwal Laboratorium</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Jadwal Ruang</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm">
             Jadwal Resmi Ruangan: <span className="font-bold text-blue-600 dark:text-blue-400">
               {selectedRoom?.name || 'Pilih Ruangan'}
@@ -371,7 +389,7 @@ const Schedule: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) => {
                     ))}
                  </select>
              </div>
-             {role === Role.ADMIN && (
+             {(role === Role.ADMIN || role === Role.LABORAN) && (
                 <button 
                   onClick={handleOpenAddEventModal}
                   disabled={isLoading}
@@ -392,7 +410,7 @@ const Schedule: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) => {
              )}
          </div>
          
-         {selectedRoom?.googleCalendarUrl && (
+         {selectedRoom?.googleCalendarUrl && role !== Role.USER && (
              <a 
                 href={`https://calendar.google.com/calendar/embed?src=${encodeURIComponent(getCalendarId(selectedRoom.googleCalendarUrl) || '')}`}
                 target="_blank" 
@@ -440,8 +458,9 @@ const Schedule: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) => {
                    <div className="grid grid-cols-7 auto-rows-fr bg-white dark:bg-gray-800">
                        {calendarGrid.map((day, idx) => (
                            <div 
-                               key={idx} 
-                               className={`min-h-[120px] border-b border-r border-gray-100 dark:border-gray-700 p-2 transition-colors ${!day.isCurrentMonth ? 'bg-gray-50/50 dark:bg-gray-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'}`}
+                               key={idx}
+                               onClick={() => day.isCurrentMonth && setSelectedDayDetail(day)}
+                               className={`min-h-[120px] border-b border-r border-gray-100 dark:border-gray-700 p-2 transition-colors ${!day.isCurrentMonth ? 'bg-gray-50/50 dark:bg-gray-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer'}`}
                            >
                                {day.isCurrentMonth && (
                                    <>
@@ -453,19 +472,27 @@ const Schedule: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) => {
                                            {day.date}
                                        </div>
                                        <div className="space-y-1">
-                                           {day.events.map(event => (
-                                               <a 
+                                           {day.events.map(event => {
+                                               const isOverlapping = checkOverlap(event, day.events);
+                                               return (
+                                               <div 
                                                    key={event.id}
-                                                   href={event.htmlLink}
-                                                   target="_blank"
-                                                   rel="noopener noreferrer"
-                                                   className="block text-xs p-1.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800 truncate hover:opacity-80 transition-opacity"
-                                                   title={`${event.summary}\n${formatEventTime(event.start.dateTime, event.start.date)}`}
+                                                   onClick={(e) => { e.stopPropagation(); setSelectedEvent(event); }}
+                                                   className={`block text-xs p-1.5 rounded border truncate hover:opacity-80 transition-opacity cursor-pointer ${
+                                                       isOverlapping 
+                                                       ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' 
+                                                       : 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-100 dark:border-blue-800'
+                                                   }`}
+                                                   title={`${event.summary}\n${formatEventTime(event.start.dateTime, event.start.date)}${isOverlapping ? '\n(Jadwal Bersamaan)' : ''}`}
                                                >
-                                                   {event.start.dateTime && <span className="font-mono text-[10px] mr-1 opacity-75">{new Date(event.start.dateTime).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})}</span>}
-                                                   {event.summary}
-                                               </a>
-                                           ))}
+                                                   <div className="flex items-center">
+                                                       {isOverlapping && <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 mr-1.5 flex-shrink-0" />}
+                                                       {event.start.dateTime && <span className="font-mono text-[10px] mr-1 opacity-75 flex-shrink-0">{new Date(event.start.dateTime).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})}</span>}
+                                                       <span className="truncate">{event.summary}</span>
+                                                   </div>
+                                               </div>
+                                               );
+                                           })}
                                        </div>
                                    </>
                                )}
@@ -476,9 +503,121 @@ const Schedule: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) => {
             </div>
       </div>
 
+      {/* Day Detail Modal */}
+      {selectedDayDetail && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setSelectedDayDetail(null)}>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up" onClick={e => e.stopPropagation()}>
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
+                    <h3 className="font-bold text-gray-900 dark:text-white flex items-center pr-4">
+                        <CalendarIcon className="w-5 h-5 mr-2 text-blue-600 flex-shrink-0" />
+                        {new Date(selectedDayDetail.fullDate).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                    </h3>
+                    <button onClick={() => setSelectedDayDetail(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+                <div className="p-6 max-h-[60vh] overflow-y-auto scrollbar-thin">
+                    {selectedDayDetail.events.length > 0 ? (
+                        <div className="space-y-3">
+                            {selectedDayDetail.events.map(event => {
+                                const isOverlapping = checkOverlap(event, selectedDayDetail.events);
+                                return (
+                                    <div 
+                                        key={event.id}
+                                        onClick={() => setSelectedEvent(event)}
+                                        className={`block p-3 rounded-lg border hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-pointer ${
+                                            isOverlapping 
+                                            ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' 
+                                            : 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-100 dark:border-blue-800'
+                                        }`}
+                                    >
+                                        <p className="font-bold text-sm mb-1">{event.summary}</p>
+                                        <div className="flex items-center text-xs opacity-80">
+                                            <Clock className="w-3 h-3 mr-1.5" />
+                                            <span>
+                                                {event.start.dateTime 
+                                                    ? `${new Date(event.start.dateTime).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})} - ${event.end.dateTime ? new Date(event.end.dateTime).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}) : ''}`
+                                                    : 'Seharian'
+                                                }
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="text-center py-10 text-gray-500">
+                            <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                            <p className="font-medium">Tidak ada kegiatan terjadwal pada hari ini.</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Event Detail Modal */}
+      {selectedEvent && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setSelectedEvent(null)}>
+           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up" onClick={e => e.stopPropagation()}>
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
+                 <h3 className="font-bold text-gray-900 dark:text-white flex items-center pr-4">
+                    <CalendarIcon className="w-5 h-5 mr-2 text-blue-600 flex-shrink-0" />
+                    Detail Kegiatan
+                 </h3>
+                 <button onClick={() => setSelectedEvent(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <X className="w-5 h-5" />
+                 </button>
+              </div>
+              <div className="p-6 space-y-4">
+                 <div className="flex items-start">
+                    <Type className="w-5 h-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
+                    <div>
+                       <p className="text-sm font-medium text-gray-900 dark:text-white">Nama Kegiatan</p>
+                       <p className="text-sm text-gray-800 dark:text-gray-200 font-semibold mt-0.5">
+                          {selectedEvent.summary}
+                       </p>
+                    </div>
+                 </div>
+
+                 <div className="flex items-start">
+                    <Clock className="w-5 h-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
+                    <div>
+                       <p className="text-sm font-medium text-gray-900 dark:text-white">Waktu</p>
+                       <p className="text-sm text-gray-600 dark:text-gray-300">
+                          {formatEventTime(selectedEvent.start.dateTime, selectedEvent.start.date)}
+                          {selectedEvent.end.dateTime && ` - ${new Date(selectedEvent.end.dateTime).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})}`}
+                       </p>
+                    </div>
+                 </div>
+                 
+                 <div className="flex items-start">
+                    <AlignLeft className="w-5 h-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
+                    <div>
+                       <p className="text-sm font-medium text-gray-900 dark:text-white">Deskripsi</p>
+                       <div className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap max-h-40 overflow-y-auto mt-1 scrollbar-thin">
+                          {selectedEvent.description || "Tidak ada deskripsi."}
+                       </div>
+                    </div>
+                 </div>
+              </div>
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end bg-gray-50 dark:bg-gray-700/50">
+                 <a 
+                    href={selectedEvent.htmlLink} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:underline flex items-center"
+                 >
+                    Buka di Google Calendar <ExternalLink className="w-4 h-4 ml-1" />
+                 </a>
+              </div>
+           </div>
+        </div>
+      )}
+
       {/* Add Event Modal */}
       {isAddEventModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
               <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
                  <h3 className="font-bold text-gray-900 dark:text-white flex items-center">

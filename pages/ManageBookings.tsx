@@ -3,6 +3,19 @@ import { MOCK_BOOKINGS, MOCK_ROOMS } from '../services/mockData';
 import { Booking, BookingStatus } from '../types';
 import { Search, Filter, CheckCircle, XCircle, Calendar, Clock, MapPin, User, AlertCircle, FileText, Download, X, Phone, Shield, Loader2 } from 'lucide-react';
 
+// Konfigurasi Google API
+const CLIENT_ID = '828476305239-7hilvfjvadt8ndn9br7n1upmdso38ou8.apps.googleusercontent.com';
+const API_KEY = 'AIzaSyDMKoa430rirp8g8bBU3Xt-IE5EKZjiZWQ';
+const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'];
+const SCOPES = 'https://www.googleapis.com/auth/calendar.events'; // Scope Write
+
+declare global {
+  interface Window {
+    gapi: any;
+    google: any;
+  }
+}
+
 interface ManageBookingsProps {
   addNotification: (title: string, message: string, type: 'info' | 'success' | 'warning' | 'error') => void;
   showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void;
@@ -20,6 +33,44 @@ const ManageBookings: React.FC<ManageBookingsProps> = ({ addNotification, showTo
   // Loading State untuk aksi
   const [processingId, setProcessingId] = useState<string | null>(null);
 
+  // Google API State
+  const [isGapiInitialized, setIsGapiInitialized] = useState(false);
+  const [tokenClient, setTokenClient] = useState<any>(null);
+
+  // Initialize Google API
+  useEffect(() => {
+    const loadScripts = () => {
+      if (typeof window.gapi === 'undefined') {
+        const script1 = document.createElement('script');
+        script1.src = 'https://apis.google.com/js/api.js';
+        script1.onload = () => window.gapi.load('client', initializeGapiClient);
+        document.body.appendChild(script1);
+      } else {
+        window.gapi.load('client', initializeGapiClient);
+      }
+
+      if (typeof window.google === 'undefined') {
+        const script2 = document.createElement('script');
+        script2.src = 'https://accounts.google.com/gsi/client';
+        script2.onload = () => initializeGisClient();
+        document.body.appendChild(script2);
+      } else {
+        initializeGisClient();
+      }
+    };
+    loadScripts();
+  }, []);
+
+  const initializeGapiClient = async () => {
+    await window.gapi.client.init({ apiKey: API_KEY, discoveryDocs: DISCOVERY_DOCS });
+    setIsGapiInitialized(true);
+  };
+
+  const initializeGisClient = () => {
+    const client = window.google.accounts.oauth2.initTokenClient({ client_id: CLIENT_ID, scope: SCOPES, callback: () => {} });
+    setTokenClient(client);
+  };
+
   // Pastikan data termutakhir saat komponen dimount
   useEffect(() => {
     setBookings(MOCK_BOOKINGS);
@@ -29,15 +80,73 @@ const ManageBookings: React.FC<ManageBookingsProps> = ({ addNotification, showTo
     return MOCK_ROOMS.find(r => r.id === roomId)?.name || 'Unknown Room';
   };
 
-  const handleUpdateStatus = (id: string, newStatus: BookingStatus) => {
+  const getCalendarId = (input: string) => {
+    if (!input) return null;
+    if (!input.startsWith('http')) return input;
+    try {
+      return new URL(input).searchParams.get('src') || null;
+    } catch (e) { return null; }
+  };
+
+  const addToGoogleCalendar = async (booking: Booking) => {
+    const room = MOCK_ROOMS.find(r => r.id === booking.roomId);
+    if (!room?.googleCalendarUrl) return { success: true, message: "Skipped: No Calendar URL" };
+
+    const calendarId = getCalendarId(room.googleCalendarUrl);
+    if (!calendarId) return { success: false, message: "Invalid Calendar ID" };
+
+    // Cek Auth
+    if (window.gapi.client.getToken() === null) {
+        return new Promise((resolve) => {
+            tokenClient.requestAccessToken({ prompt: '' });
+            tokenClient.callback = async (resp: any) => {
+                if (resp.error) resolve({ success: false, message: "Auth Failed" });
+                else resolve(await insertEvent(calendarId, booking, room.name));
+            };
+        });
+    }
+    return await insertEvent(calendarId, booking, room.name);
+  };
+
+  const insertEvent = async (calendarId: string, booking: Booking, roomName: string) => {
+      try {
+          const startDateTime = new Date(`${booking.date}T${booking.startTime}:00`);
+          const endDateTime = new Date(`${booking.date}T${booking.endTime}:00`);
+          
+          await window.gapi.client.calendar.events.insert({
+              calendarId: calendarId,
+              resource: {
+                  summary: `[BOOKED] ${booking.purpose}`,
+                  location: roomName,
+                  description: `Peminjam: ${booking.userName}\nPJ: ${booking.responsiblePerson}\nKontak: ${booking.contactPerson}\n\nDisetujui via Silab FTI.`,
+                  start: { dateTime: startDateTime.toISOString() },
+                  end: { dateTime: endDateTime.toISOString() }
+              }
+          });
+          return { success: true, message: "Synced to Google Calendar" };
+      } catch (error: any) {
+          console.error("GAPI Error:", error);
+          return { success: false, message: error.result?.error?.message || "GAPI Error" };
+      }
+  };
+
+  const handleUpdateStatus = async (id: string, newStatus: BookingStatus) => {
     const booking = bookings.find(b => b.id === id);
     if (!booking) return;
 
     // Set loading state
     setProcessingId(id);
 
-    // Simulasi proses API
-    setTimeout(() => {
+    // Jika Disetujui, coba masukkan ke Google Calendar dulu
+    if (newStatus === BookingStatus.APPROVED && isGapiInitialized) {
+        const gapiResult: any = await addToGoogleCalendar(booking);
+        if (!gapiResult.success && gapiResult.message !== "Skipped: No Calendar URL") {
+            showToast(`Peringatan: Gagal sinkron ke Calendar (${gapiResult.message}), namun status tetap diupdate.`, 'warning');
+        } else if (gapiResult.success) {
+            showToast("Berhasil sinkronisasi ke Google Calendar!", "success");
+        }
+    }
+
       // 1. Update Mock Data (Persistensi In-Memory)
       const mockIndex = MOCK_BOOKINGS.findIndex(b => b.id === id);
       if (mockIndex !== -1) {
@@ -67,7 +176,6 @@ const ManageBookings: React.FC<ManageBookingsProps> = ({ addNotification, showTo
 
       // Reset loading state
       setProcessingId(null);
-    }, 800); 
   };
 
   const handleViewFile = (e: React.MouseEvent, fileName: string) => {
@@ -90,7 +198,7 @@ const ManageBookings: React.FC<ManageBookingsProps> = ({ addNotification, showTo
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Verifikasi Pesanan</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pesanan Ruang</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm">Kelola persetujuan peminjaman ruangan</p>
         </div>
         {pendingCount > 0 && (
@@ -170,6 +278,9 @@ const ManageBookings: React.FC<ManageBookingsProps> = ({ addNotification, showTo
                          <span className="flex items-center"><Calendar className="w-3 h-3 mr-1"/> {booking.date}</span>
                          <span className="flex items-center"><Clock className="w-3 h-3 mr-1"/> {booking.startTime} - {booking.endTime}</span>
                       </div>
+                   </td>
+                   <td className="px-6 py-4 text-gray-800 dark:text-gray-200 max-w-xs">
+                      <p className="line-clamp-2" title={booking.purpose}>{booking.purpose}</p>
                    </td>
                    <td className="px-6 py-4">
                       {booking.proposalFile ? (

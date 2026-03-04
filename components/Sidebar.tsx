@@ -13,10 +13,10 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate, isOpen }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: [Role.ADMIN, Role.LABORAN, Role.USER] },
-    { id: 'schedule', label: 'Jadwal Lab', icon: CalendarRange, roles: [Role.ADMIN, Role.LABORAN, Role.USER] },
+    { id: 'schedule', label: 'Jadwal Ruang', icon: CalendarRange, roles: [Role.ADMIN, Role.LABORAN, Role.USER] },
     { id: 'rooms', label: 'Daftar Ruangan', icon: Calendar, roles: [Role.ADMIN, Role.LABORAN, Role.USER] },
     { id: 'bookings', label: 'Pemesanan Saya', icon: FileText, roles: [Role.USER] },
-    { id: 'manage-bookings', label: 'Verifikasi Pesanan', icon: FileText, roles: [Role.ADMIN, Role.LABORAN] },
+    { id: 'manage-bookings', label: 'Pesanan Ruang', icon: FileText, roles: [Role.ADMIN, Role.LABORAN] },
     { id: 'laboran-management', label: 'Manajemen Laboran', icon: Wrench, roles: [Role.ADMIN] },
     { id: 'equipment', label: 'Peminjaman Barang', icon: Box, roles: [Role.ADMIN, Role.LABORAN] },
     { id: 'inventory', label: 'Inventaris', icon: Monitor, roles: [Role.ADMIN, Role.LABORAN] },

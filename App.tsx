@@ -120,23 +120,23 @@ const App: React.FC = () => {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard role={currentRole} />;
+        return <Dashboard role={currentRole} onNavigate={setCurrentPage} />;
       case 'schedule':
         return <Schedule role={currentRole} showToast={showToast} isDarkMode={isDarkMode} />;
       case 'rooms':
         return <Rooms role={currentRole} isDarkMode={isDarkMode} />;
       case 'equipment':
         // Double check protection (though Sidebar hides it)
-        if (currentRole === Role.USER) return <Dashboard role={currentRole} />;
+        if (currentRole === Role.USER) return <Dashboard role={currentRole} onNavigate={setCurrentPage} />;
         return <Equipment role={currentRole} showToast={showToast} />;
       case 'laboran-management':
-        if (currentRole !== Role.ADMIN) return <Dashboard role={currentRole} />;
+        if (currentRole !== Role.ADMIN) return <Dashboard role={currentRole} onNavigate={setCurrentPage} />;
         return <LaboranManagement />;
       case 'inventory':
-        if (currentRole === Role.USER) return <Dashboard role={currentRole} />;
+        if (currentRole === Role.USER) return <Dashboard role={currentRole} onNavigate={setCurrentPage} />;
         return <Inventory />;
       case 'users':
-        if (currentRole !== Role.ADMIN) return <Dashboard role={currentRole} />;
+        if (currentRole !== Role.ADMIN) return <Dashboard role={currentRole} onNavigate={setCurrentPage} />;
         return <UserManagement />;
       case 'bookings':
         // Passing John Doe's ID for demo purposes to match mock data
@@ -146,10 +146,10 @@ const App: React.FC = () => {
       case 'profile':
         return <Profile role={currentRole} />;
       case 'settings':
-        if (currentRole !== Role.ADMIN) return <Dashboard role={currentRole} />;
+        if (currentRole !== Role.ADMIN) return <Dashboard role={currentRole} onNavigate={setCurrentPage} />;
         return <Settings showToast={showToast} />;
       default:
-        return <Dashboard role={currentRole} />;
+        return <Dashboard role={currentRole} onNavigate={setCurrentPage} />;
     }
   };
 

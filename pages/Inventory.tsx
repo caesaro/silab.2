@@ -208,8 +208,8 @@ const Inventory: React.FC = () => {
     <div className="space-y-6">
        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Inventaris Laboratorium</h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm">Kelola daftar aset dan barang lab</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Inventaris Barang</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Kelola daftar aset dan barang FTI</p>
         </div>
         <button onClick={() => handleOpenModal()} className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center shadow-sm transition-all hover:scale-105">
             <Plus className="w-4 h-4 mr-2" /> Tambah Barang

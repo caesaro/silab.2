@@ -35,20 +35,70 @@ interface GoogleEvent {
 
 // Sub-component for 360 Thumbnail in List View
 const Room360Thumbnail: React.FC<{ room: Room }> = ({ room }) => {
+    const thumbnailRef = useRef<HTMLDivElement>(null);
+    const viewerRef = useRef<any>(null);
+
+    useEffect(() => {
+        if (thumbnailRef.current && window.pannellum) {
+            const uniqueId = `pannellum-thumb-${room.id}`;
+            thumbnailRef.current.id = uniqueId;
+
+            try {
+                // Destroy previous instance if exists
+                if (viewerRef.current) {
+                    try { viewerRef.current.destroy(); } catch(e) {}
+                }
+
+                viewerRef.current = window.pannellum.viewer(uniqueId, {
+                    type: 'equirectangular',
+                    panorama: room.image,
+                    autoLoad: true,
+                    autoRotate: 0,
+                    compass: false,
+                    showControls: false,
+                    mouseZoom: false,
+                    keyboardZoom: false,
+                    draggable: true,
+                    hfov: 100
+                });
+            } catch (error) {
+                console.error("Pannellum error:", error);
+            }
+        }
+        
+        return () => {
+            if (viewerRef.current) {
+                try {
+                    viewerRef.current.destroy();
+                } catch(e) {
+                    if (thumbnailRef.current) thumbnailRef.current.innerHTML = '';
+                }
+                viewerRef.current = null;
+            }
+        };
+    }, [room.id, room.image]);
+
+    const handleMouseEnter = () => {
+        if (viewerRef.current) {
+            viewerRef.current.startAutoRotate(-2);
+        }
+    };
+
+    const handleMouseLeave = () => {
+        if (viewerRef.current) {
+            viewerRef.current.stopAutoRotate();
+        }
+    };
+
     return (
-        <div className="w-full h-full relative group">
-            <img 
-                src={room.image} 
-                alt={room.name} 
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-            />
-            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors"></div>
+        <div 
+            className="w-full h-full relative group cursor-pointer" 
+            onClick={(e) => e.stopPropagation()}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+        >
+            <div ref={thumbnailRef} className="w-full h-full bg-gray-200" />
             
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                 <span className="text-white text-xs font-bold flex items-center bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-sm border border-white/20">
-                    <Eye className="w-4 h-4 mr-2"/> Lihat 360°
-                 </span>
-            </div>
             <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm flex items-center z-20 pointer-events-none">
                   <MapPin className="w-3 h-3 mr-1"/> FTI Lt. 4
             </div>
@@ -124,7 +174,7 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
         autoRotate: -2, // Rotate to the left at 2 degrees per second
         compass: true,
         title: "360° View",
-        author: "CORE.FTI"
+        author: "Pannellum"
       });
     }
   }, [viewMode, selectedRoom]);
@@ -521,7 +571,7 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
                   {/* 360 Viewer Container */}
                   <div className="relative h-96 w-full bg-black group">
                       <div ref={panoramaRef} className="w-full h-full"></div>
-                      <div className="absolute top-4 left-4 bg-black/50 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center backdrop-blur-sm pointer-events-none z-10">
+                      <div className="absolute top-4 left-10 bg-black/50 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center backdrop-blur-sm pointer-events-none z-10">
                           <Eye className="w-4 h-4 mr-2" /> 360° Interactive View
                       </div>
                   </div>
@@ -748,7 +798,7 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Daftar Ruangan</h1>
-           <p className="text-gray-500 dark:text-gray-400 text-sm">Laboratorium FTI UKSW</p>
+           <p className="text-gray-500 dark:text-gray-400 text-sm">Ruang Laboratorium/Praktek dan Teori FTI UKSW</p>
         </div>
         
         <div className="flex items-center gap-2">
