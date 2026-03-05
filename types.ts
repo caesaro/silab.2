@@ -1,7 +1,7 @@
 export enum Role {
   ADMIN = 'Admin',
   LABORAN = 'Laboran', // Teknisi / Admin Laboran
-  USER = 'Mahasiswa/Dosen',
+  USER = 'User',
 }
 
 export enum BookingStatus {
@@ -13,6 +13,7 @@ export enum BookingStatus {
 export interface Room {
   id: string;
   name: string;
+  category?: string;
   description: string;
   capacity: number;
   pic: string;
@@ -34,6 +35,7 @@ export interface Booking {
   endTime: string; // HH:mm
   proposalFile?: string; // New: URL/Name of uploaded PDF
   status: BookingStatus;
+  rejectionReason?: string; // Alasan penolakan
 }
 
 export interface Equipment {
@@ -76,7 +78,8 @@ export interface AppUser {
   id: string;
   name: string;
   email: string;
-  role: 'Mahasiswa' | 'Dosen' | 'Staff';
+  username?: string; // New Field
+  role: string;
   identifier: string; // NIM or NIDN
   department: string; // Prodi / Unit
   status: 'Aktif' | 'Non-Aktif' | 'Suspended';

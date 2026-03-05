@@ -1,29 +1,54 @@
 import React, { useState, useEffect } from 'react';
-import { AppUser } from '../types';
-import { Search, Plus, Filter, Edit, Trash2, X, Check, MoreHorizontal, UserCheck, UserX, Shield } from 'lucide-react';
+import { AppUser as BaseAppUser } from '../types';
+import { Search, Plus, Filter, Edit, Trash2, X, Check, MoreHorizontal, UserCheck, UserX, Shield, KeyRound, RefreshCw, Loader2, Users } from 'lucide-react';
+import { api } from '../services/api';
+import { TableSkeleton } from '../components/Skeleton';
+
+// Extend AppUser type locally to include phone
+type AppUser = BaseAppUser & { phone?: string };
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState<'All' | 'Mahasiswa' | 'Dosen'>('All');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Aktif' | 'Non-Aktif' | 'Suspended'>('All');
+  const [isLoading, setIsLoading] = useState(true);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
   const [formData, setFormData] = useState<Partial<AppUser>>({
-    name: '', email: '', role: 'Mahasiswa', identifier: '', department: '', status: 'Aktif'
+    name: '', email: '', username: '', role: 'User', identifier: '', phone: '', status: 'Aktif'
   });
 
+  const fetchUsers = async () => {
+    setIsLoading(true);
+    try {
+      // Mengambil data dari backend server
+      const response = await api('/api/users');
+      if (response.ok) {
+        const data = await response.json();
+        // Filter agar user dengan role ADMIN tidak muncul di list (Hanya bisa dimanipulasi di DB)
+        const nonAdminUsers = data.filter((u: AppUser) => u.role !== 'Admin');
+        setUsers(nonAdminUsers);
+      } else {
+        console.error("Gagal mengambil data users");
+      }
+    } catch (error) {
+      console.error("Error koneksi ke server:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // --- SIMULASI FETCH DATA DARI DATABASE ---
-    // Di aplikasi nyata, ini akan menjadi panggilan API ke backend Anda
-    // setUsers(api.getUsers());
+    fetchUsers();
   }, []);
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           user.identifier.includes(searchTerm) ||
+                          (user.username && user.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
                           user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === 'All' || user.role === filterRole;
     const matchesStatus = filterStatus === 'All' || user.status === filterStatus;
@@ -36,36 +61,80 @@ const UserManagement: React.FC = () => {
       setFormData(user);
     } else {
       setEditingUser(null);
-      setFormData({ name: '', email: '', role: 'Mahasiswa', identifier: '', department: '', status: 'Aktif' });
+      setFormData({ name: '', email: '', username: '', role: 'User', identifier: '', phone: '', status: 'Aktif' });
     }
     setIsModalOpen(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingUser) {
-      setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, ...formData } as AppUser : u));
-    } else {
-      const newUser: AppUser = {
-        ...formData,
-        id: Date.now().toString(),
-        lastLogin: '-'
-      } as AppUser;
-      setUsers(prev => [...prev, newUser]);
+    try {
+      if (editingUser) {
+        // Update
+        const res = await api(`/api/users/${editingUser.id}`, {
+          method: 'PUT',
+          data: formData
+        });
+        if (res.ok) fetchUsers();
+      } else {
+        // Create
+        const res = await api('/api/users', {
+          method: 'POST',
+          data: formData
+        });
+        if (res.ok) fetchUsers();
+      }
+      setIsModalOpen(false);
+    } catch (error) {
+      alert("Gagal menyimpan data user.");
     }
-    setIsModalOpen(false);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm("Apakah Anda yakin ingin menghapus user ini?")) {
-      setUsers(prev => prev.filter(u => u.id !== id));
+      try {
+        await api(`/api/users/${id}`, { method: 'DELETE' });
+        fetchUsers();
+      } catch (error) {
+        alert("Gagal menghapus user.");
+      }
     }
   };
 
-  const toggleStatus = (user: AppUser) => {
+  const toggleStatus = async (user: AppUser) => {
       const newStatus = user.status === 'Aktif' ? 'Non-Aktif' : 'Aktif';
-      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: newStatus } : u));
+      
+      try {
+        const response = await api(`/api/users/${user.id}/status`, {
+          method: 'PUT',
+          data: { status: newStatus }
+        });
+
+        if (response.ok) {
+          setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: newStatus } : u));
+        } else {
+          alert("Gagal mengubah status user.");
+        }
+      } catch (error) {
+        console.error("Error updating status:", error);
+      }
   };
+
+  const handleResetPassword = async (user: AppUser) => {
+    if (window.confirm(`Reset password untuk user ${user.name}? User akan diminta membuat password baru saat login berikutnya.`)) {
+      try {
+        await api(`/api/users/${user.id}/reset-password`, { method: 'PUT' });
+        alert(`Password untuk ${user.name} berhasil direset.`);
+        fetchUsers();
+      } catch (error) {
+        alert("Gagal mereset password.");
+      }
+    }
+  };
+
+  if (isLoading) {
+    return <TableSkeleton />;
+  }
 
   return (
     <div className="space-y-6">
@@ -91,6 +160,14 @@ const UserManagement: React.FC = () => {
             />
          </div>
          <div className="flex flex-wrap gap-2 w-full sm:w-auto items-center">
+             <button 
+                onClick={fetchUsers} 
+                disabled={isLoading}
+                className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-50"
+                title="Refresh Data"
+             >
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+             </button>
              <div className="flex items-center space-x-2">
                 <Filter className="w-4 h-4 text-gray-400" />
                 <span className="text-sm text-gray-500">Role:</span>
@@ -143,13 +220,14 @@ const UserManagement: React.FC = () => {
                                <div>
                                    <div className="font-bold text-gray-900 dark:text-white">{user.name}</div>
                                    <div className="text-xs text-gray-500">{user.email}</div>
+                                   <div className="text-xs text-blue-500">@{user.username || '-'}</div>
                                    <div className="text-xs text-gray-400 font-mono mt-0.5">{user.identifier}</div>
                                </div>
                            </div>
                         </td>
                         <td className="px-6 py-4">
                            <div className="text-gray-900 dark:text-gray-300 font-medium">{user.role}</div>
-                           <div className="text-xs text-gray-500">{user.department}</div>
+                           <div className="text-xs text-gray-500">{user.phone || '-'}</div>
                         </td>
                         <td className="px-6 py-4">
                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
@@ -171,6 +249,9 @@ const UserManagement: React.FC = () => {
                               >
                                  {user.status === 'Aktif' ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                               </button>
+                              <button onClick={() => handleResetPassword(user)} className="p-1.5 text-yellow-600 hover:bg-yellow-50 rounded dark:hover:bg-yellow-900/30 transition-colors" title="Reset Password">
+                                 <KeyRound className="w-4 h-4" />
+                              </button>
                               <button onClick={() => handleOpenModal(user)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded dark:hover:bg-blue-900/30 transition-colors" title="Edit">
                                  <Edit className="w-4 h-4" />
                               </button>
@@ -183,7 +264,10 @@ const UserManagement: React.FC = () => {
                   )) : (
                      <tr>
                         <td colSpan={5} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                           Tidak ada user yang ditemukan.
+                           <div className="flex flex-col items-center justify-center">
+                              <Users className="w-12 h-12 text-gray-300 mb-3" />
+                              <p>Tidak ada user yang ditemukan.</p>
+                           </div>
                         </td>
                      </tr>
                   )}
@@ -215,6 +299,16 @@ const UserManagement: React.FC = () => {
                         placeholder="Nama User"
                     />
                  </div>
+                 <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username</label>
+                    <input 
+                        type="text" required 
+                        value={formData.username || ''} 
+                        onChange={e => setFormData({...formData, username: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
+                        placeholder="Username unik"
+                    />
+                 </div>
                  <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>
@@ -223,9 +317,10 @@ const UserManagement: React.FC = () => {
                             onChange={e => setFormData({...formData, role: e.target.value as any})}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
                         >
-                            <option value="Mahasiswa">Mahasiswa</option>
-                            <option value="Dosen">Dosen</option>
-                            <option value="Staff">Staff</option>
+                            <option value="User">User (Mahasiswa/Dosen)</option>
+                            <option value="Laboran">Laboran</option>
+                            <option value="Teknisi">Teknisi</option>
+                            <option value="Admin">Admin</option>
                         </select>
                     </div>
                     <div>
@@ -250,13 +345,18 @@ const UserManagement: React.FC = () => {
                     />
                  </div>
                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Program Studi / Unit</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">No. Telepon / WA</label>
                     <input 
                         type="text" required 
-                        value={formData.department} 
-                        onChange={e => setFormData({...formData, department: e.target.value})}
+                        value={formData.phone || ''} 
+                        onChange={e => {
+                           const val = e.target.value;
+                           if (/^\d*$/.test(val)) {
+                              setFormData({...formData, phone: val});
+                           }
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                        placeholder="Teknik Informatika"
+                        placeholder="08xxxxxxxx"
                     />
                  </div>
                  <div>

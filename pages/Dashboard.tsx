@@ -4,8 +4,10 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { 
   Users, Calendar, AlertCircle, CheckCircle, Clock, 
   TrendingUp, Activity, ArrowRight, Package, FileText, 
-  Shield, AlertTriangle, ChevronRight, Box, XCircle
+  Shield, AlertTriangle, ChevronRight, Box, XCircle, Megaphone, Info
 } from 'lucide-react';
+import { api } from '../services/api';
+import { Skeleton } from '../components/Skeleton';
 
 interface DashboardProps {
   role: Role;
@@ -41,8 +43,45 @@ const QuickActionCard: React.FC<{ title: string; icon: React.ElementType; color:
     </button>
 );
 
+const DashboardSkeleton = () => (
+  <div className="space-y-6">
+    <div className="flex justify-between items-center">
+      <div className="space-y-2">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-4 w-32" />
+      </div>
+      <Skeleton className="h-8 w-40 rounded-full" />
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 h-32">
+          <div className="flex justify-between items-start">
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-8 w-16" />
+            </div>
+            <Skeleton className="h-10 w-10 rounded-lg" />
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 h-80">
+        <Skeleton className="h-6 w-48 mb-6" />
+        <Skeleton className="h-full opacity-50" />
+      </div>
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 h-80">
+         <Skeleton className="h-6 w-32 mb-4" />
+         <Skeleton className="h-48 w-48 mx-auto rounded-full opacity-50" />
+      </div>
+    </div>
+  </div>
+);
+
 const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
-  const isUser = role === Role.USER;
+  const isUser = role.toString().toUpperCase() === Role.USER.toString().toUpperCase();
   const LOGGED_IN_USER_ID = "672019001"; // ID simulasi untuk user login (sesuai App.tsx)
 
   // Data states
@@ -51,15 +90,35 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [announcement, setAnnouncement] = useState<{active: boolean, message: string, type: string} | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // --- SIMULASI FETCH DATA DARI DATABASE ---
-    // Di aplikasi nyata, ini akan menjadi panggilan API ke backend Anda
-    // setBookings(api.getBookings());
-    // setLoans(api.getLoans());
-    // setRooms(api.getRooms());
-    // setUsers(api.getUsers());
-    // setEquipment(api.getEquipment());
+    const fetchData = async () => {
+      try {
+        const [resBookings, resLoans, resRooms, resUsers, resEquipment, resAnnounce] = await Promise.all([
+          api('/api/bookings'),
+          api('/api/loans'),
+          api('/api/rooms'),
+          api('/api/users'),
+          api('/api/inventory'),
+          api('/api/settings/announcement')
+        ]);
+
+        if (resBookings.ok) setBookings(await resBookings.json());
+        if (resLoans.ok) setLoans(await resLoans.json());
+        if (resRooms.ok) setRooms(await resRooms.json());
+        if (resUsers.ok) setUsers(await resUsers.json());
+        if (resEquipment.ok) setEquipment(await resEquipment.json());
+        if (resAnnounce.ok) setAnnouncement(await resAnnounce.json());
+      } catch (error) {
+        console.error("Gagal mengambil data dashboard:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
   // Calculate Statistics Dynamically
@@ -121,6 +180,30 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
       ];
   }, [equipment]);
 
+  // Helper for Announcement Banner
+  const renderAnnouncement = () => {
+    if (!announcement || !announcement.active || !announcement.message) return null;
+    
+    const styleMap: Record<string, string> = {
+        info: 'bg-blue-100 border-blue-200 text-blue-800 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300',
+        warning: 'bg-yellow-100 border-yellow-200 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-300',
+        error: 'bg-red-100 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300'
+    };
+
+    const activeStyle = styleMap[announcement.type] || styleMap.info;
+
+    return (
+        <div className={`mb-6 p-4 rounded-xl border flex items-start ${activeStyle} animate-fade-in-up`}>
+            <Megaphone className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" />
+            <p className="text-sm font-medium">{announcement.message}</p>
+        </div>
+    );
+  };
+
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
+
   // --- RENDER FOR USER (MAHASISWA/DOSEN) ---
   if (isUser) {
     return (
@@ -134,6 +217,8 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
             {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </div>
         </div>
+
+        {renderAnnouncement()}
 
         {/* User Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -226,6 +311,8 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
         </div>
       </div>
 
+      {renderAnnouncement()}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
             title="Menunggu Verifikasi" 
@@ -268,18 +355,25 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
         <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
           <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Statistik Penggunaan Ruangan</h3>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
-                <XAxis dataKey="name" stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
-                  cursor={{ fill: 'transparent' }}
-                />
-                <Bar dataKey="bookings" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
-              </BarChart>
-            </ResponsiveContainer>
+            {bookings.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={barData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
+                  <XAxis dataKey="name" stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
+                    cursor={{ fill: 'transparent' }}
+                  />
+                  <Bar dataKey="bookings" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
+                <Activity className="w-10 h-10 mb-2 opacity-30" />
+                <p className="text-sm">Belum ada data penggunaan ruangan</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -289,25 +383,31 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
             <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Status Pengajuan</h3>
               <div className="h-48 flex items-center justify-center">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={40}
-                      outerRadius={60}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                  </PieChart>
-                </ResponsiveContainer>
+                {bookings.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={60}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-center text-gray-400 dark:text-gray-500">
+                    <p className="text-sm">Belum ada data pengajuan</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -315,25 +415,31 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
             <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Kesehatan Inventaris</h3>
               <div className="h-48 flex items-center justify-center">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={equipmentConditionData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={40}
-                      outerRadius={60}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {equipmentConditionData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                  </PieChart>
-                </ResponsiveContainer>
+                {equipment.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={equipmentConditionData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={60}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {equipmentConditionData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-center text-gray-400 dark:text-gray-500">
+                    <p className="text-sm">Belum ada data inventaris</p>
+                  </div>
+                )}
               </div>
             </div>
         </div>
@@ -350,7 +456,7 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
                   </button>
               </div>
               <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                  {bookings.slice(0, 5).map((booking) => (
+                  {bookings.length > 0 ? bookings.slice(0, 5).map((booking) => (
                       <div key={booking.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-center justify-between">
                           <div className="flex items-center space-x-4">
                               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${booking.status === BookingStatus.PENDING ? 'bg-yellow-100 text-yellow-600' : booking.status === BookingStatus.APPROVED ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
@@ -365,7 +471,12 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
                               {booking.status}
                           </span>
                       </div>
-                  ))}
+                  )) : (
+                      <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                          <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                          <p className="text-sm">Belum ada pengajuan terbaru.</p>
+                      </div>
+                  )}
               </div>
           </div>
 

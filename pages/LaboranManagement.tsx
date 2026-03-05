@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { LabStaff } from '../types';
-import { Search, Plus, Printer, Download, Edit, Trash2, X, Check, FileSpreadsheet } from 'lucide-react';
+import { Search, Plus, Printer, Download, Edit, Trash2, X, Check, FileSpreadsheet, Users } from 'lucide-react';
 import nocLogo from "../src/assets/noc.png";
+import { api } from '../services/api';
+
+interface LabStaff {
+  id: string;
+  name: string;
+  nim: string;
+  email: string;
+  phone: string;
+  jabatan: 'Admin' | 'Teknisi' | 'Supervisor' | 'Kepala Sarpras';
+  status: 'Aktif' | 'Non-Aktif';
+}
 
 const LaboranManagement: React.FC = () => {
   const [staffList, setStaffList] = useState<LabStaff[]>([]);
@@ -12,14 +22,34 @@ const LaboranManagement: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<LabStaff | null>(null);
   const [formData, setFormData] = useState<Partial<LabStaff>>({
-    name: '', nim: '', email: '', phone: '', type: 'Teknisi', status: 'Aktif'
+    name: '', nim: '', email: '', phone: '', jabatan: 'Teknisi', status: 'Aktif'
   });
 
   useEffect(() => {
-    // --- SIMULASI FETCH DATA DARI DATABASE ---
-    // Di aplikasi nyata, ini akan menjadi panggilan API ke backend Anda
-    // setStaffList(api.getLabStaff());
+    fetchStaff();
   }, []);
+
+  const fetchStaff = async () => {
+    try {
+      const res = await api('/api/staff');
+      if (res.ok) {
+        const data = await res.json();
+        // Mapping data dari DB (staff) ke Frontend (LabStaff)
+        const mappedData = data.map((s: any) => ({
+            id: s.id,
+            name: s.nama,
+            nim: s.identifier,
+            email: s.email,
+            phone: s.telepon,
+            jabatan: s.jabatan,
+            status: s.status
+        }));
+        setStaffList(mappedData);
+      }
+    } catch (error) {
+      console.error("Gagal mengambil data laboran", error);
+    }
+  };
 
   // Filter Data
   const filteredStaff = staffList.filter(staff => {
@@ -31,8 +61,8 @@ const LaboranManagement: React.FC = () => {
 
   // Export CSV
   const handleExportCSV = () => {
-    const headers = ["ID", "Nama", "NIM", "Email", "No HP", "Tipe", "Status"];
-    const rows = filteredStaff.map(s => [s.id, s.name, s.nim, s.email, s.phone, s.type, s.status]);
+    const headers = ["ID", "Nama", "NIM", "Email", "No HP", "Jabatan", "Status"];
+    const rows = filteredStaff.map(s => [s.id, s.name, s.nim, s.email, s.phone, s.jabatan, s.status]);
     
     const csvContent = "data:text/csv;charset=utf-8," 
       + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
@@ -58,30 +88,52 @@ const LaboranManagement: React.FC = () => {
       setFormData(staff);
     } else {
       setEditingStaff(null);
-      setFormData({ name: '', nim: '', email: '', phone: '', type: 'Teknisi', status: 'Aktif' });
+      setFormData({ name: '', nim: '', email: '', phone: '', jabatan: 'Teknisi', status: 'Aktif' });
     }
     setIsModalOpen(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingStaff) {
-      // Update
-      setStaffList(prev => prev.map(s => s.id === editingStaff.id ? { ...s, ...formData } as LabStaff : s));
-    } else {
-      // Create
-      const newStaff: LabStaff = {
-        ...formData,
-        id: Date.now().toString(),
-      } as LabStaff;
-      setStaffList(prev => [...prev, newStaff]);
+    
+    try {
+      if (editingStaff) {
+        // Update
+        const res = await api(`/api/staff/${editingStaff.id}`, {
+          method: 'PUT',
+          data: formData
+        });
+        
+        if (res.ok) {
+          setStaffList(prev => prev.map(s => s.id === editingStaff.id ? { ...s, ...formData } as LabStaff : s));
+        }
+      } else {
+        // Create
+        const res = await api('/api/staff', {
+          method: 'POST',
+          data: formData
+        });
+
+        if (res.ok) {
+          const result = await res.json();
+          const newStaff = { ...formData, id: result.id } as LabStaff;
+          setStaffList(prev => [newStaff, ...prev]);
+        }
+      }
+      setIsModalOpen(false);
+    } catch (error) {
+      alert("Terjadi kesalahan saat menyimpan data.");
     }
-    setIsModalOpen(false);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm("Apakah Anda yakin ingin menghapus data laboran ini?")) {
-      setStaffList(prev => prev.filter(s => s.id !== id));
+      try {
+        await api(`/api/staff/${id}`, { method: 'DELETE' });
+        setStaffList(prev => prev.filter(s => s.id !== id));
+      } catch (error) {
+        alert("Gagal menghapus data.");
+      }
     }
   };
 
@@ -161,7 +213,7 @@ const LaboranManagement: React.FC = () => {
                   <tr>
                      <th className="px-6 py-4">Nama & NIM</th>
                      <th className="px-6 py-4">Kontak</th>
-                     <th className="px-6 py-4">Tipe</th>
+                     <th className="px-6 py-4">Jabatan</th>
                      <th className="px-6 py-4">Status</th>
                      <th className="px-6 py-4 print:hidden">Aksi</th>
                   </tr>
@@ -178,8 +230,8 @@ const LaboranManagement: React.FC = () => {
                            <div className="text-xs text-gray-500">{staff.phone}</div>
                         </td>
                         <td className="px-6 py-4">
-                           <span className={`px-2 py-1 rounded-md text-xs font-medium print:border print:border-gray-300 ${staff.type === 'Admin' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'}`}>
-                              {staff.type}
+                           <span className={`px-2 py-1 rounded-md text-xs font-medium print:border print:border-gray-300 ${staff.jabatan === 'Teknisi' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'}`}>
+                              {staff.jabatan}
                            </span>
                         </td>
                         <td className="px-6 py-4">
@@ -202,7 +254,10 @@ const LaboranManagement: React.FC = () => {
                   )) : (
                      <tr>
                         <td colSpan={5} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                           Tidak ada data laboran yang ditemukan.
+                           <div className="flex flex-col items-center justify-center">
+                              <Users className="w-12 h-12 text-gray-300 mb-3" />
+                              <p>Tidak ada data laboran yang ditemukan.</p>
+                           </div>
                         </td>
                      </tr>
                   )}
@@ -266,14 +321,16 @@ const LaboranManagement: React.FC = () => {
                        />
                     </div>
                     <div>
-                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipe</label>
+                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Jabatan</label>
                        <select 
-                          value={formData.type}
-                          onChange={e => setFormData({...formData, type: e.target.value as any})}
+                          value={formData.jabatan}
+                          onChange={e => setFormData({...formData, jabatan: e.target.value as any})}
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
                        >
-                          <option value="Teknisi">Teknisi</option>
                           <option value="Admin">Admin</option>
+                          <option value="Teknisi">Teknisi</option>
+                          <option value="Supervisor">Supervisor</option>
+                          <option value="Kepala Sarpras">Kepala Sarpras</option>
                        </select>
                     </div>
                     <div>

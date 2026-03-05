@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Booking, BookingStatus, Room } from '../types';
-import { Search, Filter, CheckCircle, XCircle, Calendar, Clock, MapPin, User, AlertCircle, FileText, Download, X, Phone, Shield, Loader2 } from 'lucide-react';
+import { Search, Filter, CheckCircle, XCircle, Calendar, Clock, MapPin, User, AlertCircle, FileText, Download, X, Phone, Shield, Loader2, Wrench, Edit, Save, Share2, Image as ImageIcon, FileSpreadsheet, AlertTriangle } from 'lucide-react';
+import { api } from '../services/api';
+import html2canvas from 'html2canvas';
+import nocLogo from "../src/assets/noc.png";
 
 // Konfigurasi Google API
 const CLIENT_ID = '828476305239-7hilvfjvadt8ndn9br7n1upmdso38ou8.apps.googleusercontent.com';
@@ -20,21 +23,53 @@ interface ManageBookingsProps {
   showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void;
 }
 
+// Extend Booking type locally to include tech support fields
+interface BookingWithTech extends Booking {
+  techSupportPic?: string[];
+  techSupportPicName?: string;
+  techSupportNeeds?: string;
+}
+
+interface LabStaff {
+  id: string;
+  name: string;
+  jabatan: string;
+  status: string;
+}
+
 const ManageBookings: React.FC<ManageBookingsProps> = ({ addNotification, showToast }) => {
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<BookingWithTech[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [staffList, setStaffList] = useState<LabStaff[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'All' | BookingStatus>('All');
   
   // Modal State
-  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<BookingWithTech | null>(null);
   
   // Loading State untuk aksi
   const [processingId, setProcessingId] = useState<string | null>(null);
 
+  // Approval Modal State
+  const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+  const [bookingToApprove, setBookingToApprove] = useState<BookingWithTech | null>(null);
+  const [approvalData, setApprovalData] = useState<{ pic: string[], needs: string }>({ pic: [], needs: '' });
+
+  // Rejection Modal State
+  const [isRejectionModalOpen, setIsRejectionModalOpen] = useState(false);
+  const [bookingToReject, setBookingToReject] = useState<BookingWithTech | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+
+  // Edit Tech Data State (Inside Detail Modal)
+  const [isEditingTech, setIsEditingTech] = useState(false);
+  const [editTechData, setEditTechData] = useState<{ pic: string[], needs: string }>({ pic: [], needs: '' });
+
   // Google API State
   const [isGapiInitialized, setIsGapiInitialized] = useState(false);
   const [tokenClient, setTokenClient] = useState<any>(null);
+
+  // Ref for Image Generation
+  const ticketRef = useRef<HTMLDivElement>(null);
 
   // Initialize Google API
   useEffect(() => {
@@ -71,11 +106,29 @@ const ManageBookings: React.FC<ManageBookingsProps> = ({ addNotification, showTo
   };
 
   useEffect(() => {
-    // --- SIMULASI FETCH DATA DARI DATABASE ---
-    // Di aplikasi nyata, ini akan menjadi panggilan API ke backend Anda
-    // setBookings(api.getBookings());
-    // setRooms(api.getRooms());
+    fetchData();
   }, []);
+
+  const fetchData = async () => {
+    try {
+        const [bkRes, rmRes, stRes] = await Promise.all([
+            api('/api/bookings'),
+            api('/api/rooms'),
+            api('/api/staff')
+        ]);
+        if (bkRes.ok) setBookings(await bkRes.json());
+        if (rmRes.ok) setRooms(await rmRes.json());
+        if (stRes.ok) {
+            const staffData = await stRes.json();
+            setStaffList(staffData.map((s: any) => ({
+                id: s.id,
+                name: s.nama,
+                jabatan: s.jabatan,
+                status: s.status
+            })).filter((s: LabStaff) => s.status === 'Aktif')); // Hanya staff aktif
+        }
+    } catch (e) { console.error(e); }
+  };
 
   const getRoomName = (roomId: string) => {
     return rooms.find(r => r.id === roomId)?.name || 'Ruangan Tidak Diketahui';
@@ -131,7 +184,7 @@ const ManageBookings: React.FC<ManageBookingsProps> = ({ addNotification, showTo
       }
   };
 
-  const handleUpdateStatus = async (id: string, newStatus: BookingStatus) => {
+  const handleUpdateStatus = async (id: string, newStatus: BookingStatus, techData?: { pic: string[], needs: string }, reason?: string) => {
     const booking = bookings.find(b => b.id === id);
     if (!booking) return;
 
@@ -148,24 +201,45 @@ const ManageBookings: React.FC<ManageBookingsProps> = ({ addNotification, showTo
         }
     }
 
-      // 2. Update Local State
-      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: newStatus } : b));
+      // 2. Update Backend
+      await api(`/api/bookings/${id}/status`, {
+          method: 'PUT',
+          data: { 
+            status: newStatus,
+            techSupportPic: techData?.pic || [],
+            techSupportNeeds: techData?.needs || '',
+            rejectionReason: reason
+          }
+      });
+      
+      fetchData();
       
       // 3. Update Modal State jika sedang terbuka
       if (selectedBooking && selectedBooking.id === id) {
-          setSelectedBooking({ ...selectedBooking, status: newStatus });
+          setSelectedBooking({ 
+            ...selectedBooking, 
+            status: newStatus,
+            techSupportPic: techData?.pic || [],
+            techSupportPicName: staffList.filter(s => techData?.pic.includes(s.id)).map(s => s.name).join(', '),
+            techSupportNeeds: techData?.needs,
+            rejectionReason: reason
+          });
       }
+
+      const isCancellation = booking.status === BookingStatus.APPROVED && newStatus === BookingStatus.REJECTED;
 
       const message = newStatus === BookingStatus.APPROVED 
         ? `Peminjaman ${booking.userName} berhasil disetujui.`
-        : `Peminjaman ${booking.userName} telah ditolak.`;
+        : isCancellation 
+            ? `Peminjaman ${booking.userName} berhasil dibatalkan.`
+            : `Peminjaman ${booking.userName} telah ditolak.`;
       
       const type = newStatus === BookingStatus.APPROVED ? 'success' : 'warning';
 
       showToast(message, type);
       addNotification(
-        newStatus === BookingStatus.APPROVED ? 'Peminjaman Disetujui' : 'Peminjaman Ditolak',
-        `Admin telah memverifikasi permintaan dari ${booking.userName}.`,
+        newStatus === BookingStatus.APPROVED ? 'Peminjaman Disetujui' : (isCancellation ? 'Peminjaman Dibatalkan' : 'Peminjaman Ditolak'),
+        isCancellation ? `Admin membatalkan peminjaman ${booking.userName} karena keadaan darurat.` : `Admin telah memverifikasi permintaan dari ${booking.userName}.`,
         type
       );
 
@@ -173,11 +247,116 @@ const ManageBookings: React.FC<ManageBookingsProps> = ({ addNotification, showTo
       setProcessingId(null);
   };
 
-  const handleViewFile = (e: React.MouseEvent, fileName: string) => {
+  const handleApproveClick = (booking: BookingWithTech) => {
+    setBookingToApprove(booking);
+    setApprovalData({ pic: [], needs: '' });
+    setIsApprovalModalOpen(true);
+  };
+
+  const handleConfirmApproval = async () => {
+    if (bookingToApprove) {
+      setIsApprovalModalOpen(false);
+      await handleUpdateStatus(bookingToApprove.id, BookingStatus.APPROVED, approvalData);
+      setBookingToApprove(null);
+    }
+  };
+
+  const handleRejectClick = (booking: BookingWithTech) => {
+    setBookingToReject(booking);
+    setRejectionReason('');
+    setIsRejectionModalOpen(true);
+  };
+
+  const handleConfirmRejection = async () => {
+    if (bookingToReject) {
+        setIsRejectionModalOpen(false);
+        await handleUpdateStatus(bookingToReject.id, BookingStatus.REJECTED, undefined, rejectionReason);
+        setBookingToReject(null);
+    }
+  };
+
+  const handleSaveTechData = async () => {
+    if (!selectedBooking) return;
+    
+    try {
+      await api(`/api/bookings/${selectedBooking.id}/tech-support`, {
+        method: 'PUT',
+        data: {
+          techSupportPic: editTechData.pic,
+          techSupportNeeds: editTechData.needs
+        }
+      });
+      
+      // Update local state
+      const staffName = staffList.filter(s => editTechData.pic.includes(s.id)).map(s => s.name).join(', ');
+      const updatedBooking = { ...selectedBooking, techSupportPic: editTechData.pic, techSupportPicName: staffName, techSupportNeeds: editTechData.needs };
+      setSelectedBooking(updatedBooking);
+      setBookings(prev => prev.map(b => b.id === selectedBooking.id ? updatedBooking : b));
+      
+      setIsEditingTech(false);
+      showToast("Data teknis berhasil diperbarui", "success");
+    } catch (e) {
+      showToast("Gagal menyimpan data teknis", "error");
+    }
+  };
+
+  const handleViewFile = async (e: React.MouseEvent, fileData: string) => {
       e.stopPropagation(); // Mencegah row click event
-      const dummyPdfUrl = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
-      window.open(dummyPdfUrl, '_blank');
-      showToast(`Membuka dokumen: ${fileName}`, 'info');
+      
+      // Convert Base64 Data URI to Blob for better browser support
+      try {
+          const res = await fetch(fileData);
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          window.open(url, '_blank');
+      } catch (err) {
+          showToast("Gagal membuka file proposal.", "error");
+      }
+  };
+
+  const handleShareImage = async () => {
+    if (!ticketRef.current || !selectedBooking) return;
+    
+    try {
+        showToast("Sedang membuat gambar...", "info");
+        const canvas = await html2canvas(ticketRef.current, {
+            scale: 2, // Higher resolution
+            backgroundColor: '#ffffff'
+        });
+        
+        const image = canvas.toDataURL("image/png");
+        const link = document.createElement('a');
+        link.href = image;
+        link.download = `Booking_${selectedBooking.userName}_${selectedBooking.date}.png`;
+        link.click();
+        showToast("Gambar berhasil didownload!", "success");
+    } catch (error) {
+        console.error("Gagal membuat gambar", error);
+        showToast("Gagal membuat gambar.", "error");
+    }
+  };
+
+  const handleExportExcel = async () => {
+    try {
+        showToast("Mendownload laporan...", "info");
+        const response = await api('/api/bookings/export');
+        
+        if (!response.ok) throw new Error('Export failed');
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Laporan_Jadwal_Lab_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showToast("Laporan berhasil didownload", "success");
+    } catch (e) {
+        showToast("Gagal mendownload laporan", "error");
+    }
   };
 
   const filteredBookings = bookings.filter(b => {
@@ -229,6 +408,13 @@ const ManageBookings: React.FC<ManageBookingsProps> = ({ addNotification, showTo
                    <option value={BookingStatus.APPROVED}>Disetujui</option>
                    <option value={BookingStatus.REJECTED}>Ditolak</option>
                 </select>
+                <button 
+                    onClick={handleExportExcel}
+                    className="flex items-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium transition-colors shadow-sm"
+                    title="Download Laporan Excel"
+                >
+                    <FileSpreadsheet className="w-4 h-4 mr-2" /> Export Excel
+                </button>
             </div>
         </div>
 
@@ -242,13 +428,18 @@ const ManageBookings: React.FC<ManageBookingsProps> = ({ addNotification, showTo
                 <th className="px-6 py-4">Keperluan</th>
                 <th className="px-6 py-4">Dokumen</th>
                 <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4 text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {filteredBookings.length > 0 ? filteredBookings.map((booking) => (
                 <tr 
                   key={booking.id} 
-                  onClick={() => setSelectedBooking(booking)}
+                  onClick={() => {
+                    setSelectedBooking(booking);
+                    setIsEditingTech(false);
+                    setEditTechData({ pic: booking.techSupportPic || [], needs: booking.techSupportNeeds || '' });
+                  }}
                   className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer group"
                   title="Klik untuk melihat detail dan verifikasi"
                 >
@@ -297,11 +488,45 @@ const ManageBookings: React.FC<ManageBookingsProps> = ({ addNotification, showTo
                         {booking.status}
                       </span>
                    </td>
+                   <td className="px-6 py-4 text-right">
+                      {booking.status === BookingStatus.PENDING && (
+                        <div className="flex items-center justify-end space-x-2">
+                           <button 
+                              onClick={(e) => { e.stopPropagation(); handleApproveClick(booking); }}
+                              className="p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors"
+                              title="Setujui"
+                           >
+                              <CheckCircle className="w-5 h-5" />
+                           </button>
+                           <button 
+                              onClick={(e) => { e.stopPropagation(); handleRejectClick(booking); }}
+                              className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                              title="Tolak"
+                           >
+                              <XCircle className="w-5 h-5" />
+                           </button>
+                        </div>
+                      )}
+                      {booking.status === BookingStatus.APPROVED && (
+                        <div className="flex items-center justify-end space-x-2">
+                           <button 
+                              onClick={(e) => { e.stopPropagation(); handleRejectClick(booking); }}
+                              className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                              title="Batalkan (Darurat)"
+                           >
+                              <AlertTriangle className="w-5 h-5" />
+                           </button>
+                        </div>
+                      )}
+                   </td>
                 </tr>
               )) : (
                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                       Tidak ada data peminjaman yang sesuai filter.
+                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                       <div className="flex flex-col items-center justify-center">
+                          <FileText className="w-12 h-12 text-gray-300 mb-3" />
+                          <p>Tidak ada data peminjaman yang sesuai filter.</p>
+                       </div>
                     </td>
                  </tr>
               )}
@@ -378,8 +603,96 @@ const ManageBookings: React.FC<ManageBookingsProps> = ({ addNotification, showTo
                               <p className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-700 p-2 rounded border border-gray-100 dark:border-gray-600">
                                   {selectedBooking.purpose}
                               </p>
+                              {selectedBooking.status === BookingStatus.REJECTED && selectedBooking.rejectionReason && (
+                                  <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded text-sm text-red-700 dark:text-red-300">
+                                      <span className="font-bold block text-xs uppercase mb-1">Alasan Penolakan:</span>
+                                      {selectedBooking.rejectionReason}
+                                  </div>
+                              )}
                           </div>
                       </div>
+
+                      {/* Kolom Bawah: Technical Support (Jika Approved) */}
+                      {(selectedBooking.status === BookingStatus.APPROVED || selectedBooking.status === BookingStatus.REJECTED) && (
+                        <div className="md:col-span-2 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                           <div className="flex justify-between items-center mb-3">
+                              <h4 className="text-sm font-semibold text-gray-500 uppercase flex items-center">
+                                <Wrench className="w-4 h-4 mr-2" /> Technical Support
+                              </h4>
+                              {!isEditingTech ? (
+                                <button 
+                                  onClick={() => setIsEditingTech(true)}
+                                  className="text-xs text-blue-600 hover:underline flex items-center"
+                                >
+                                  <Edit className="w-3 h-3 mr-1" /> Edit Data Teknis
+                                </button>
+                              ) : (
+                                <div className="flex gap-2">
+                                  <button onClick={() => setIsEditingTech(false)} className="text-xs text-gray-500 hover:text-gray-700">Batal</button>
+                                  <button onClick={handleSaveTechData} className="text-xs text-green-600 hover:text-green-700 font-bold flex items-center">
+                                    <Save className="w-3 h-3 mr-1" /> Simpan
+                                  </button>
+                                </div>
+                              )}
+                           </div>
+                           
+                           <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+                              {isEditingTech ? (
+                                <div className="space-y-3">
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-500 mb-1">PIC Laboran</label>
+                                    <div className="flex flex-wrap gap-2 mb-2">
+                                        {editTechData.pic.map(picId => {
+                                            const staff = staffList.find(s => s.id === picId);
+                                            return (
+                                                <span key={picId} className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                                    {staff?.name}
+                                                    <button type="button" onClick={() => setEditTechData(prev => ({ ...prev, pic: prev.pic.filter(id => id !== picId) }))} className="ml-1 text-blue-600 hover:text-blue-800"><X className="w-3 h-3" /></button>
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
+                                    <select 
+                                      value=""
+                                      onChange={e => { if(e.target.value) setEditTechData(prev => ({ ...prev, pic: [...prev.pic, e.target.value] })) }}
+                                      className="w-full px-3 py-1.5 text-sm border rounded dark:bg-gray-800 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                    >
+                                        <option value="">+ Tambah PIC</option>
+                                        {staffList.filter(s => !editTechData.pic.includes(s.id)).map(staff => (
+                                            <option key={staff.id} value={staff.id}>{staff.name} ({staff.jabatan})</option>
+                                        ))}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-500 mb-1">Kebutuhan Alat</label>
+                                    <textarea 
+                                      value={editTechData.needs}
+                                      onChange={e => setEditTechData({...editTechData, needs: e.target.value})}
+                                      className="w-full px-3 py-1.5 text-sm border rounded dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+                                      rows={3}
+                                      placeholder="Contoh: 2 Mic Wireless, Sound System, Kabel HDMI Panjang"
+                                    />
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-xs text-gray-500 mb-1">PIC Bertugas:</p>
+                                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                          {selectedBooking.techSupportPicName || '-'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-gray-500 mb-1">Kebutuhan Alat:</p>
+                                        <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">
+                                          {selectedBooking.techSupportNeeds || '-'}
+                                        </p>
+                                    </div>
+                                </div>
+                              )}
+                           </div>
+                        </div>
+                      )}
                   </div>
 
                   {/* Dokumen Section */}
@@ -390,9 +703,7 @@ const ManageBookings: React.FC<ManageBookingsProps> = ({ addNotification, showTo
                           </div>
                           <div>
                               <p className="text-sm font-medium text-gray-900 dark:text-white">Surat Permohonan.pdf</p>
-                              <p className="text-xs text-gray-500">
-                                  {selectedBooking.proposalFile ? selectedBooking.proposalFile : 'Tidak ada file diunggah'}
-                              </p>
+                              <p className="text-xs text-gray-500">Dokumen PDF</p>
                           </div>
                       </div>
                       {selectedBooking.proposalFile && (
@@ -404,6 +715,57 @@ const ManageBookings: React.FC<ManageBookingsProps> = ({ addNotification, showTo
                           </button>
                       )}
                   </div>
+
+                  {/* Hidden Ticket for Image Generation */}
+                  <div className="absolute -left-[9999px] top-0">
+                      <div ref={ticketRef} className="w-[600px] bg-white p-8 border border-gray-200 rounded-xl font-sans">
+                          <div className="flex items-center justify-between border-b-2 border-gray-800 pb-4 mb-6">
+                              <div className="flex items-center gap-4">
+                                  <img src={nocLogo} alt="Logo" className="w-16 h-16 object-contain" />
+                                  <div>
+                                      <h1 className="text-2xl font-bold text-gray-900">CORE.FTI</h1>
+                                      <p className="text-sm text-gray-600">Fakultas Teknologi Informasi - UKSW</p>
+                                  </div>
+                              </div>
+                              <div className="text-right">
+                                  <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-bold border border-green-200">APPROVED</span>
+                              </div>
+                          </div>
+                          
+                          <div className="space-y-6">
+                              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                  <h2 className="text-lg font-bold text-gray-800 mb-1">{selectedBooking.purpose}</h2>
+                                  <p className="text-sm text-gray-600">Peminjam: {selectedBooking.userName} ({selectedBooking.userId})</p>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-6">
+                                  <div>
+                                      <p className="text-xs text-gray-500 uppercase font-bold mb-1">Ruangan</p>
+                                      <p className="text-lg font-medium text-gray-900">{getRoomName(selectedBooking.roomId)}</p>
+                                  </div>
+                                  <div>
+                                      <p className="text-xs text-gray-500 uppercase font-bold mb-1">Waktu</p>
+                                      <p className="text-lg font-medium text-gray-900">{selectedBooking.date}</p>
+                                      <p className="text-md text-gray-700">{selectedBooking.startTime} - {selectedBooking.endTime}</p>
+                                  </div>
+                                  <div>
+                                      <p className="text-xs text-gray-500 uppercase font-bold mb-1">Penanggung Jawab</p>
+                                      <p className="text-md font-medium text-gray-900">{selectedBooking.responsiblePerson}</p>
+                                      <p className="text-sm text-gray-600">{selectedBooking.contactPerson}</p>
+                                  </div>
+                                  <div>
+                                      <p className="text-xs text-gray-500 uppercase font-bold mb-1">Technical Support</p>
+                                      <p className="text-md font-medium text-gray-900">{selectedBooking.techSupportPicName || '-'}</p>
+                                  </div>
+                              </div>
+
+                              <div className="border-t border-gray-200 pt-4 mt-4">
+                                  <p className="text-xs text-gray-500 uppercase font-bold mb-1">Catatan Kebutuhan</p>
+                                  <p className="text-sm text-gray-700 italic">{selectedBooking.techSupportNeeds || 'Tidak ada kebutuhan khusus.'}</p>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
                </div>
 
                {/* Footer Actions */}
@@ -414,11 +776,29 @@ const ManageBookings: React.FC<ManageBookingsProps> = ({ addNotification, showTo
                   >
                      Tutup
                   </button>
+
+                  {selectedBooking.status === BookingStatus.APPROVED && (
+                    <>
+                      <button 
+                        onClick={handleShareImage}
+                        className="px-4 py-2 text-sm bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 rounded-lg flex items-center transition-colors"
+                      >
+                         <Share2 className="w-4 h-4 mr-2" /> Share Gambar
+                      </button>
+                      <button 
+                          onClick={() => { setSelectedBooking(null); handleRejectClick(selectedBooking); }}
+                          className="px-4 py-2 text-sm bg-white text-red-600 border border-red-200 hover:bg-red-50 rounded-lg flex items-center shadow-sm transition-colors"
+                       >
+                          <AlertTriangle className="w-4 h-4 mr-2" /> 
+                          Batalkan
+                       </button>
+                    </>
+                  )}
                   
                   {selectedBooking.status === BookingStatus.PENDING && (
                     <>
                        <button 
-                          onClick={() => handleUpdateStatus(selectedBooking.id, BookingStatus.REJECTED)}
+                          onClick={() => { setSelectedBooking(null); handleRejectClick(selectedBooking); }}
                           disabled={processingId === selectedBooking.id}
                           className="px-4 py-2 text-sm bg-white text-red-600 border border-red-200 hover:bg-red-50 rounded-lg flex items-center shadow-sm transition-colors disabled:opacity-50"
                        >
@@ -426,7 +806,7 @@ const ManageBookings: React.FC<ManageBookingsProps> = ({ addNotification, showTo
                           Tolak
                        </button>
                        <button 
-                          onClick={() => handleUpdateStatus(selectedBooking.id, BookingStatus.APPROVED)}
+                          onClick={() => { setSelectedBooking(null); handleApproveClick(selectedBooking); }}
                           disabled={processingId === selectedBooking.id}
                           className="px-4 py-2 text-sm bg-green-600 text-white hover:bg-green-700 rounded-lg flex items-center shadow-md transition-colors disabled:opacity-50"
                        >
@@ -443,6 +823,113 @@ const ManageBookings: React.FC<ManageBookingsProps> = ({ addNotification, showTo
                       </span>
                   )}
                </div>
+           </div>
+        </div>
+      )}
+
+      {/* Approval Confirmation Modal (With Tech Support Form) */}
+      {isApprovalModalOpen && bookingToApprove && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-green-50 dark:bg-green-900/20">
+                 <h3 className="font-bold text-green-800 dark:text-green-400 flex items-center">
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Setujui Peminjaman
+                 </h3>
+              </div>
+              <div className="p-6 space-y-4">
+                 <p className="text-sm text-gray-600 dark:text-gray-300">
+                    Anda akan menyetujui peminjaman ruangan <strong>{getRoomName(bookingToApprove.roomId)}</strong> untuk kegiatan <strong>{bookingToApprove.purpose}</strong>.
+                 </p>
+                 
+                 <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600 space-y-3">
+                    <h4 className="text-xs font-bold text-gray-500 uppercase flex items-center"><Wrench className="w-3 h-3 mr-1"/> Data Technical Support (Opsional)</h4>
+                    <div>
+                       <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">PIC Laboran / Teknisi</label>
+                       <div className="flex flex-wrap gap-2 mb-2">
+                            {approvalData.pic.map(picId => {
+                                const staff = staffList.find(s => s.id === picId);
+                                return (
+                                    <span key={picId} className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                        {staff?.name}
+                                        <button type="button" onClick={() => setApprovalData(prev => ({ ...prev, pic: prev.pic.filter(id => id !== picId) }))} className="ml-1 text-blue-600 hover:text-blue-800"><X className="w-3 h-3" /></button>
+                                    </span>
+                                );
+                            })}
+                       </div>
+                       <select 
+                          value=""
+                          onChange={e => { if(e.target.value) setApprovalData(prev => ({ ...prev, pic: [...prev.pic, e.target.value] })) }}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white text-sm focus:ring-2 focus:ring-green-500"
+                       >
+                          <option value="">+ Tambah PIC</option>
+                          {staffList.filter(s => !approvalData.pic.includes(s.id)).map(staff => (
+                              <option key={staff.id} value={staff.id}>{staff.name} ({staff.jabatan})</option>
+                          ))}
+                       </select>
+                    </div>
+                    <div>
+                       <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Kebutuhan Teknis (Mic, Sound, dll)</label>
+                       <textarea 
+                          value={approvalData.needs}
+                          onChange={e => setApprovalData({...approvalData, needs: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white text-sm focus:ring-2 focus:ring-green-500"
+                          rows={3}
+                          placeholder="Daftar alat yang dibutuhkan..."
+                       />
+                    </div>
+                 </div>
+
+                 <div className="flex justify-end gap-3 pt-2">
+                    <button 
+                      onClick={() => setIsApprovalModalOpen(false)}
+                      className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                    >
+                       Batal
+                    </button>
+                    <button 
+                      onClick={handleConfirmApproval}
+                      className="px-4 py-2 text-sm bg-green-600 text-white hover:bg-green-700 rounded-lg shadow-md"
+                    >
+                       Simpan & Setujui
+                    </button>
+                 </div>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* Rejection Confirmation Modal */}
+      {isRejectionModalOpen && bookingToReject && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20">
+                 <h3 className="font-bold text-red-800 dark:text-red-400 flex items-center">
+                    {bookingToReject.status === BookingStatus.APPROVED ? <AlertTriangle className="w-5 h-5 mr-2" /> : <XCircle className="w-5 h-5 mr-2" />}
+                    <span>{bookingToReject.status === BookingStatus.APPROVED ? 'Batalkan Peminjaman' : 'Tolak Peminjaman'}</span>
+                 </h3>
+              </div>
+              <div className="p-6 space-y-4">
+                 <p className="text-sm text-gray-600 dark:text-gray-300">
+                    Anda akan {bookingToReject.status === BookingStatus.APPROVED ? 'membatalkan' : 'menolak'} peminjaman ruangan <strong>{getRoomName(bookingToReject.roomId)}</strong>. Mohon berikan alasan {bookingToReject.status === BookingStatus.APPROVED ? 'pembatalan' : 'penolakan'} untuk peminjam.
+                 </p>
+                 
+                 <textarea 
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-red-500"
+                    rows={3}
+                    placeholder="Contoh: Ruangan sedang dalam perbaikan, Jadwal bentrok dengan kegiatan fakultas..."
+                    autoFocus
+                 />
+
+                 <div className="flex justify-end gap-3 pt-2">
+                    <button onClick={() => setIsRejectionModalOpen(false)} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Batal</button>
+                    <button onClick={handleConfirmRejection} className="px-4 py-2 text-sm bg-red-600 text-white hover:bg-red-700 rounded-lg shadow-md">
+                       Simpan &amp; {bookingToReject.status === BookingStatus.APPROVED ? 'Batalkan' : 'Tolak'}
+                    </button>
+                 </div>
+              </div>
            </div>
         </div>
       )}

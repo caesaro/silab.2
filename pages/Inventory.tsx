@@ -5,6 +5,7 @@ import ExcelJS from 'exceljs';
 import QRCode from "react-qr-code";
 import { Html5Qrcode } from "html5-qrcode";
 import nocLogo from "../src/assets/noc.png";
+import { api } from '../services/api';
 
 const Inventory: React.FC = () => {
   const [items, setItems] = useState<Equipment[]>([]);
@@ -42,10 +43,17 @@ const Inventory: React.FC = () => {
 
   // Reset page when filters change
   useEffect(() => {
-    // --- SIMULASI FETCH DATA DARI DATABASE ---
-    // Di aplikasi nyata, ini akan menjadi panggilan API ke backend Anda
-    // setItems(api.getEquipment());
+    fetchItems();
   }, []);
+
+  const fetchItems = async () => {
+    try {
+      const res = await api('/api/inventory');
+      if (res.ok) setItems(await res.json());
+    } catch (error) {
+      console.error("Failed to fetch inventory", error);
+    }
+  };
 
   useEffect(() => {
     setCurrentPage(1);
@@ -80,21 +88,30 @@ const Inventory: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingItem) {
-      setItems(prev => prev.map(i => i.id === editingItem.id ? { ...i, ...formData } as Equipment : i));
-    } else {
-      if (!formData.id) {
-          alert("Kode FTI (ID) wajib diisi!");
-          return;
+    try {
+      if (editingItem) {
+        const res = await api(`/api/inventory/${editingItem.id}`, {
+          method: 'PUT',
+          data: formData
+        });
+        if (res.ok) fetchItems();
+      } else {
+        if (!formData.id) {
+            alert("Kode FTI (ID) wajib diisi!");
+            return;
+        }
+        const res = await api('/api/inventory', {
+          method: 'POST',
+          data: formData
+        });
+        if (res.ok) fetchItems();
       }
-      const newItem: Equipment = {
-        ...formData,
-      } as Equipment;
-      setItems(prev => [...prev, newItem]);
+      setIsModalOpen(false);
+    } catch (error) {
+      alert("Gagal menyimpan data.");
     }
-    setIsModalOpen(false);
   };
 
   const downloadTemplate = async () => {
@@ -263,9 +280,12 @@ const Inventory: React.FC = () => {
     setShowDeleteModal(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteTargetId) {
-      setItems(prev => prev.filter(i => i.id !== deleteTargetId));
+      try {
+        await api(`/api/inventory/${deleteTargetId}`, { method: 'DELETE' });
+        fetchItems();
+      } catch (e) { alert("Gagal menghapus"); }
       setShowDeleteModal(false);
       setDeleteTargetId(null);
     }
@@ -537,7 +557,10 @@ const Inventory: React.FC = () => {
                         )) : (
                            <tr>
                               <td colSpan={6} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                                 Tidak ada barang yang ditemukan.
+                                 <div className="flex flex-col items-center justify-center">
+                                    <Box className="w-12 h-12 text-gray-300 mb-3" />
+                                    <p>Tidak ada barang yang ditemukan.</p>
+                                 </div>
                               </td>
                            </tr>
                         )}

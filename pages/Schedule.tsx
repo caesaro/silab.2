@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { MOCK_ROOMS } from '../services/mockData';
-import { Role } from '../types';
+import { Role, Room } from '../types';
 import { 
   Calendar as CalendarIcon, Filter, ExternalLink, Clock, MapPin, RefreshCw, AlertCircle, Loader2, LogIn, ChevronRight, Plus, ChevronLeft,
   X, Save, Repeat, Type, AlignLeft
 } from 'lucide-react';
+import { api } from '../services/api';
 
 // Declare global types for Google API
 declare global {
@@ -36,7 +36,8 @@ interface GoogleEvent {
 }
 
 const Schedule: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) => {
-  const [filterRoom, setFilterRoom] = useState(MOCK_ROOMS[0].id); // Default to first room
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [filterRoom, setFilterRoom] = useState(''); 
   const [events, setEvents] = useState<GoogleEvent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isGapiInitialized, setIsGapiInitialized] = useState(false);
@@ -59,7 +60,28 @@ const Schedule: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) => {
     recurrenceEnd: ''
   });
   
-  const selectedRoom = MOCK_ROOMS.find(r => r.id === filterRoom);
+  // Fetch Rooms from API
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        const res = await api('/api/rooms');
+        if (res.ok) {
+          const data = await res.json();
+          setRooms(data);
+          // Set default room to the first one if available
+          if (data.length > 0) {
+            setFilterRoom(data[0].id);
+          }
+        }
+      } catch (e) {
+        console.error("Gagal mengambil data ruangan", e);
+        showToast("Gagal memuat daftar ruangan", "error");
+      }
+    };
+    fetchRooms();
+  }, []);
+
+  const selectedRoom = rooms.find(r => r.id === filterRoom);
 
   // Helper: Extract Calendar ID from Embed URL
   const getCalendarId = (input: string) => {
@@ -238,7 +260,7 @@ const Schedule: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) => {
       const eventResource: any = {
         'summary': eventForm.summary,
         'location': selectedRoom.name,
-        'description': eventForm.description + `\n\nDibuat oleh Admin (${role}) via Silab FTI`,
+        'description': eventForm.description + `\n\nDibuat oleh Admin () via Silab FTI`,
         'start': {
           'dateTime': startDateTime.toISOString(),
           'timeZone': 'Asia/Jakarta'
@@ -256,7 +278,7 @@ const Schedule: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) => {
               const untilDate = new Date(eventForm.recurrenceEnd);
               untilDate.setHours(23, 59, 59);
               const untilStr = untilDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-              rrule += `;UNTIL=${untilStr}`;
+              rrule += `;UNTIL=`;
           }
           eventResource.recurrence = [rrule];
       }
@@ -287,6 +309,34 @@ const Schedule: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) => {
   const handleAuthClick = () => {
     if (tokenClient) {
       tokenClient.requestAccessToken({ prompt: 'consent' });
+    }
+  };
+
+  // Handler saat tanggal diklik
+  const handleDayClick = (day: { date: number; events: GoogleEvent[]; isCurrentMonth: boolean; fullDate: string }) => {
+    if (!day.isCurrentMonth) return;
+
+    const canAdd = role === Role.ADMIN || role === Role.LABORAN;
+
+    // Jika Admin/Laboran klik tanggal kosong (tidak ada event), langsung buka form tambah
+    if (canAdd && day.events.length === 0) {
+        if (!isAuthenticated) {
+            handleAuthClick();
+            return;
+        }
+        setEventForm({
+            summary: '',
+            description: '',
+            startDate: day.fullDate, // Isi otomatis tanggal yang diklik
+            startTime: '08:00',
+            endTime: '10:00',
+            recurrence: 'NONE',
+            recurrenceEnd: ''
+        });
+        setIsAddEventModalOpen(true);
+    } else {
+        // Jika ada event atau user biasa, buka detail harian
+        setSelectedDayDetail(day);
     }
   };
 
@@ -384,7 +434,8 @@ const Schedule: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) => {
                     onChange={(e) => setFilterRoom(e.target.value)}
                     className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
                  >
-                    {MOCK_ROOMS.map(r => (
+                    {rooms.length === 0 && <option value="">Memuat ruangan...</option>}
+                    {rooms.map(r => (
                       <option key={r.id} value={r.id}>{r.name}</option>
                     ))}
                  </select>
@@ -424,6 +475,17 @@ const Schedule: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) => {
 
       {/* Calendar Content */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+          {rooms.length === 0 && !isLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-full mb-4">
+                      <MapPin className="w-12 h-12 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Data Ruangan Kosong</h3>
+                  <p className="text-gray-500 dark:text-gray-400 max-w-sm">
+                      Belum ada ruangan yang terdaftar. Silakan tambahkan ruangan terlebih dahulu di menu Daftar Ruangan.
+                  </p>
+              </div>
+          ) : (
             <div className="p-6 animate-fade-in-up">
                {/* Calendar Header */}
                <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
@@ -465,7 +527,7 @@ const Schedule: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) => {
                        {calendarGrid.map((day, idx) => (
                            <div 
                                key={idx}
-                               onClick={() => day.isCurrentMonth && setSelectedDayDetail(day)}
+                               onClick={() => handleDayClick(day)}
                                className={`min-h-[120px] border-b border-r border-gray-100 dark:border-gray-700 p-2 transition-colors ${!day.isCurrentMonth ? 'bg-gray-50/50 dark:bg-gray-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer'}`}
                            >
                                {day.isCurrentMonth && (
@@ -507,6 +569,7 @@ const Schedule: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) => {
                    </div>
                </div>
             </div>
+          )}
       </div>
 
       {/* Day Detail Modal */}
@@ -522,6 +585,23 @@ const Schedule: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) => {
                         <X className="w-5 h-5" />
                     </button>
                 </div>
+                
+                {/* Tombol Tambah di Modal Detail (Untuk tanggal yang sudah ada isinya) */}
+                {(role === Role.ADMIN || role === Role.LABORAN) && (
+                    <div className="px-6 pt-4">
+                        <button 
+                            onClick={() => {
+                                setSelectedDayDetail(null);
+                                setEventForm(prev => ({ ...prev, startDate: selectedDayDetail.fullDate }));
+                                setIsAddEventModalOpen(true);
+                            }}
+                            className="w-full py-2 bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 rounded-lg text-sm font-medium hover:bg-blue-100 dark:hover:bg-blue-900/30 flex items-center justify-center"
+                        >
+                            <Plus className="w-4 h-4 mr-2" /> Tambah Jadwal di Tanggal Ini
+                        </button>
+                    </div>
+                )}
+
                 <div className="p-6 max-h-[60vh] overflow-y-auto scrollbar-thin">
                     {selectedDayDetail.events.length > 0 ? (
                         <div className="space-y-3">

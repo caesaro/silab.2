@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Role, Loan, Equipment } from '../types';
 import { Search, Filter, Plus, Check, X, Clock, Box, User, Save, Trash2, CreditCard, Eye, Calendar, QrCode, Camera, Zap, ZapOff } from 'lucide-react';
 import { Html5Qrcode } from "html5-qrcode";
+import { api } from '../services/api';
 
 interface LoansProps {
   role: Role;
@@ -142,11 +143,21 @@ const Loans: React.FC<LoansProps> = ({ role, showToast }) => {
 
   // Initialize Scanner when modal opens
   useEffect(() => {
-    // --- SIMULASI FETCH DATA DARI DATABASE ---
-    // Di aplikasi nyata, ini akan menjadi panggilan API ke backend Anda
-    // setLoans(api.getLoans());
-    // setEquipment(api.getEquipment());
-    // Untuk sekarang, kita biarkan kosong.
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+        const [loansRes, eqRes] = await Promise.all([
+            api('/api/loans'),
+            api('/api/inventory')
+        ]);
+        if (loansRes.ok) setLoans(await loansRes.json());
+        if (eqRes.ok) setEquipment(await eqRes.json());
+    } catch (e) { console.error(e); }
+  };
+
+  useEffect(() => {
 
     let timer: NodeJS.Timeout;
 
@@ -285,7 +296,7 @@ const Loans: React.FC<LoansProps> = ({ role, showToast }) => {
     });
   };
 
-  const confirmReturn = () => {
+  const confirmReturn = async () => {
     if (!returnConfirmation) return;
 
     const { loans, returnDate, returnTime, returnOfficer } = returnConfirmation;
@@ -295,44 +306,28 @@ const Loans: React.FC<LoansProps> = ({ role, showToast }) => {
         return;
     }
 
-    loans.forEach(loan => {
-        // Update Mock Equipment Availability
-        const eqIndex = equipment.findIndex(e => e.id === loan.equipmentId);
-        if (eqIndex !== -1) {
-            // Di aplikasi nyata, ini akan menjadi panggilan API untuk update status barang
-            const updatedEquipment = [...equipment];
-            updatedEquipment[eqIndex].isAvailable = true;
-            setEquipment(updatedEquipment);
-        }
-    });
-
-    // Update Local State
-    const loanIds = loans.map(l => l.id);
-    setLoans(prev => prev.map(l => 
-        loanIds.includes(l.id) ? { ...l, status: 'Dikembalikan', actualReturnDate: returnDate, actualReturnTime: returnTime, returnOfficer: returnOfficer } as Loan : l
-    ));
+    try {
+        const res = await api('/api/loans/return', {
+            method: 'PUT',
+            data: {
+                loanIds: loans.map(l => l.id),
+                returnDate, returnTime, returnOfficer
+            }
+        });
+        if (res.ok) fetchData();
+    } catch (e) { showToast("Gagal memproses pengembalian", "error"); }
   };
 
-  const handleDeleteGroup = (groupLoans: Loan[]) => {
+  const handleDeleteGroup = async (groupLoans: Loan[]) => {
     if (confirm(`Hapus riwayat peminjaman untuk ${groupLoans.length} barang ini? Data tidak dapat dikembalikan.`)) {
-      
-      groupLoans.forEach(loanToDelete => {
-          // If deleting an active loan, make equipment available again
-          if (loanToDelete.status === 'Dipinjam') {
-              const eqIndex = equipment.findIndex(e => e.id === loanToDelete.equipmentId);
-              if (eqIndex !== -1) {
-                  const updatedEquipment = [...equipment];
-                  updatedEquipment[eqIndex].isAvailable = true;
-                  setEquipment(updatedEquipment);
-              }
-          }
-      });
-
-      // Update Local State
-      const idsToDelete = groupLoans.map(l => l.id);
-      setLoans(prev => prev.filter(loan => !idsToDelete.includes(loan.id)));
-      
-      showToast("Data peminjaman dihapus.", "info");
+      try {
+        await api('/api/loans/group', {
+            method: 'DELETE',
+            data: { loanIds: groupLoans.map(l => l.id) }
+        });
+        fetchData();
+        showToast("Data peminjaman dihapus.", "info");
+      } catch (e) { showToast("Gagal menghapus data", "error"); }
     }
   };
 
@@ -355,7 +350,7 @@ const Loans: React.FC<LoansProps> = ({ role, showToast }) => {
     setFormData(prev => ({ ...prev, equipmentIds: newIds }));
   };
 
-  const handleSubmitLoan = (e: React.FormEvent) => {
+  const handleSubmitLoan = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const selectedIds = formData.equipmentIds.filter(id => id !== '');
@@ -371,43 +366,24 @@ const Loans: React.FC<LoansProps> = ({ role, showToast }) => {
        return;
     }
 
-    // Combine Name and Identifier
-    const displayName = `${formData.borrowerName} (${formData.nim})`;
-
-    // Generate Transaction ID (Satu ID untuk semua barang di form ini)
-    const transactionId = `TRX-${Date.now()}`;
-
-    const newLoans: Loan[] = [];
-
-    selectedIds.forEach(eqId => {
-        const equipmentIndex = equipment.findIndex(e => e.id === eqId);
-        if (equipmentIndex !== -1) {
-            const equipmentItem = equipment[equipmentIndex];
-            
-            const newLoan: Loan = {
-              id: `L-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              transactionId: transactionId,
-              equipmentId: equipmentItem.id,
-              equipmentName: equipmentItem.name,
-              borrowerName: displayName,
-              borrowOfficer: formData.borrowOfficer,
-              guarantee: formData.guarantee,
-              borrowDate: formData.borrowDate,
-              borrowTime: formData.borrowTime,
-              status: 'Dipinjam'
-            };
-
-            // Update Mock Equipment (Availability)
-            const updatedEquipment = [...equipment];
-            updatedEquipment[equipmentIndex].isAvailable = false;
-            setEquipment(updatedEquipment);
-
-            newLoans.push(newLoan);
+    try {
+        const res = await api('/api/loans', {
+            method: 'POST',
+            data: {
+                equipmentIds: selectedIds,
+                borrowerName: formData.borrowerName,
+                nim: formData.nim,
+                guarantee: formData.guarantee,
+                borrowDate: formData.borrowDate,
+                borrowTime: formData.borrowTime,
+                borrowOfficer: formData.borrowOfficer
+            }
+        });
+        if (res.ok) {
+            fetchData();
+            showToast(`${selectedIds.length} Peminjaman berhasil dicatat.`, "success");
         }
-    });
-
-    // Update Local State
-    setLoans([...newLoans, ...loans]);
+    } catch (e) { showToast("Gagal menyimpan data", "error"); }
 
     setIsModalOpen(false);
     setFormData({ 
@@ -419,7 +395,6 @@ const Loans: React.FC<LoansProps> = ({ role, showToast }) => {
         borrowTime: new Date().toTimeString().slice(0, 5),
         borrowOfficer: ''
     });
-    showToast(`${newLoans.length} Peminjaman berhasil dicatat.`, "success");
   };
 
   const filteredLoans = loans.filter(loan => {
@@ -429,9 +404,9 @@ const Loans: React.FC<LoansProps> = ({ role, showToast }) => {
       return matchesSearch && matchesFilter;
   });
 
-  // Group Loans by Borrower + Date + Time
+  // Group Loans by Transaction ID (Sesuai tabel transactions di DB)
   const groupedLoans = filteredLoans.reduce((groups, loan) => {
-      const key = `${loan.borrowerName}|${loan.borrowDate}|${loan.borrowTime || '00:00'}`;
+      const key = loan.transactionId;
       if (!groups[key]) {
           groups[key] = [];
       }
@@ -439,7 +414,7 @@ const Loans: React.FC<LoansProps> = ({ role, showToast }) => {
       return groups;
   }, {} as Record<string, Loan[]>);
 
-  const sortedGroupKeys = Object.keys(groupedLoans).sort((a, b) => b.localeCompare(a)); // Sort by date desc (part of key)
+  const sortedGroupKeys = Object.keys(groupedLoans).sort((a, b) => b.localeCompare(a)); // Sort by Transaction ID Desc (TRX-Timestamp)
 
   return (
     <div className="space-y-6">
@@ -498,7 +473,6 @@ const Loans: React.FC<LoansProps> = ({ role, showToast }) => {
               {sortedGroupKeys.length > 0 ? sortedGroupKeys.map((key) => {
                 const groupLoans = groupedLoans[key];
                 const firstLoan = groupLoans[0];
-                const [borrowerName, borrowDate, borrowTime] = key.split('|');
                 
                 const allReturned = groupLoans.every(l => l.status === 'Dikembalikan');
                 const anyLate = groupLoans.some(l => l.status === 'Terlambat');
@@ -511,15 +485,15 @@ const Loans: React.FC<LoansProps> = ({ role, showToast }) => {
                     className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer group"
                   >
                     <td className="px-6 py-4">
-                      <div className="text-gray-900 dark:text-white font-medium">{borrowerName}</div>
+                      <div className="text-gray-900 dark:text-white font-medium">{firstLoan.borrowerName}</div>
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 mt-1">
                           Oleh: {firstLoan.borrowOfficer} | 
                           Jaminan: {firstLoan.guarantee}
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                        <div className="text-gray-900 dark:text-white text-sm">{borrowDate}</div>
-                        <div className="text-xs text-gray-500">{borrowTime}</div>
+                        <div className="text-gray-900 dark:text-white text-sm">{firstLoan.borrowDate}</div>
+                        <div className="text-xs text-gray-500">{firstLoan.borrowTime}</div>
                         {allReturned && firstLoan.actualReturnDate && (
                             <div className="mt-2 pt-1 border-t border-gray-100 dark:border-gray-700">
                                 <div className="text-[10px] uppercase font-bold text-green-600 dark:text-green-400">Dikembalikan:</div>
@@ -548,7 +522,7 @@ const Loans: React.FC<LoansProps> = ({ role, showToast }) => {
                  <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                        <div className="flex flex-col items-center">
-                          <Box className="w-10 h-10 text-gray-300 mb-2" />
+                          <Box className="w-12 h-12 text-gray-300 mb-3" />
                           <p>Tidak ada data peminjaman.</p>
                        </div>
                     </td>
@@ -607,7 +581,8 @@ const Loans: React.FC<LoansProps> = ({ role, showToast }) => {
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             {formData.guarantee === 'KTM' ? 'NIM' : 
                              formData.guarantee === 'KTP' ? 'NIK' : 
-                             formData.guarantee === 'SIM' ? 'No. SIM' : 'Nomor Identitas'}
+                             formData.guarantee === 'SIM' ? 'No. SIM' : 
+                             formData.guarantee === 'Lainnya' ? 'Nama Jaminan' : 'Nomor Identitas'}
                         </label>
                         <div className="relative">
                             <CreditCard className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -615,7 +590,7 @@ const Loans: React.FC<LoansProps> = ({ role, showToast }) => {
                                 type="text" required
                                 value={formData.nim}
                                 onChange={(e) => setFormData({...formData, nim: e.target.value})}
-                                placeholder={formData.guarantee === 'KTM' ? '6720xxxx' : 'Nomor Identitas'}
+                                placeholder={formData.guarantee === 'KTM' ? '6720xxxx' : formData.guarantee === 'Lainnya' ? 'Contoh: STNK / HP' : 'Nomor Identitas'}
                                 className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
                             />
                         </div>

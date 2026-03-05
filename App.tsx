@@ -6,21 +6,27 @@ import Dashboard from './pages/Dashboard';
 import Rooms from './pages/Rooms';
 import Schedule from './pages/Schedule'; 
 import Loans from './pages/Loans';
+import Events from './pages/Events';
 import LaboranManagement from './pages/LaboranManagement';
 import Inventory from './pages/Inventory';
 import UserManagement from './pages/UserManagement';
 import ManageBookings from './pages/ManageBookings';
 import MyBookings from './pages/MyBookings'; 
+import CreateBooking from './pages/CreateBooking';
 import Profile from './pages/Profile'; 
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import Toast from './components/Toast';
 import LoadingScreen from './components/LoadingScreen';
+import ProtectedRoute from './components/ProtectedRoute';
+import Maintenance from './pages/Maintenance';
+import { api } from './services/api';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('isAuthenticated') === 'true');
   const [currentPage, setCurrentPage] = useState('dashboard');
-  const [currentRole, setCurrentRole] = useState<Role>(() => (localStorage.getItem('currentRole') as Role) || Role.USER);
+  const [currentRole, setCurrentRole] = useState<Role>(() => (localStorage.getItem('currentRole') as Role) || ('User' as Role));
+  const [userName, setUserName] = useState<string>(() => localStorage.getItem('userName') || 'User');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('isDarkMode');
@@ -32,6 +38,7 @@ const App: React.FC = () => {
   
   // Loading State
   const [isLoading, setIsLoading] = useState(true);
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
 
   // Notifications & Toast State
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -39,16 +46,46 @@ const App: React.FC = () => {
 
   // Simulate Initial System Load
   useEffect(() => {
+    // Cek status maintenance dari server
+    const checkSystemStatus = async () => {
+      try {
+        const res = await api('/api/settings/maintenance');
+        if (res.ok) {
+          const data = await res.json();
+          setIsMaintenanceMode(data.enabled);
+        }
+      } catch (e) {
+        console.error("Gagal cek status maintenance", e);
+      }
+    };
+    checkSystemStatus();
+
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 2000); // 2 seconds initial load
 
-    // --- SIMULASI FETCH DATA DARI DATABASE ---
-    // Di aplikasi nyata, ini akan menjadi panggilan API ke backend Anda
-    // setNotifications(api.getNotifications());
+    // Fetch Notifications
+    const fetchNotifications = async () => {
+      if (!isAuthenticated) return;
+      try {
+        const res = await api('/api/notifications');
+        if (res.ok) setNotifications(await res.json());
+      } catch (e) {
+        console.error("Gagal mengambil notifikasi", e);
+      }
+    };
 
-    return () => clearTimeout(timer);
-  }, []);
+    let notifInterval: NodeJS.Timeout;
+    if (isAuthenticated) {
+      fetchNotifications(); // Ambil langsung saat load
+      notifInterval = setInterval(fetchNotifications, 10000); // Cek lagi setiap 10 detik
+    }
+
+    return () => {
+      clearTimeout(timer);
+      if (notifInterval) clearInterval(notifInterval);
+    };
+  }, [isAuthenticated]); // Re-run when auth status changes
 
   useEffect(() => {
     if (isDarkMode) {
@@ -64,27 +101,28 @@ const App: React.FC = () => {
   };
 
   const handleLogin = (role: Role) => {
-    setIsLoading(true); // Show loader during login transition
+    setIsLoading(true);
+    setCurrentRole(role);
+    setUserName(localStorage.getItem('userName') || 'User');
+    setIsAuthenticated(true);
+    setCurrentPage('dashboard');
+    showToast('Selamat datang kembali!', 'success');
     
-    // Simulate API delay
-    setTimeout(() => {
-      setCurrentRole(role);
-      setIsAuthenticated(true);
-      setCurrentPage('dashboard');
-      setIsLoading(false); // Hide loader
-      showToast(`Selamat datang kembali, ${role}!`, 'success');
-      localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('currentRole', role);
-    }, 1500);
+    localStorage.setItem('isAuthenticated', 'true');
+    localStorage.setItem('currentRole', role);
+    setIsLoading(false);
   };
 
   const handleLogout = () => {
     setIsLoading(true);
     setTimeout(() => {
       setIsAuthenticated(false);
-      setCurrentRole(Role.USER);
+      setCurrentRole('User' as Role);
+      setUserName('User');
       localStorage.removeItem('isAuthenticated');
       localStorage.removeItem('currentRole');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('userId'); // Pastikan ID user juga dihapus
       setIsLoading(false);
     }, 800);
   };
@@ -102,14 +140,18 @@ const App: React.FC = () => {
     setNotifications(prev => [newNotif, ...prev]);
   };
 
-  const markNotificationAsRead = (id: string) => {
+  const markNotificationAsRead = async (id: string) => {
+    try {
+      await api(`/api/notifications/${id}/read`, { method: 'PUT' });
+    } catch (e) { console.error(e); }
+    
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
   };
 
   // Helper: Show Toast
   const showToast = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
     const newToast: ToastMessage = {
-       id: Date.now().toString(),
+       id: Date.now().toString() + Math.random().toString(),
        message,
        type
     };
@@ -120,6 +162,39 @@ const App: React.FC = () => {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
+  // --- SESSION TIMEOUT (AUTO LOGOUT) ---
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const TIMEOUT_MS = 30 * 60 * 1000; // 30 Menit
+    let timeoutId: NodeJS.Timeout;
+
+    const triggerLogout = () => {
+      showToast("Sesi Anda berakhir karena tidak aktif selama 30 menit.", "warning");
+      handleLogout();
+    };
+
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(triggerLogout, TIMEOUT_MS);
+    };
+
+    // Daftar event aktivitas user yang akan mereset timer
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    
+    // Pasang event listener
+    events.forEach(event => window.addEventListener(event, resetTimer));
+    
+    // Mulai timer awal
+    resetTimer();
+
+    // Bersihkan saat unmount atau logout
+    return () => {
+      clearTimeout(timeoutId);
+      events.forEach(event => window.removeEventListener(event, resetTimer));
+    };
+  }, [isAuthenticated]);
+
 
   const renderPage = () => {
     switch (currentPage) {
@@ -129,29 +204,75 @@ const App: React.FC = () => {
         return <Schedule role={currentRole} showToast={showToast} isDarkMode={isDarkMode} />;
       case 'rooms':
         return <Rooms role={currentRole} isDarkMode={isDarkMode} />;
+      case 'events':
+        return <Events showToast={showToast} />;
       case 'loans':
-        // Double check protection (though Sidebar hides it)
-        if (currentRole === Role.USER) return <Dashboard role={currentRole} onNavigate={setCurrentPage} />;
-        return <Loans role={currentRole} showToast={showToast} />;
+        return (
+          <ProtectedRoute 
+            currentRole={currentRole} 
+            allowedRoles={[Role.ADMIN, Role.LABORAN]} 
+            onNavigate={setCurrentPage}
+          >
+            <Loans role={currentRole} showToast={showToast} />
+          </ProtectedRoute>
+        );
       case 'laboran-management':
-        if (currentRole !== Role.ADMIN) return <Dashboard role={currentRole} onNavigate={setCurrentPage} />;
-        return <LaboranManagement />;
+        return (
+          <ProtectedRoute 
+            currentRole={currentRole} 
+            allowedRoles={[Role.ADMIN]} 
+            onNavigate={setCurrentPage}
+          >
+            <LaboranManagement />
+          </ProtectedRoute>
+        );
       case 'inventory':
-        if (currentRole === Role.USER) return <Dashboard role={currentRole} onNavigate={setCurrentPage} />;
-        return <Inventory />;
+        return (
+          <ProtectedRoute 
+            currentRole={currentRole} 
+            allowedRoles={[Role.ADMIN, Role.LABORAN]} 
+            onNavigate={setCurrentPage}
+          >
+            <Inventory />
+          </ProtectedRoute>
+        );
       case 'users':
-        if (currentRole !== Role.ADMIN) return <Dashboard role={currentRole} onNavigate={setCurrentPage} />;
-        return <UserManagement />;
+        return (
+          <ProtectedRoute 
+            currentRole={currentRole} 
+            allowedRoles={[Role.ADMIN]} 
+            onNavigate={setCurrentPage}
+          >
+            <UserManagement />
+          </ProtectedRoute>
+        );
       case 'bookings':
         // Passing John Doe's ID for demo purposes to match mock data
         return <MyBookings userId="672019001" showToast={showToast} />;
+      case 'create-booking':
+        return <CreateBooking showToast={showToast} onNavigate={setCurrentPage} />;
       case 'manage-bookings':
-        return <ManageBookings addNotification={addNotification} showToast={showToast} />;
+        return (
+          <ProtectedRoute 
+            currentRole={currentRole} 
+            allowedRoles={[Role.ADMIN, Role.LABORAN]} 
+            onNavigate={setCurrentPage}
+          >
+            <ManageBookings addNotification={addNotification} showToast={showToast} />
+          </ProtectedRoute>
+        );
       case 'profile':
         return <Profile role={currentRole} />;
       case 'settings':
-        if (currentRole !== Role.ADMIN) return <Dashboard role={currentRole} onNavigate={setCurrentPage} />;
-        return <Settings showToast={showToast} />;
+        return (
+          <ProtectedRoute 
+            currentRole={currentRole} 
+            allowedRoles={[Role.ADMIN]} 
+            onNavigate={setCurrentPage}
+          >
+            <Settings showToast={showToast} />
+          </ProtectedRoute>
+        );
       default:
         return <Dashboard role={currentRole} onNavigate={setCurrentPage} />;
     }
@@ -160,6 +281,11 @@ const App: React.FC = () => {
   // Render Global Loader
   if (isLoading) {
     return <LoadingScreen />;
+  }
+
+  // Render Maintenance Screen (Hanya untuk User biasa, Admin/Laboran tetap bisa akses)
+  if (isMaintenanceMode && currentRole === Role.USER) {
+    return <Maintenance />;
   }
 
   if (!isAuthenticated) {
@@ -205,6 +331,7 @@ const App: React.FC = () => {
             isDarkMode={isDarkMode}
             toggleDarkMode={toggleDarkMode}
             currentRole={currentRole}
+            userName={userName}
             onOpenAi={() => showToast("Fitur AI dinonaktifkan.", "info")}
             onLogout={handleLogout}
             notifications={notifications}

@@ -1,15 +1,25 @@
-import React, { useState } from 'react';
-import { Database, Server, Lock, Globe, Save, RefreshCw, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Database, Server, Lock, Globe, Save, RefreshCw, Eye, EyeOff, CheckCircle, AlertCircle, ShieldAlert, Power, Megaphone, Download, Upload, FileText, FileWarning } from 'lucide-react';
+import { api } from '../services/api';
 
 interface SettingsProps {
   showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void;
 }
 
 const Settings: React.FC<SettingsProps> = ({ showToast }) => {
-  const [activeTab, setActiveTab] = useState<'database' | 'sso'>('database');
+  const [activeTab, setActiveTab] = useState<'database' | 'sso' | 'system' | 'error-log'>('database');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showClientSecret, setShowClientSecret] = useState(false);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [announcement, setAnnouncement] = useState({
+    active: false,
+    message: '',
+    type: 'info'
+  });
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [errorLog, setErrorLog] = useState('');
 
   // Database State
   const [dbConfig, setDbConfig] = useState({
@@ -29,31 +39,160 @@ const Settings: React.FC<SettingsProps> = ({ showToast }) => {
     domain: 'student.uksw.edu',
   });
 
-  const handleDbSave = (e: React.FormEvent) => {
+  // Fetch System Settings
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const [resMaint, resAnnounce] = await Promise.all([
+          api('/api/settings/maintenance'),
+          api('/api/settings/announcement')
+        ]);
+
+        if (resMaint.ok) setMaintenanceMode((await resMaint.json()).enabled);
+        if (resAnnounce.ok) {
+           const data = await resAnnounce.json();
+           setAnnouncement(data);
+        }
+      } catch (e) {}
+    };
+    fetchSettings();
+  }, []);
+
+  // Fetch Error Log when tab is active
+  useEffect(() => {
+    if (activeTab === 'error-log') {
+        const fetchLog = async () => {
+            try {
+                const res = await api('/api/settings/error-log');
+                if (res.ok) {
+                    const data = await res.json();
+                    setErrorLog(data.log);
+                }
+            } catch (e) { console.error(e); }
+        };
+        fetchLog();
+    }
+  }, [activeTab]);
+
+  const handleDbSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      showToast('Konfigurasi Database berhasil disimpan!', 'success');
-    }, 1500);
+    
+    // TODO: Kirim data konfigurasi ke backend API untuk disimpan
+    // await api('/api/settings/db', { method: 'POST', data: dbConfig });
+    
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    setIsLoading(false);
+    showToast('Konfigurasi Database berhasil disimpan! (Simulasi)', 'success');
   };
 
-  const handleTestConnection = () => {
+  const handleTestConnection = async () => {
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      showToast('Koneksi Database Berhasil!', 'success');
-    }, 1500);
+    
+    // TODO: Panggil API backend untuk tes koneksi DB yang sebenarnya
+    // Browser tidak bisa langsung connect ke PostgreSQL (TCP/IP)
+    // const res = await api('/api/test-db', { method: 'POST', data: dbConfig });
+    
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    setIsLoading(false);
+    showToast('Koneksi Database Berhasil! (Simulasi)', 'success');
   };
 
-  const handleSsoSave = (e: React.FormEvent) => {
+  const handleSsoSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(() => {
+    
+    // TODO: Kirim konfigurasi SSO ke backend
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    setIsLoading(false);
+    showToast('Pengaturan Google SSO berhasil diperbarui! (Simulasi)', 'success');
+  };
+
+  const handleMaintenanceToggle = async () => {
+    const newState = !maintenanceMode;
+    setMaintenanceMode(newState); // Optimistic update
+    try {
+      await api('/api/settings/maintenance', {
+        method: 'POST',
+        data: { enabled: newState }
+      });
+      showToast(`Maintenance Mode ${newState ? 'Diaktifkan' : 'Dinonaktifkan'}`, newState ? 'warning' : 'success');
+    } catch (e) {
+      setMaintenanceMode(!newState); // Revert on error
+      showToast("Gagal mengubah pengaturan", "error");
+    }
+  };
+
+  const handleAnnouncementSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api('/api/settings/announcement', {
+        method: 'POST',
+        data: announcement
+      });
+      showToast('Pengumuman berhasil diperbarui', 'success');
+    } catch (err) {
+      showToast('Gagal menyimpan pengumuman', 'error');
+    }
+  };
+
+  const handleDownloadBackup = async () => {
+    try {
+      showToast('Memproses backup database...', 'info');
+      
+      const response = await api('/api/settings/backup');
+
+      if (!response.ok) throw new Error('Backup failed');
+
+      // Convert response ke Blob dan trigger download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backup-corefti-${new Date().toISOString().split('T')[0]}.sql`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      showToast('Backup berhasil didownload!', 'success');
+    } catch (error) {
+      console.error(error);
+      showToast('Gagal mengunduh backup. Pastikan server memiliki pg_dump.', 'error');
+    }
+  };
+
+  const handleRestoreDatabase = async () => {
+    if (!restoreFile) return;
+
+    if (!window.confirm("PERINGATAN: Tindakan ini akan MENIMPA seluruh data database saat ini dengan data dari file backup. Data yang ada sekarang akan HILANG. Apakah Anda yakin ingin melanjutkan?")) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('backupFile', restoreFile);
+
+      const response = await api('/api/settings/restore', {
+        method: 'POST',
+        data: formData
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        showToast('Database berhasil direstore!', 'success');
+        setRestoreFile(null);
+      } else {
+        throw new Error(result.error || 'Restore failed');
+      }
+    } catch (error) {
+      showToast('Gagal merestore database.', 'error');
+    } finally {
       setIsLoading(false);
-      showToast('Pengaturan Google SSO berhasil diperbarui!', 'success');
-    }, 1500);
+    }
   };
 
   return (
@@ -86,6 +225,28 @@ const Settings: React.FC<SettingsProps> = ({ showToast }) => {
         >
           <Globe className="w-4 h-4 mr-2" />
           Google SSO
+        </button>
+        <button
+          onClick={() => setActiveTab('system')}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center ${
+            activeTab === 'system'
+              ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-white shadow-sm'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          <ShieldAlert className="w-4 h-4 mr-2" />
+          Sistem
+        </button>
+        <button
+          onClick={() => setActiveTab('error-log')}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center ${
+            activeTab === 'error-log'
+              ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-white shadow-sm'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          <FileWarning className="w-4 h-4 mr-2" />
+          Log Error
         </button>
       </div>
 
@@ -283,6 +444,163 @@ const Settings: React.FC<SettingsProps> = ({ showToast }) => {
                 </button>
              </div>
           </form>
+        </div>
+      )}
+
+      {activeTab === 'system' && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden animate-fade-in-up">
+           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
+                 <ShieldAlert className="w-5 h-5 mr-2 text-blue-500" /> Kontrol Sistem
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Pengaturan darurat dan mode pemeliharaan.</p>
+           </div>
+           
+           <div className="p-6 space-y-6">
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-gray-200 dark:border-gray-700">
+                 <div>
+                    <h4 className="text-sm font-bold text-gray-900 dark:text-white flex items-center">
+                       <Power className="w-4 h-4 mr-2 text-orange-500" /> Maintenance Mode
+                    </h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-md">
+                       Jika aktif, akses untuk User (Mahasiswa/Dosen) akan ditutup sementara. Admin dan Laboran tetap dapat mengakses sistem.
+                    </p>
+                 </div>
+                 <button 
+                    onClick={handleMaintenanceToggle}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${maintenanceMode ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-600'}`}
+                 >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${maintenanceMode ? 'translate-x-6' : 'translate-x-1'}`} />
+                 </button>
+              </div>
+
+              <div className="p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-gray-200 dark:border-gray-700">
+                 <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h4 className="text-sm font-bold text-gray-900 dark:text-white flex items-center">
+                           <Megaphone className="w-4 h-4 mr-2 text-blue-500" /> Pengumuman Global (Banner)
+                        </h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                           Tampilkan pesan penting di dashboard semua pengguna.
+                        </p>
+                    </div>
+                    <div className="flex items-center">
+                        <span className={`text-xs font-medium mr-2 ${announcement.active ? 'text-green-600' : 'text-gray-400'}`}>{announcement.active ? 'Aktif' : 'Non-Aktif'}</span>
+                        <button 
+                            onClick={() => setAnnouncement({...announcement, active: !announcement.active})}
+                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${announcement.active ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                        >
+                            <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${announcement.active ? 'translate-x-5' : 'translate-x-1'}`} />
+                        </button>
+                    </div>
+                 </div>
+                 
+                 <form onSubmit={handleAnnouncementSave} className="space-y-3">
+                    <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Isi Pesan</label>
+                        <textarea 
+                            value={announcement.message}
+                            onChange={e => setAnnouncement({...announcement, message: e.target.value})}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
+                            rows={2}
+                            placeholder="Contoh: Lab tutup hari Jumat untuk pembersihan."
+                        />
+                    </div>
+                    <div className="flex justify-between items-center">
+                        <select 
+                            value={announcement.type}
+                            onChange={e => setAnnouncement({...announcement, type: e.target.value})}
+                            className="text-sm px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                        >
+                            <option value="info">Info (Biru)</option>
+                            <option value="warning">Peringatan (Kuning)</option>
+                            <option value="error">Kritikal (Merah)</option>
+                        </select>
+                        <button type="submit" className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">Simpan</button>
+                    </div>
+                 </form>
+              </div>
+
+              <div className="p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-gray-200 dark:border-gray-700">
+                 <div className="flex items-center justify-between">
+                    <div>
+                        <h4 className="text-sm font-bold text-gray-900 dark:text-white flex items-center">
+                           <Database className="w-4 h-4 mr-2 text-blue-500" /> Backup Database
+                        </h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                           Unduh salinan lengkap database (SQL Dump) untuk keperluan arsip.
+                        </p>
+                    </div>
+                    <button 
+                        onClick={handleDownloadBackup}
+                        className="px-4 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 text-gray-700 dark:text-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-500 flex items-center shadow-sm"
+                    >
+                        <Download className="w-4 h-4 mr-2" /> Download .sql
+                    </button>
+                 </div>
+              </div>
+
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                 <div className="flex flex-col space-y-4">
+                    <div>
+                        <h4 className="text-sm font-bold text-red-800 dark:text-red-300 flex items-center">
+                           <Upload className="w-4 h-4 mr-2" /> Restore Database
+                        </h4>
+                        <p className="text-xs text-red-700 dark:text-red-400 mt-1">
+                           Pulihkan database dari file backup (.sql). <span className="font-bold">PERINGATAN: Data saat ini akan ditimpa.</span>
+                        </p>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                        <input 
+                            type="file" 
+                            accept=".sql"
+                            ref={fileInputRef}
+                            className="hidden"
+                            onChange={(e) => setRestoreFile(e.target.files?.[0] || null)}
+                        />
+                        <button 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center"
+                        >
+                            <FileText className="w-4 h-4 mr-2" /> 
+                            {restoreFile ? restoreFile.name : 'Pilih File .sql'}
+                        </button>
+                        
+                        {restoreFile && (
+                            <button 
+                                onClick={handleRestoreDatabase}
+                                disabled={isLoading}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 flex items-center shadow-sm disabled:opacity-50"
+                            >
+                                {isLoading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                                Mulai Restore
+                            </button>
+                        )}
+                    </div>
+                 </div>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {activeTab === 'error-log' && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden animate-fade-in-up">
+           <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
+                 <FileWarning className="w-5 h-5 mr-2 text-red-500" /> System Error Log
+              </h3>
+              <button 
+                  onClick={() => { setActiveTab('database'); setTimeout(() => setActiveTab('error-log'), 50); }} 
+                  className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                  title="Refresh Log"
+              >
+                  <RefreshCw className="w-4 h-4" />
+              </button>
+           </div>
+           <div className="p-6 bg-gray-900 text-gray-300 font-mono text-xs overflow-auto max-h-[500px] whitespace-pre-wrap">
+              {errorLog || "Tidak ada log untuk ditampilkan."}
+           </div>
         </div>
       )}
     </div>

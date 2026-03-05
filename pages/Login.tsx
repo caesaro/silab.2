@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Mail, Lock, User, ArrowLeft, Eye, EyeOff, Loader2, Moon, Sun } from 'lucide-react';
+import { Mail, Lock, User, ArrowLeft, Eye, EyeOff, Loader2, Moon, Sun, Check } from 'lucide-react';
 import { Role } from '../types';
 import fti from "../src/assets/fti.jpg";
 import nocLogo from "../src/assets/noc.png";
+import { api } from '../services/api';
 
 interface LoginProps {
   onLogin: (role: Role) => void;
@@ -11,7 +12,7 @@ interface LoginProps {
   toggleDarkMode: () => void;
 }
 
-type ViewState = 'login' | 'register' | 'forgot-password';
+type ViewState = 'login' | 'register' | 'forgot-password' | 'set-password';
 
 const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDarkMode }) => {
   const [view, setView] = useState<ViewState>('login');
@@ -21,6 +22,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
   // Form State
   const [formData, setFormData] = useState({
     email: '',
+    username: '', // New Field for Register
     password: '',
     confirmPassword: '',
     fullName: '',
@@ -31,33 +33,57 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleManualLogin = (e: React.FormEvent) => {
+  const handleManualLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.email || !formData.password) {
-      showToast('Mohon isi email dan password.', 'error');
-      return;
+    // Password boleh kosong jika dalam mode reset (admin reset password jadi NULL)
+    if (!formData.email) {
+        showToast('Mohon isi email.', 'error');
+        return;
     }
 
     setIsLoading(true);
-    // Simulate Auth Check
-    setTimeout(() => {
-      setIsLoading(false);
-      
-      // Demo Logic for Role Determination based on email
-      const emailLower = formData.email.toLowerCase();
-      let role = Role.USER;
-      
-      if (emailLower.includes('admin')) {
-        role = Role.ADMIN;
-      } else if (emailLower.includes('laboran') || emailLower.includes('teknisi')) {
-        role = Role.LABORAN;
+    
+    try {
+      // Menggunakan wrapper 'api' (Header & URL otomatis dihandle)
+      const response = await api('/api/login', {
+        method: 'POST',
+        data: {
+          email: formData.email,
+          password: formData.password || '' // Kirim string kosong jika user tidak isi password
+        }
+      });
+
+      const data = await response.json();
+
+      // Cek apakah user harus reset password (dari Admin)
+      if (data.resetRequired) {
+        showToast(`Halo ${data.name}, Admin telah mereset akun Anda. Silakan buat password baru.`, 'info');
+        setView('set-password');
+        return;
       }
 
-      onLogin(role);
-    }, 1500);
+      if (response.ok && data.success) {
+        // Simpan User ID untuk keperluan Profile
+        localStorage.setItem('userId', data.id);
+        localStorage.setItem('userName', data.name);
+        
+        if (data.profileIncomplete) {
+           showToast(`Halo ${data.name}, yuk lengkapi data profil Anda (No. HP & Prodi) agar memudahkan administrasi.`, 'info');
+        }
+
+        onLogin(data.role as Role);
+      } else {
+        showToast(data.error || 'Login gagal.', 'error');
+      }
+    } catch (error) {
+      console.error("Login Error:", error);
+      showToast('Gagal terhubung ke server.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
       showToast('Password dan konfirmasi password tidak cocok!', 'error');
@@ -65,13 +91,34 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
     }
 
     setIsLoading(true);
-    // Simulate Registration
-    setTimeout(() => {
+    
+    try {
+      const response = await api('/api/register', {
+        method: 'POST',
+        data: {
+          fullName: formData.fullName,
+          nim: formData.nim,
+          email: formData.email,
+          username: formData.username,
+          password: formData.password
+        }
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        showToast('Akun berhasil dibuat! Menunggu persetujuan Admin.', 'success');
+        setView('login');
+        setFormData({ ...formData, password: '', confirmPassword: '' });
+      } else {
+        showToast(data.error || 'Registrasi gagal.', 'error');
+      }
+    } catch (error) {
+      console.error("Register Error:", error);
+      showToast('Gagal terhubung ke server.', 'error');
+    } finally {
       setIsLoading(false);
-      showToast('Akun berhasil dibuat! Silakan login.', 'success');
-      setView('login');
-      setFormData({ ...formData, password: '', confirmPassword: '' });
-    }, 1500);
+    }
   };
 
   const handleForgotPassword = (e: React.FormEvent) => {
@@ -88,6 +135,41 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
       showToast(`Link reset password telah dikirim ke ${formData.email}`, 'info');
       setView('login');
     }, 1500);
+  };
+
+  const handleSetNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.password !== formData.confirmPassword) {
+      showToast('Password dan konfirmasi tidak cocok!', 'error');
+      return;
+    }
+    if (formData.password.length < 6) {
+      showToast('Password minimal 6 karakter.', 'warning');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await api('/api/set-password', {
+        method: 'POST',
+        data: {
+          email: formData.email,
+          newPassword: formData.password
+        }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        showToast(data.message, 'success');
+        setView('login');
+        setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));
+      } else {
+        showToast(data.error || 'Gagal mengatur password.', 'error');
+      }
+    } catch (error) {
+      showToast('Terjadi kesalahan koneksi.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -154,7 +236,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
                       value={formData.email}
                       onChange={handleChange}
                       className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm"
-                      placeholder="nama@uksw.edu"
+                      placeholder="Email atau Username"
                     />
                   </div>
                 </div>
@@ -171,7 +253,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
                     <input
                       name="password"
                       type={showPassword ? "text" : "password"}
-                      required
+                      // required -> Dihapus agar user bisa submit kosong saat mode reset
                       value={formData.password}
                       onChange={handleChange}
                       className="block w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm"
@@ -260,6 +342,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email UKSW</label>
                    <input name="email" type="email" required onChange={handleChange} className="block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm" placeholder="nama@student.uksw.edu" />
                 </div>
+                <div>
+                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username</label>
+                   <input name="username" type="text" required onChange={handleChange} className="block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm" placeholder="Username unik" />
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                    <div>
                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
@@ -310,6 +396,46 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
                   className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-70 transition-colors"
                 >
                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Kirim Link Reset'}
+                </button>
+              </form>
+             </div>
+          )}
+
+          {view === 'set-password' && (
+             <div className="animate-fade-in-up">
+               <div className="mb-8">
+                <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white">Buat Password Baru</h2>
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                  Akun: <span className="font-bold text-blue-600">{formData.email}</span>
+                </p>
+              </div>
+
+              <form onSubmit={handleSetNewPassword} className="space-y-5">
+                <div>
+                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password Baru</label>
+                   <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                         <Lock className="h-5 w-5 text-gray-400" />
+                      </div>
+                      <input name="password" type="password" required onChange={handleChange} className="block w-full pl-10 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm" placeholder="••••••••" />
+                   </div>
+                </div>
+                <div>
+                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Konfirmasi Password</label>
+                   <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                         <Check className="h-5 w-5 text-gray-400" />
+                      </div>
+                      <input name="confirmPassword" type="password" required onChange={handleChange} className="block w-full pl-10 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm" placeholder="••••••••" />
+                   </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-70 transition-colors"
+                >
+                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Simpan Password & Login'}
                 </button>
               </form>
              </div>

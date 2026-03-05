@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
-import { Menu, Moon, Sun, Bell, Search, LogOut, User, ChevronDown, Check, Box, Calendar, Users } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Menu, Moon, Sun, Bell, Search, LogOut, User, ChevronDown, Check, Box, MapPin } from 'lucide-react';
 import { Role, Notification } from '../types';
+import { api } from '../services/api';
 
 interface TopBarProps {
   onToggleSidebar: () => void;
   isDarkMode: boolean;
   toggleDarkMode: () => void;
   currentRole: Role;
+  userName: string;
   onOpenAi: () => void;
   onLogout: () => void;
   notifications: Notification[];
@@ -15,7 +17,7 @@ interface TopBarProps {
 }
 
 const TopBar: React.FC<TopBarProps> = ({ 
-  onToggleSidebar, isDarkMode, toggleDarkMode, currentRole, onOpenAi, onLogout, notifications, onMarkAsRead, onNavigate
+  onToggleSidebar, isDarkMode, toggleDarkMode, currentRole, userName, onOpenAi, onLogout, notifications, onMarkAsRead, onNavigate
 }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -25,14 +27,38 @@ const TopBar: React.FC<TopBarProps> = ({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value;
-    setSearchQuery(query);
+  // Debounce Search
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (searchQuery.length >= 2) {
+        try {
+          const res = await api(`/api/search?q=${encodeURIComponent(searchQuery)}`);
+          if (res.ok) {
+            setSearchResults(await res.json());
+            setIsSearchOpen(true);
+          }
+        } catch (e) {
+          console.error("Search error", e);
+        }
+      } else {
+        setSearchResults([]);
+        setIsSearchOpen(false);
+      }
+    }, 500); // Tunggu 500ms setelah user berhenti mengetik
 
-    // TODO: Implement global search with API endpoint
-    // For now, this is disabled as mock data is removed.
-    setSearchResults([]);
-    setIsSearchOpen(false);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const iconMap: any = {
+    User: User,
+    Room: MapPin, // Backend sends 'Room', map to MapPin icon
+    MapPin: MapPin,
+    Inventory: Box,
+    Box: Box
   };
 
   const handleResultClick = (page: string) => {
@@ -55,11 +81,10 @@ const TopBar: React.FC<TopBarProps> = ({
           <Search className="w-4 h-4 text-gray-400 absolute left-3" />
           <input 
             type="text"
-            placeholder="Pencarian Global (WIP)" 
+            placeholder="Cari User, Ruangan, Barang..." 
             value={searchQuery}
             onChange={handleSearch}
             onFocus={() => searchQuery.length > 1 && setIsSearchOpen(true)}
-            disabled // Menonaktifkan search untuk sementara
             className="pl-9 pr-4 py-2 bg-gray-100 dark:bg-gray-700 border-none rounded-full text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 w-64 transition-all"
           />
           
@@ -70,19 +95,31 @@ const TopBar: React.FC<TopBarProps> = ({
               <div className="absolute top-full left-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50 animate-fade-in-up">
                  <div className="py-2">
                     <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase bg-gray-50 dark:bg-gray-700/50">Hasil Pencarian</p>
-                    {searchResults.map((result, idx) => (
+                    {searchResults.map((result, idx) => {
+                      const IconComponent = iconMap[result.icon] || Search;
+                      return (
                       <button 
                         key={idx}
                         onClick={() => handleResultClick(result.page)}
                         className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center group border-b border-gray-100 dark:border-gray-700 last:border-0"
                       >
-                         <result.icon className="w-4 h-4 text-gray-400 mr-3 group-hover:text-blue-500" />
-                         <div>
-                            <p className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-blue-600">{result.name}</p>
+                         <IconComponent className="w-4 h-4 text-gray-400 mr-3 group-hover:text-blue-500" />
+                         <div className="flex-1">
+                            <div className="flex justify-between items-center">
+                                <p className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-blue-600">{result.name}</p>
+                                {result.status && (
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                                        result.status === 'Tersedia' || result.status === 'Aktif' 
+                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                    }`}>{result.status}</span>
+                                )}
+                            </div>
                             <p className="text-xs text-gray-500">{result.type}</p>
                          </div>
                       </button>
-                    ))}
+                    );
+                    })}
                  </div>
               </div>
             </>
@@ -150,10 +187,10 @@ const TopBar: React.FC<TopBarProps> = ({
             className="flex items-center space-x-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
             <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 overflow-hidden">
-              <img src={`https://ui-avatars.com/api/?name=${currentRole}&background=0D8ABC&color=fff`} alt="Profile" />
+              <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=0D8ABC&color=fff`} alt="Profile" />
             </div>
             <div className="hidden sm:block text-left">
-               <p className="text-xs font-bold text-gray-700 dark:text-gray-200">{currentRole}</p>
+               <p className="text-xs font-bold text-gray-700 dark:text-gray-200">{userName}</p>
             </div>
             <ChevronDown className="w-4 h-4 text-gray-500 hidden sm:block" />
           </button>

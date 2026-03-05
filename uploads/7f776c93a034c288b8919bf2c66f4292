@@ -8,9 +8,8 @@ CREATE TABLE users (
     id VARCHAR(50) PRIMARY KEY,          -- Primary Key (bisa UUID atau String ID)
     nama VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
-    username VARCHAR(50) UNIQUE,         -- Username Unik untuk Login
     password VARCHAR(255),               -- Hash password untuk login
-    role VARCHAR(20) NOT NULL,           -- Enum: 'Admin', 'User', 'Laboran', 'Teknisi'
+    role VARCHAR(20) NOT NULL,           -- Enum: 'ADMIN', 'USER', 'LABORAN', 'TEKNISI'
     identifier VARCHAR(50),              -- NIM atau NIDN
     telepon VARCHAR(20),                   -- Nomor Telepon/WA (dari Profile)
     avatar_image BYTEA,                  -- Foto Profil (Binary Data)
@@ -41,11 +40,10 @@ CREATE TABLE staff (
 CREATE TABLE rooms (
     id VARCHAR(50) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    category VARCHAR(50),                -- Kategori Ruangan (Lab, Teori, dll)
     deskripsi TEXT,
     kapasitas INT NOT NULL,
     pic_id VARCHAR(50),                  -- ID Staff Penanggung Jawab (Foreign Key)
-    image_data BYTEA,                    -- Data Gambar 360 (Binary)
+    image_url TEXT,                      -- URL gambar 360 atau thumbnail
     fasilitas TEXT[],                   -- Array of Strings (Fitur khas PostgreSQL)
     google_calendar_url TEXT,            -- Public Embed URL Google Calendar
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -66,11 +64,10 @@ CREATE TABLE bookings (
     keperluan TEXT NOT NULL,                    -- Keperluan/Nama Kegiatan
     
     status VARCHAR(20) DEFAULT 'PENDING',     -- 'PENDING', 'APPROVED', 'REJECTED'
-    file_proposal BYTEA,                      -- File PDF Proposal (Binary Data)
+    file_proposal TEXT,                       -- URL/Path ke file PDF (Lebih ringan daripada BYTEA)
     
     tech_support_pic TEXT[],                  -- Array of Staff IDs
     tech_support_needs TEXT,                  -- Kebutuhan teknis (Mic, Sound, dll) (Opsional)
-    rejection_reason TEXT,                    -- Alasan penolakan (Opsional)
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -161,7 +158,6 @@ CREATE TABLE notifications (
 CREATE INDEX idx_booking_schedules_date ON booking_schedules(schedule_date);
 CREATE INDEX idx_bookings_status ON bookings(status);
 CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_inventory_uksw_code ON inventory(uksw_code);
 -- Indexing untuk Foreign Keys (Mempercepat JOIN)
 CREATE INDEX idx_bookings_room_id ON bookings(room_id);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Calendar, Box, Monitor, Users, FileText, Settings, Shield, Wrench, CalendarRange } from 'lucide-react';
+import { LayoutDashboard, Calendar, Box, Monitor, Users, FileText, Settings, Shield, Wrench, CalendarRange, PlusCircle, CalendarDays } from 'lucide-react';
 import { Role } from '../types';
 import nocLogo from "../src/assets/noc.png"; 
 
@@ -15,6 +15,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: [Role.ADMIN, Role.LABORAN, Role.USER] },
     { id: 'schedule', label: 'Jadwal Ruang', icon: CalendarRange, roles: [Role.ADMIN, Role.LABORAN, Role.USER] },
     { id: 'rooms', label: 'Daftar Ruangan', icon: Calendar, roles: [Role.ADMIN, Role.LABORAN, Role.USER] },
+    { id: 'events', label: 'Acara', icon: CalendarDays, roles: [Role.ADMIN, Role.LABORAN, Role.USER] },
+    { id: 'create-booking', label: 'Buat Pesanan', icon: PlusCircle, roles: [Role.ADMIN, Role.LABORAN, Role.USER] },
     { id: 'bookings', label: 'Pemesanan Saya', icon: FileText, roles: [Role.USER] },
     { id: 'manage-bookings', label: 'Pesanan Ruang', icon: FileText, roles: [Role.ADMIN, Role.LABORAN] },
     { id: 'laboran-management', label: 'Manajemen Laboran', icon: Wrench, roles: [Role.ADMIN] },
@@ -24,11 +26,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
     { id: 'settings', label: 'Pengaturan', icon: Settings, roles: [Role.ADMIN] },
   ];
 
-  const filteredItems = menuItems.filter(item => item.roles.includes(currentRole));
+  const filteredItems = menuItems.filter(item => 
+    item.roles.some(r => r.toString().toUpperCase() === currentRole.toString().toUpperCase())
+  );
 
   return (
-    <aside className={`${isOpen ? 'translate-x-0' : '-translate-x-full'} fixed md:relative md:translate-x-0 z-40 w-64 h-screen transition-transform duration-300 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 print:hidden`}>
-      <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center space-x-3">
+    <aside className={`${isOpen ? 'translate-x-0' : '-translate-x-full'} fixed md:relative md:translate-x-0 z-40 w-64 h-screen transition-transform duration-300 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 print:hidden flex flex-col`}>
+      <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center space-x-3 flex-shrink-0">
         <img
           src={nocLogo}
           alt="NOC Logo"
@@ -41,7 +45,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
         </div>
       </div>
 
-      <div className="p-4">
+      <div className="flex-1 overflow-y-auto p-4">
         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4 px-2">Menu</div>
         <nav className="space-y-1">
           {filteredItems.map((item) => {
@@ -65,7 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
         </nav>
       </div>
 
-      <div className="absolute bottom-0 w-full p-4 border-t border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
         <div className="flex items-center px-2 py-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
           <Shield className="w-8 h-8 text-blue-600 p-1.5 bg-blue-100 rounded-full mr-3" />
           <div>

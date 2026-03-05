@@ -1,41 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Role } from '../types';
-import { User, Mail, Phone, MapPin, Shield, Save, Lock, Building, CreditCard, X, KeyRound } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Shield, Save, Lock, Building, CreditCard, X, KeyRound, Camera } from 'lucide-react';
+import { api } from '../services/api';
 
 interface ProfileProps {
   role: Role;
 }
 
 const Profile: React.FC<ProfileProps> = ({ role }) => {
-  // Mock data based on role
-  const initialData = role === Role.USER ? {
-    name: 'John Doe',
-    email: 'john.doe@student.uksw.edu',
-    nim: '672019001',
-    department: 'Teknik Informatika',
-    phone: '081234567890',
-    address: 'Jl. Diponegoro No. 52, Salatiga',
-    avatar: `https://ui-avatars.com/api/?name=John+Doe&background=0D8ABC&color=fff`
-  } : role === Role.ADMIN ? {
-    name: 'Administrator FTI',
-    email: 'admin.fti@uksw.edu',
-    nim: '999999',
-    department: 'Biro Administrasi FTI',
-    phone: '0298-321212',
-    address: 'Gedung FTI Lt. 1, Kampus Notohamidjojo',
-    avatar: `https://ui-avatars.com/api/?name=Admin+FTI&background=0D8ABC&color=fff`
-  } : {
-    name: 'Bpk. Budi Santoso',
-    email: 'budi@uksw.edu',
-    nim: '672005001',
-    department: 'Laboratorium',
-    phone: '08123456789',
-    address: 'Salatiga',
-    avatar: `https://ui-avatars.com/api/?name=Budi+Santoso&background=0D8ABC&color=fff`
-  };
-
   const [isEditing, setIsEditing] = useState(false);
-  const [userData, setUserData] = useState(initialData);
+  const [userData, setUserData] = useState({
+    id: '',
+    name: '',
+    email: '',
+    username: '',
+    nim: '',
+    phone: '',
+    avatar: ''
+  });
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const userId = localStorage.getItem('userId');
+      if (!userId) return;
+
+      try {
+        const res = await api(`/api/users/${userId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setUserData({
+            id: data.id,
+            name: data.name,
+            email: data.email,
+            username: data.username,
+            nim: data.identifier,
+            phone: data.phone,
+            avatar: data.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=0D8ABC&color=fff`
+          });
+        }
+      } catch (e) {
+        console.error("Gagal mengambil profil", e);
+      }
+    };
+    fetchProfile();
+  }, []);
 
   // Password Change State
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -45,11 +55,42 @@ const Profile: React.FC<ProfileProps> = ({ role }) => {
     confirm: ''
   });
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) { // Limit 2MB
+        alert("Ukuran file maksimal 2MB");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUserData(prev => ({ ...prev, avatar: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsEditing(false);
-    // In real app, API call here
-    alert("Profil berhasil diperbarui!");
+    try {
+      const res = await api(`/api/users/${userData.id}`, {
+        method: 'PUT',
+        data: {
+          name: userData.name,
+          email: userData.email,
+          username: userData.username,
+          identifier: userData.nim,
+          phone: userData.phone,
+          avatar: userData.avatar // Kirim data avatar (base64)
+        }
+      });
+      if (res.ok) {
+        setIsEditing(false);
+        alert("Profil berhasil diperbarui!");
+      }
+    } catch (e) {
+      alert("Gagal menyimpan profil.");
+    }
   };
 
   const handleChangePassword = (e: React.FormEvent) => {
@@ -75,12 +116,25 @@ const Profile: React.FC<ProfileProps> = ({ role }) => {
           <div className="h-32 bg-gradient-to-r from-blue-600 to-indigo-600"></div>
           <div className="px-6 pb-6">
              <div className="relative flex items-end -mt-12 mb-4">
-                <div className="relative">
-                   <img src={userData.avatar} alt="Profile" className="w-24 h-24 rounded-full border-4 border-white dark:border-gray-800 shadow-md bg-white" />
+                <div className="relative group" onClick={() => isEditing && fileInputRef.current?.click()}>
+                   <img src={userData.avatar} alt="Profile" className={`w-24 h-24 rounded-full border-4 border-white dark:border-gray-800 shadow-md bg-white object-cover ${isEditing ? 'cursor-pointer' : ''}`} />
+                   {isEditing && (
+                     <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                       <Camera className="w-8 h-8 text-white" />
+                     </div>
+                   )}
+                   <input 
+                     type="file" 
+                     ref={fileInputRef} 
+                     className="hidden" 
+                     accept="image/*"
+                     onChange={handleImageUpload}
+                   />
                 </div>
                 <div className="ml-4 mb-1">
                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{userData.name}</h1>
                    <p className="text-gray-500 dark:text-gray-400 text-sm flex items-center">
+                      <span className="mr-2 font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">@{userData.username || '-'}</span>
                       <Shield className="w-3 h-3 mr-1 text-blue-500" /> {role}
                    </p>
                 </div>
@@ -137,6 +191,19 @@ const Profile: React.FC<ProfileProps> = ({ role }) => {
                          </div>
                       </div>
                       <div>
+                         <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Username</label>
+                         <div className="relative">
+                            <User className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                            <input 
+                              type="text" 
+                              disabled={!isEditing}
+                              value={userData.username || ''}
+                              onChange={e => setUserData({...userData, username: e.target.value})}
+                              className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-gray-800"
+                            />
+                         </div>
+                      </div>
+                      <div>
                          <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{role === Role.USER ? 'NIM' : 'NIDN/NIP'}</label>
                          <div className="relative">
                             <CreditCard className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -171,32 +238,6 @@ const Profile: React.FC<ProfileProps> = ({ role }) => {
                               disabled={!isEditing}
                               value={userData.phone}
                               onChange={e => setUserData({...userData, phone: e.target.value})}
-                              className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-gray-800"
-                            />
-                         </div>
-                      </div>
-                      <div className="md:col-span-2">
-                         <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Fakultas / Program Studi</label>
-                         <div className="relative">
-                            <Building className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                            <input 
-                              type="text" 
-                              disabled={!isEditing}
-                              value={userData.department}
-                              onChange={e => setUserData({...userData, department: e.target.value})}
-                              className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-gray-800"
-                            />
-                         </div>
-                      </div>
-                      <div className="md:col-span-2">
-                         <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Alamat Domisili</label>
-                         <div className="relative">
-                            <MapPin className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                            <input 
-                              type="text" 
-                              disabled={!isEditing}
-                              value={userData.address}
-                              onChange={e => setUserData({...userData, address: e.target.value})}
                               className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-gray-800"
                             />
                          </div>

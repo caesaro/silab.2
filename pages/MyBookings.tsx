@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Booking, BookingStatus, Room } from '../types';
-import { Calendar, Clock, MapPin, Search, FileText, XCircle, AlertCircle, CheckCircle, Hourglass, Trash2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, Search, FileText, XCircle, AlertCircle, CheckCircle, Hourglass, Trash2, Download } from 'lucide-react';
+import { api } from '../services/api';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+import nocLogo from "../src/assets/noc.png";
 
 interface MyBookingsProps {
   userId: string;
@@ -11,13 +15,24 @@ const MyBookings: React.FC<MyBookingsProps> = ({ userId, showToast }) => {
   const [myBookings, setMyBookings] = useState<Booking[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [proofBooking, setProofBooking] = useState<Booking | null>(null);
+  const proofRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // --- SIMULASI FETCH DATA DARI DATABASE ---
-    // Di aplikasi nyata, ini akan menjadi panggilan API ke backend Anda
-    // const allBookings = api.getAllBookings();
-    // setMyBookings(allBookings.filter(b => b.userId === userId));
-    // setRooms(api.getRooms());
+    const fetchData = async () => {
+        try {
+            const [bkRes, rmRes] = await Promise.all([
+                api('/api/bookings'),
+                api('/api/rooms')
+            ]);
+            if (bkRes.ok) {
+                const allBookings: Booking[] = await bkRes.json();
+                setMyBookings(allBookings.filter(b => b.userId === userId));
+            }
+            if (rmRes.ok) setRooms(await rmRes.json());
+        } catch (e) { console.error(e); }
+    };
+    fetchData();
   }, [userId]);
 
 
@@ -42,6 +57,48 @@ const MyBookings: React.FC<MyBookingsProps> = ({ userId, showToast }) => {
       setMyBookings(prev => prev.filter(b => b.id !== id));
       showToast("Permohonan peminjaman berhasil dibatalkan.", "info");
     }
+  };
+
+  const handleViewFile = async (fileData: string) => {
+      try {
+          const res = await fetch(fileData);
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          window.open(url, '_blank');
+      } catch (err) {
+          showToast("Gagal membuka file.", "error");
+      }
+  };
+
+  const handleDownloadProof = async (booking: Booking) => {
+      setProofBooking(booking);
+      // Tunggu render state proofBooking
+      setTimeout(async () => {
+          if (proofRef.current) {
+              try {
+                  showToast("Sedang membuat PDF...", "info");
+                  const canvas = await html2canvas(proofRef.current, { 
+                      scale: 2, // Resolusi tinggi
+                      backgroundColor: '#ffffff',
+                      useCORS: true 
+                  });
+                  const imgData = canvas.toDataURL('image/png');
+                  
+                  const pdf = new jsPDF('p', 'mm', 'a4'); // Portrait, Millimeter, A4
+                  const pdfWidth = pdf.internal.pageSize.getWidth();
+                  const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                  
+                  pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                  pdf.save(`Bukti_Peminjaman_${booking.id}.pdf`);
+                  showToast("Bukti peminjaman berhasil didownload", "success");
+              } catch (e) {
+                  console.error(e);
+                  showToast("Gagal membuat PDF", "error");
+              } finally {
+                  setProofBooking(null);
+              }
+          }
+      }, 500);
   };
 
   const filteredBookings = myBookings.filter(b => 
@@ -127,6 +184,11 @@ const MyBookings: React.FC<MyBookingsProps> = ({ userId, showToast }) => {
                         <div className="text-xs text-gray-500 flex flex-col gap-1">
                             <span>PJ: {booking.responsiblePerson}</span>
                             <span>Kontak: {booking.contactPerson}</span>
+                            {booking.status === BookingStatus.REJECTED && booking.rejectionReason && (
+                                <span className="text-red-600 dark:text-red-400 font-medium mt-1 bg-red-50 dark:bg-red-900/20 p-1 rounded border border-red-100 dark:border-red-800">
+                                    Alasan Ditolak: {booking.rejectionReason}
+                                </span>
+                            )}
                         </div>
                      </td>
                      <td className="px-6 py-4">
@@ -140,9 +202,12 @@ const MyBookings: React.FC<MyBookingsProps> = ({ userId, showToast }) => {
                      </td>
                      <td className="px-6 py-4">
                         {booking.proposalFile ? (
-                           <a href="#" className="flex items-center text-blue-600 hover:underline text-xs bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded w-fit">
-                              <FileText className="w-3 h-3 mr-1" /> {booking.proposalFile}
-                           </a>
+                           <button 
+                              onClick={() => handleViewFile(booking.proposalFile!)} 
+                              className="flex items-center text-blue-600 hover:underline text-xs bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded w-fit"
+                           >
+                              <FileText className="w-3 h-3 mr-1" /> Lihat File
+                           </button>
                         ) : (
                            <span className="text-gray-400 text-xs italic">Tidak ada file</span>
                         )}
@@ -160,6 +225,13 @@ const MyBookings: React.FC<MyBookingsProps> = ({ userId, showToast }) => {
                               className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center ml-auto"
                            >
                               <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Batalkan
+                           </button>
+                        ) : booking.status === BookingStatus.APPROVED ? (
+                           <button 
+                              onClick={() => handleDownloadProof(booking)}
+                              className="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center ml-auto"
+                           >
+                              <Download className="w-3.5 h-3.5 mr-1.5" /> Download Bukti
                            </button>
                         ) : (
                            <span className="text-gray-400 text-xs italic">Tidak dapat diubah</span>
@@ -181,6 +253,98 @@ const MyBookings: React.FC<MyBookingsProps> = ({ userId, showToast }) => {
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Hidden Proof Ticket Template (A4 Size) */}
+      <div className="absolute -left-[9999px] top-0">
+        <div ref={proofRef} className="w-[210mm] min-h-[297mm] bg-white p-12 font-sans text-gray-900 relative">
+            {/* Watermark */}
+            <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none z-0">
+                <img src={nocLogo} className="w-[500px] h-[500px] object-contain" />
+            </div>
+
+            {proofBooking && (
+                <div className="relative z-10">
+                    {/* Header */}
+                    <div className="flex items-center justify-between border-b-4 border-blue-900 pb-6 mb-8">
+                        <div className="flex items-center gap-4">
+                            <img src={nocLogo} alt="Logo" className="w-24 h-24 object-contain" />
+                            <div>
+                                <h1 className="text-2xl font-bold text-blue-900 uppercase tracking-wider">Fakultas Teknologi Informasi</h1>
+                                <h2 className="text-xl font-semibold text-gray-700">Universitas Kristen Satya Wacana</h2>
+                                <p className="text-sm text-gray-500 mt-1">Jl. Dr. O. Notohamidjojo No.1-10, Salatiga 50715</p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <h3 className="text-3xl font-bold text-gray-200">BUKTI PEMINJAMAN</h3>
+                            <p className="text-sm font-mono text-gray-400 mt-1">{proofBooking.id}</p>
+                        </div>
+                    </div>
+
+                    {/* Status Badge */}
+                    <div className="flex justify-end mb-8">
+                        <div className="px-6 py-2 bg-green-100 text-green-800 border border-green-200 rounded-lg font-bold text-lg uppercase tracking-widest">
+                            DISETUJUI
+                        </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="space-y-8">
+                        <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                            <h4 className="text-sm font-bold text-gray-500 uppercase mb-4 border-b border-gray-200 pb-2">Detail Kegiatan</h4>
+                            <div className="grid grid-cols-1 gap-4">
+                                <div>
+                                    <p className="text-xs text-gray-500 uppercase">Nama Kegiatan</p>
+                                    <p className="text-xl font-bold text-gray-900">{proofBooking.purpose}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-8">
+                            <div className="space-y-6">
+                                <div>
+                                    <h4 className="text-sm font-bold text-gray-500 uppercase mb-2">Peminjam</h4>
+                                    <p className="text-lg font-medium">{proofBooking.userName}</p>
+                                    <p className="text-sm text-gray-600">{proofBooking.userId}</p>
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-bold text-gray-500 uppercase mb-2">Penanggung Jawab</h4>
+                                    <p className="text-lg font-medium">{proofBooking.responsiblePerson}</p>
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-bold text-gray-500 uppercase mb-2">Kontak</h4>
+                                    <p className="text-lg font-medium">{proofBooking.contactPerson}</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div>
+                                    <h4 className="text-sm font-bold text-gray-500 uppercase mb-2">Fasilitas / Ruangan</h4>
+                                    <p className="text-lg font-medium text-blue-700">{getRoomName(proofBooking.roomId)}</p>
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-bold text-gray-500 uppercase mb-2">Waktu Pelaksanaan</h4>
+                                    <p className="text-lg font-medium">{new Date(proofBooking.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                                    <p className="text-xl font-bold text-gray-900 mt-1">{proofBooking.startTime} - {proofBooking.endTime} WIB</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="mt-20 pt-8 border-t border-gray-200 flex justify-between items-end">
+                        <div className="text-xs text-gray-400">
+                            <p>Dokumen ini dibuat secara otomatis oleh sistem CORE.FTI.</p>
+                            <p>Dicetak pada: {new Date().toLocaleString('id-ID')}</p>
+                        </div>
+                        <div className="text-center">
+                            <div className="h-20 w-40 mb-2"></div> {/* Space for signature if needed */}
+                            <p className="text-sm font-bold text-gray-700 uppercase">Admin Laboratorium</p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
       </div>
     </div>

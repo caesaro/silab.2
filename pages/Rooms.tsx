@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Room, Role, BookingStatus, Booking, LabStaff } from '../types';
-import { Search, MapPin, Users, Wifi, Edit2, Trash2, Calendar, Eye, Check, Plus, Upload, Loader2, ArrowUpDown, ExternalLink, FileText, User, LogIn, RefreshCw, Clock, ChevronRight } from 'lucide-react';
+import { Room, Role, BookingStatus, Booking } from '../types';
+import { Search, MapPin, Users, Wifi, Edit2, Trash2, Calendar, Eye, Check, Plus, Upload, Loader2, ArrowUpDown, ExternalLink, FileText, User, LogIn, RefreshCw, Clock, ChevronRight, X } from 'lucide-react';
+import { api } from '../services/api';
 
 // Declare Pannellum for TypeScript
 declare global {
@@ -34,6 +35,16 @@ interface GoogleEvent {
   end: { dateTime?: string; date?: string };
   location?: string;
   htmlLink: string;
+}
+
+interface LabStaff {
+  id: string;
+  name: string;
+  nim: string;
+  email: string;
+  phone: string;
+  jabatan: 'Admin' | 'Teknisi' | 'Supervisor' | 'Kepala Sarpras';
+  status: 'Aktif' | 'Non-Aktif';
 }
 
 // Sub-component for 360 Thumbnail in List View
@@ -109,7 +120,23 @@ const Room360Thumbnail: React.FC<{ room: Room }> = ({ room }) => {
     );
 };
 
+const getCategoryColor = (category?: string) => {
+  switch (category) {
+    case 'Laboratorium Komputer': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800';
+    case 'Teori': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800';
+    case 'Praktek': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 border border-orange-200 dark:border-orange-800';
+    case 'Rekreasi': return 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400 border border-pink-200 dark:border-pink-800';
+    case 'Meeting': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 border border-purple-200 dark:border-purple-800';
+    case 'Lounge': return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800';
+    case 'Open Space': return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-800';
+    case 'Auditorium/Ruang Kuliah Umum': return 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-200 dark:border-rose-800';
+    default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600';
+  }
+};
+
 const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
+  // Helper: Cek admin case-insensitive
+  const isAdmin = role.toString().toUpperCase() === Role.ADMIN.toString().toUpperCase();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'capacity'>('name');
@@ -121,6 +148,7 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Room>>({});
   const [isImageProcessing, setIsImageProcessing] = useState(false);
+  const [facilityInput, setFacilityInput] = useState('');
 
   // Delete Modal State
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -148,7 +176,7 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
   const [isBookingLoading, setIsBookingLoading] = useState(false);
 
   // Filter Active Technicians for PIC Dropdown
-  const activeTechnicians = labStaff.filter(s => s.type === 'Teknisi' && s.status === 'Aktif');
+  const activeTechnicians = labStaff; // API /api/staff already filters Active
 
   // Filter & Sort Logic
   const filteredRooms = rooms
@@ -184,12 +212,32 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
 
   // Initialize Google API
   useEffect(() => {
-    // --- SIMULASI FETCH DATA DARI DATABASE ---
-    // Di aplikasi nyata, ini akan menjadi panggilan API ke backend Anda
-    // setRooms(api.getRooms());
-    // setLabStaff(api.getLabStaff());
-    // setBookings(api.getBookings()); // Jika diperlukan di halaman ini
+    fetchRooms();
+    fetchStaff();
   }, []);
+
+  const fetchRooms = async () => {
+    try {
+      const res = await api('/api/rooms');
+      if (res.ok) setRooms(await res.json());
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchStaff = async () => {
+    try {
+      const res = await api('/api/staff');
+      if (res.ok) {
+          const data = await res.json();
+          // Pastikan mapping sesuai dengan yang diharapkan komponen
+          const mappedStaff = data.map((s: any) => ({
+              id: s.id,
+              name: s.nama,
+              jabatan: s.jabatan
+          }));
+          setLabStaff(mappedStaff);
+      }
+    } catch (e) { console.error(e); }
+  };
 
   useEffect(() => {
     const loadScripts = () => {
@@ -330,8 +378,13 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
         return;
       }
 
-      setBookingFile(file);
-      setBookingForm(prev => ({ ...prev, proposalFile: file.name }));
+      // Convert PDF to Base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+          setBookingFile(file); // Keep file object for validation if needed
+          setBookingForm(prev => ({ ...prev, proposalFile: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -382,54 +435,6 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
     }
   };
 
-  const uploadFileToDrive = async (file: File) => {
-      // 1. Cek Token Akses
-      const accessToken = window.gapi.client.getToken()?.access_token;
-      if (!accessToken) {
-          throw new Error("Token akses Google tidak ditemukan. Mohon login ulang.");
-      }
-
-      // 2. Standarisasi Nama File
-      // Format: YYYY-MM-DD_NamaKegiatan_Proposal.pdf
-      const eventDate = bookingSchedules[0]?.date || new Date().toISOString().split('T')[0];
-      // Bersihkan nama kegiatan dari karakter aneh
-      const cleanPurpose = bookingForm.purpose
-          ? bookingForm.purpose.replace(/[^a-zA-Z0-9\s-_]/g, '').trim().replace(/\s+/g, '_')
-          : 'Kegiatan_FTI';
-      
-      const fileName = `${eventDate}_${cleanPurpose}_Proposal.pdf`;
-
-      // 3. Metadata File
-      const metadata: any = {
-          name: fileName,
-          mimeType: 'application/pdf',
-      };
-
-      // Jika ada Folder ID khusus (Shared Folder FTI), masukkan ke sana
-      if (FTI_DRIVE_FOLDER_ID) {
-          metadata.parents = [FTI_DRIVE_FOLDER_ID];
-      }
-
-      // 4. Persiapkan Multipart Request
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-      form.append('file', file);
-
-      // 5. Eksekusi Upload
-      const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink,name', {
-          method: 'POST',
-          headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
-          body: form
-      });
-
-      if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(`Gagal upload: ${errorData.error?.message || response.statusText}`);
-      }
-
-      return await response.json(); // Mengembalikan { id, webViewLink, name }
-  };
-
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!bookingFile) {
@@ -438,7 +443,6 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
     }
 
     setIsBookingLoading(true);
-    let driveLink = '';
     
     // Validasi Konflik dengan Google Calendar
     if (selectedRoom?.googleCalendarUrl && isGapiReady) {
@@ -457,32 +461,30 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
         }
     }
 
-    // Proses Upload ke Google Drive
-    if (isGapiReady && bookingFile) {
-        try {
-            // Pastikan user sudah login jika belum
-            if (!window.gapi.client.getToken()) {
-                await new Promise<void>((resolve) => {
-                    tokenClient.requestAccessToken({ prompt: '' });
-                    tokenClient.callback = (resp: any) => resolve();
-                });
+    try {
+        // Kirim data ke Backend (termasuk file base64)
+        const res = await api('/api/bookings', {
+            method: 'POST',
+            data: {
+                roomId: selectedRoom?.id,
+                userId: localStorage.getItem('userId'), // Ambil ID user yang login
+                responsiblePerson: bookingForm.responsiblePerson,
+                contactPerson: bookingForm.contactPerson,
+                purpose: bookingForm.purpose,
+                proposalFile: bookingForm.proposalFile, // Base64 String
+                schedules: bookingSchedules
             }
+        });
 
-            const driveResult = await uploadFileToDrive(bookingFile);
-            driveLink = driveResult.webViewLink;
-            console.log("File berhasil diupload ke Drive:", driveResult);
-        } catch (error: any) {
-            console.error("Drive Upload Error:", error);
-            alert(`Gagal mengupload proposal ke Google Drive: ${error.message}`);
-            setIsBookingLoading(false);
-            return;
+        if (res.ok) {
+            alert(`Permohonan berhasil dikirim!`);
+        } else {
+            const err = await res.json();
+            alert(`Gagal mengirim permohonan: ${err.error}`);
         }
+    } catch (e) {
+        alert("Terjadi kesalahan saat mengirim data.");
     }
-
-    const scheduleSummary = bookingSchedules.map(s => `- ${s.date} (${s.startTime} - ${s.endTime})`).join('\n');
-
-    // Simpan ke Mock Data (Simulasi Backend)
-    alert(`Permohonan berhasil dikirim!\n\nJadwal Kegiatan:\n${scheduleSummary}\n\nPenanggung Jawab: ${bookingForm.responsiblePerson}\nFile Proposal: ${driveLink || bookingForm.proposalFile} (Tersimpan di Google Drive)`);
     
     // Reset and go back
     setIsBookingLoading(false);
@@ -495,20 +497,22 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
   // CRUD Handlers
   const handleAddNew = () => {
     // Restrict Access
-    if (role !== Role.ADMIN) {
+    if (!isAdmin) {
         alert("Akses Ditolak. Hanya Admin yang bisa menambah ruangan.");
         return;
     }
 
     setFormData({
-      name: '', description: '', capacity: 0, pic: activeTechnicians[0]?.name || '', image: '', facilities: [], googleCalendarUrl: ''
+      name: '', category: 'Laboratorium Komputer', description: '', capacity: 0, pic: activeTechnicians[0]?.name || '', image: '', facilities: [], googleCalendarUrl: ''
     });
+    setFacilityInput('');
     setIsEditing(false);
     setViewMode('form');
   };
 
   const handleEdit = (room: Room) => {
     setFormData(room);
+    setFacilityInput('');
     setIsEditing(true);
     setViewMode('form');
   };
@@ -518,9 +522,12 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
     setShowDeleteModal(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteTargetId) {
-      setRooms(prev => prev.filter(r => r.id !== deleteTargetId));
+      try {
+        await api(`/api/rooms/${deleteTargetId}`, { method: 'DELETE' });
+        fetchRooms();
+      } catch (e) { alert("Gagal menghapus"); }
       setShowDeleteModal(false);
       setDeleteTargetId(null);
     }
@@ -528,30 +535,59 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
       setIsImageProcessing(true);
       
-      // Simulate Processing
-      setTimeout(() => {
-        // In real app: Server converts to WebP & resizes to <5MB
-        // Here: Just create an object URL
-        if (e.target.files) {
-            const url = URL.createObjectURL(e.target.files[0]);
-            setFormData(prev => ({ ...prev, image: url }));
-            setIsImageProcessing(false);
-        }
-      }, 2000);
+      // Convert to Base64 for storage
+      const reader = new FileReader();
+      reader.onloadend = () => {
+          setFormData(prev => ({ ...prev, image: reader.result as string }));
+          setIsImageProcessing(false);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isEditing && formData.id) {
-       setRooms(prev => prev.map(r => r.id === formData.id ? { ...r, ...formData } as Room : r));
-    } else {
-       const newRoom = { ...formData, id: Date.now().toString() } as Room;
-       setRooms(prev => [...prev, newRoom]);
+
+    // Validasi Kapasitas
+    if (!formData.capacity || formData.capacity <= 0) {
+      alert("Kapasitas ruangan harus lebih dari 0.");
+      return;
     }
-    setViewMode('list');
+
+    // Bersihkan fasilitas dari string kosong sebelum kirim
+    const payload = {
+        ...formData,
+        facilities: formData.facilities?.filter(f => f.trim() !== '') || []
+    };
+
+    try {
+      let response;
+      if (isEditing && formData.id) {
+         response = await api(`/api/rooms/${formData.id}`, {
+            method: 'PUT',
+            data: payload
+         });
+      } else {
+         const newId = `ROOM-${Date.now()}`;
+         response = await api('/api/rooms', {
+            method: 'POST',
+            data: { ...payload, id: newId }
+         });
+      }
+      
+      if (response.ok) {
+        fetchRooms();
+        setViewMode('list');
+      } else {
+        const err = await response.json();
+        alert(`Gagal menyimpan data: ${err.error || 'Terjadi kesalahan di server'}`);
+      }
+    } catch (e) {
+      alert("Gagal menyimpan data");
+    }
   };
 
   // Calendar Visual Logic
@@ -575,9 +611,27 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
                />
             </div>
             <div>
+               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Kategori Ruangan</label>
+               <select 
+                  required 
+                  value={formData.category || 'Laboratorium Komputer'} 
+                  onChange={e => setFormData({...formData, category: e.target.value})}
+                  className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500"
+               >
+                  <option value="Laboratorium Komputer">Laboratorium Komputer</option>
+                  <option value="Teori">Teori</option>
+                  <option value="Praktek">Praktek</option>
+                  <option value="Rekreasi">Rekreasi</option>
+                  <option value="Meeting">Meeting</option>
+                  <option value="Lounge">Lounge</option>
+                  <option value="Open Space">Open Space</option>
+                  <option value="Auditorium/Ruang Kuliah Umum">Auditorium/Ruang Kuliah Umum</option>
+               </select>
+            </div>
+            <div>
                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Kapasitas (Orang)</label>
                <input 
-                  type="number" required value={formData.capacity || ''} 
+                  type="number" min="0" required value={formData.capacity || ''} 
                   onChange={e => setFormData({...formData, capacity: parseInt(e.target.value)})}
                   className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500" 
                />
@@ -590,6 +644,52 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
                   className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500" 
                />
             </div>
+            <div className="md:col-span-2">
+               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fasilitas</label>
+               <div className="flex flex-wrap gap-2 p-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg min-h-[42px] focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+                  {(formData.facilities || []).map((fac, index) => (
+                     <span key={index} className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs font-medium px-2.5 py-1 rounded-full flex items-center">
+                        {fac}
+                        <button 
+                           type="button"
+                           onClick={() => {
+                              const newFacilities = [...(formData.facilities || [])];
+                              newFacilities.splice(index, 1);
+                              setFormData({...formData, facilities: newFacilities});
+                           }}
+                           className="ml-1.5 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 focus:outline-none rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 p-0.5"
+                        >
+                           <X className="w-3 h-3" />
+                        </button>
+                     </span>
+                  ))}
+                  <input 
+                     type="text" 
+                     value={facilityInput}
+                     onChange={(e) => setFacilityInput(e.target.value)}
+                     onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                           e.preventDefault();
+                           if (facilityInput.trim()) {
+                              setFormData({
+                                 ...formData, 
+                                 facilities: [...(formData.facilities || []), facilityInput.trim()]
+                              });
+                              setFacilityInput('');
+                           }
+                        }
+                        if (e.key === 'Backspace' && !facilityInput && (formData.facilities || []).length > 0) {
+                           const newFacilities = [...(formData.facilities || [])];
+                           newFacilities.pop();
+                           setFormData({...formData, facilities: newFacilities});
+                        }
+                     }}
+                     placeholder={(formData.facilities || []).length === 0 ? "Ketik fasilitas lalu Enter..." : ""}
+                     className="flex-1 bg-transparent border-none focus:ring-0 text-sm min-w-[150px] dark:text-white p-1 outline-none" 
+                  />
+               </div>
+               <p className="text-xs text-gray-500 mt-1">Tekan <strong>Enter</strong> untuk menambahkan tag. Tekan <strong>Backspace</strong> untuk menghapus tag terakhir.</p>
+            </div>
             <div>
                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">PIC (Penanggung Jawab)</label>
                <select 
@@ -599,8 +699,8 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
                   className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500"
                >
                   <option value="">-- Pilih PIC (Teknisi) --</option>
-                  {activeTechnicians.map(tech => (
-                      <option key={tech.id} value={tech.name}>{tech.name} (Teknisi)</option>
+                  {labStaff.map(tech => (
+                      <option key={tech.id} value={tech.name}>{tech.name} ({tech.jabatan || 'Staff'})</option>
                   ))}
                </select>
                <p className="text-xs text-gray-500 mt-1">*Hanya teknisi aktif yang ditampilkan</p>
@@ -621,7 +721,7 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
                   {isImageProcessing ? (
                      <div className="flex flex-col items-center text-blue-600">
                         <Loader2 className="w-8 h-8 animate-spin mb-2" />
-                        <span className="text-sm font-semibold">Mengkonversi ke WebP & Kompresi &lt; 5MB...</span>
+                        <span className="text-sm font-semibold">Memproses Gambar...</span>
                      </div>
                   ) : formData.image ? (
                      <div className="flex flex-col items-center">
@@ -665,10 +765,13 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
                       <div className="flex flex-col md:flex-row justify-between items-start">
                           <div>
                             <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{selectedRoom.name}</h2>
+                            <div className="mb-3">
+                                <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getCategoryColor(selectedRoom.category)}`}>{selectedRoom.category}</span>
+                            </div>
                             <p className="text-gray-500 dark:text-gray-400 flex items-center mb-4"><Users className="w-4 h-4 mr-2"/> Kapasitas: {selectedRoom.capacity} Orang | PIC: {selectedRoom.pic}</p>
                           </div>
                           <div className="flex gap-2 mt-4 md:mt-0">
-                             {(role === Role.ADMIN) && (
+                             {(isAdmin) && (
                                 <button className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-sm font-medium flex items-center">
                                     <Calendar className="w-4 h-4 mr-2"/> Atur Jadwal (Admin)
                                 </button>
@@ -910,7 +1013,7 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
                 <ArrowUpDown className="w-4 h-4 absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"/>
             </div>
 
-            {(role === Role.ADMIN) && (
+            {(isAdmin) && (
                 <button onClick={handleAddNew} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center shadow-sm">
                     <Plus className="w-4 h-4 mr-2" /> Tambah
                 </button>
@@ -918,57 +1021,72 @@ const Rooms: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredRooms.map((room) => (
-          <div key={room.id} onClick={() => { setSelectedRoom(room); setViewMode('detail'); }} className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all flex flex-col group cursor-pointer">
-            <div className="h-48 overflow-hidden relative bg-gray-200">
-               {/* 360 Thumbnail Component */}
-               <Room360Thumbnail room={room} />
-            </div>
-            <div className="p-5 flex-1 flex flex-col">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 group-hover:text-blue-600 transition-colors">{room.name}</h3>
-              <div className="flex justify-between items-center mb-4">
-                  <span className="text-xs font-semibold px-2 py-1 bg-blue-100 text-blue-700 rounded dark:bg-blue-900/30 dark:text-blue-300">
-                     Kap: {room.capacity}
-                  </span>
-                  {room.googleCalendarUrl && (
-                    <span title="Kalender Tersinkronisasi">
-                      <Check className="w-4 h-4 text-green-500" />
+      {filteredRooms.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredRooms.map((room) => (
+            <div key={room.id} onClick={() => { setSelectedRoom(room); setViewMode('detail'); }} className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all flex flex-col group cursor-pointer">
+              <div className="h-48 overflow-hidden relative bg-gray-200">
+                 {/* 360 Thumbnail Component */}
+                 <Room360Thumbnail room={room} />
+              </div>
+              <div className="p-5 flex-1 flex flex-col">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 group-hover:text-blue-600 transition-colors">{room.name}</h3>
+                <div className="mb-3">
+                    <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide ${getCategoryColor(room.category)}`}>{room.category}</span>
+                </div>
+                <div className="flex justify-between items-center mb-4">
+                    <span className="text-xs font-semibold px-2 py-1 bg-blue-100 text-blue-700 rounded dark:bg-blue-900/30 dark:text-blue-300">
+                       Kap: {room.capacity}
                     </span>
-                  )}
-              </div>
-              <p className="text-gray-500 dark:text-gray-400 text-sm line-clamp-2 mb-4 flex-1">{room.description}</p>
-              
-              <div className="flex flex-wrap gap-2 mb-4">
-                  {room.facilities.slice(0, 3).map((f, i) => (
-                      <span key={i} className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded">{f}</span>
-                  ))}
-                  {room.facilities.length > 3 && <span className="text-xs text-gray-400 px-2 py-1">+lainnya</span>}
-              </div>
-
-              <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100 dark:border-gray-700">
-                 <div className="flex space-x-2 w-full">
-                    {(role === Role.ADMIN) && (
-                         <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
-                           <button onClick={() => handleEdit(room)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg dark:hover:bg-blue-900/20" title="Edit">
-                              <Edit2 className="w-4 h-4" />
-                           </button>
-                           <button onClick={() => handleDelete(room.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg dark:hover:bg-red-900/20" title="Delete">
-                              <Trash2 className="w-4 h-4" />
-                           </button>
-                         </div>
+                    {room.googleCalendarUrl && (
+                      <span title="Kalender Tersinkronisasi">
+                        <Check className="w-4 h-4 text-green-500" />
+                      </span>
                     )}
-                    <button 
-                        className="flex-1 px-4 py-2 bg-gray-900 dark:bg-white dark:text-gray-900 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity text-center ml-auto"
-                    >
-                        Detail & 360°
-                    </button>
-                 </div>
+                </div>
+                <p className="text-gray-500 dark:text-gray-400 text-sm line-clamp-2 mb-4 flex-1">{room.description}</p>
+                
+                <div className="flex flex-wrap gap-2 mb-4">
+                    {room.facilities.slice(0, 3).map((f, i) => (
+                        <span key={i} className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded">{f}</span>
+                    ))}
+                    {room.facilities.length > 3 && <span className="text-xs text-gray-400 px-2 py-1">+lainnya</span>}
+                </div>
+
+                <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100 dark:border-gray-700">
+                   <div className="flex space-x-2 w-full">
+                      {(isAdmin) && (
+                           <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
+                             <button onClick={() => handleEdit(room)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg dark:hover:bg-blue-900/20" title="Edit">
+                                <Edit2 className="w-4 h-4" />
+                             </button>
+                             <button onClick={() => handleDelete(room.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg dark:hover:bg-red-900/20" title="Delete">
+                                <Trash2 className="w-4 h-4" />
+                             </button>
+                           </div>
+                      )}
+                      <button 
+                          className="flex-1 px-4 py-2 bg-gray-900 dark:bg-white dark:text-gray-900 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity text-center ml-auto"
+                      >
+                          Detail & 360°
+                      </button>
+                   </div>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="bg-gray-100 dark:bg-gray-800 p-6 rounded-full mb-4">
+                <MapPin className="w-12 h-12 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Tidak ada ruangan ditemukan</h3>
+            <p className="text-gray-500 dark:text-gray-400 max-w-sm">
+                Coba ubah kata kunci pencarian atau tambahkan ruangan baru jika Anda adalah admin.
+            </p>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
