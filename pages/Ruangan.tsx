@@ -3,6 +3,7 @@ import { Room, Role, BookingStatus, Booking, RoomComputer } from '../types';
 import { Search, MapPin, Users, Wifi, Edit2, Trash2, Calendar, Eye, Check, Plus, Upload, Loader2, ArrowUpDown, ExternalLink, FileText, User, LogIn, RefreshCw, Clock, ChevronRight, X, Monitor, Cpu, HardDrive, Keyboard, Mouse, Download, FileSpreadsheet, ChevronLeft } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelJS from 'exceljs';
+import { CLIENT_ID, API_KEY, DISCOVERY_DOCS, SCOPES } from '../src/config/google';
 
 // Declare Pannellum for TypeScript
 declare global {
@@ -13,14 +14,6 @@ declare global {
   }
 }
 
-// Google API Config
-const CLIENT_ID = '828476305239-7hilvfjvadt8ndn9br7n1upmdso38ou8.apps.googleusercontent.com';
-const API_KEY = 'AIzaSyDMKoa430rirp8g8bBU3Xt-IE5EKZjiZWQ';
-const DISCOVERY_DOCS = [
-  'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest',
-  'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'
-];
-const SCOPES = 'https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/drive.file';
 const FTI_DRIVE_FOLDER_ID = ''; 
 
 interface RoomsProps {

@@ -4,11 +4,7 @@ import { Search, Filter, CheckCircle, XCircle, Calendar, Clock, MapPin, User, Al
 import { api } from '../services/api';
 import html2canvas from 'html2canvas';
 import nocLogo from "../src/assets/noc.png";
-
-const CLIENT_ID = '828476305239-7hilvfjvadt8ndn9br7n1upmdso38ou8.apps.googleusercontent.com';
-const API_KEY = 'AIzaSyDMKoa430rirp8g8bBU3Xt-IE5EKZjiZWQ';
-const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'];
-const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
+import { CLIENT_ID, API_KEY, DISCOVERY_DOCS, SCOPES } from '../src/config/google';
 
 declare global {
   interface Window {

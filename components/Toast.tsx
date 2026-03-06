@@ -5,19 +5,20 @@ import { ToastMessage } from '../types';
 interface ToastProps {
   toasts: ToastMessage[];
   removeToast: (id: string) => void;
+  isDarkMode?: boolean;
 }
 
-const Toast: React.FC<ToastProps> = ({ toasts, removeToast }) => {
+const Toast: React.FC<ToastProps> = ({ toasts, removeToast, isDarkMode }) => {
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
       {toasts.map((toast) => (
-        <ToastItem key={toast.id} toast={toast} removeToast={removeToast} />
+        <ToastItem key={toast.id} toast={toast} removeToast={removeToast} isDarkMode={isDarkMode} />
       ))}
     </div>
   );
 };
 
-const ToastItem = ({ toast, removeToast }: { toast: ToastMessage; removeToast: (id: string) => void }) => {
+const ToastItem = ({ toast, removeToast, isDarkMode }: { toast: ToastMessage; removeToast: (id: string) => void; isDarkMode?: boolean }) => {
   // Auto-dismiss setelah 5 detik
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -28,13 +29,18 @@ const ToastItem = ({ toast, removeToast }: { toast: ToastMessage; removeToast: (
   }, [toast.id, removeToast]);
 
   const icons = {
-    success: <CheckCircle className="w-5 h-5 text-green-500" />,
-    error: <AlertCircle className="w-5 h-5 text-red-500" />,
-    info: <Info className="w-5 h-5 text-blue-500" />,
-    warning: <AlertTriangle className="w-5 h-5 text-yellow-500" />,
+    success: <CheckCircle className={`w-5 h-5 ${isDarkMode ? 'text-green-400' : 'text-green-500'}`} />,
+    error: <AlertCircle className={`w-5 h-5 ${isDarkMode ? 'text-red-400' : 'text-red-500'}`} />,
+    info: <Info className={`w-5 h-5 ${isDarkMode ? 'text-blue-400' : 'text-blue-500'}`} />,
+    warning: <AlertTriangle className={`w-5 h-5 ${isDarkMode ? 'text-yellow-400' : 'text-yellow-500'}`} />,
   };
 
-  const styles = {
+  const styles = isDarkMode ? {
+    success: 'bg-green-900/80 border-green-700 text-green-100',
+    error: 'bg-red-900/80 border-red-700 text-red-100',
+    info: 'bg-blue-900/80 border-blue-700 text-blue-100',
+    warning: 'bg-yellow-900/80 border-yellow-700 text-yellow-100',
+  } : {
     success: 'bg-green-50 border-green-200 text-green-800',
     error: 'bg-red-50 border-red-200 text-red-800',
     info: 'bg-blue-50 border-blue-200 text-blue-800',
@@ -57,7 +63,7 @@ const ToastItem = ({ toast, removeToast }: { toast: ToastMessage; removeToast: (
       </div>
       <button
         onClick={() => removeToast(toast.id)}
-        className="ml-3 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none"
+        className={`ml-3 transition-colors focus:outline-none ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'}`}
         aria-label="Close"
       >
         <X className="w-4 h-4" />

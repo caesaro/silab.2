@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Equipment } from '../types';
-import { Search, Plus, Filter, Edit, Trash2, X, Check, AlertCircle, Box, ChevronLeft, ChevronRight, Upload, FileSpreadsheet, Download, QrCode, Printer, Camera, Zap, ZapOff, FileText, ChevronDown } from 'lucide-react';
+import { Search, Plus, Filter, Edit, Trash2, X, Check, AlertCircle, Box, ChevronLeft, ChevronRight, FileSpreadsheet, Download, QrCode, Printer, FileText, ChevronDown, Camera } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import QRCode from "react-qr-code";
-import { Html5Qrcode } from "html5-qrcode";
 import nocLogo from "../src/assets/noc.png";
 import { api } from '../services/api';
+import QRScannerModal from '../components/QRScannerModal';
+import ConfirmModal from '../components/ConfirmModal';
 
 const Inventory: React.FC = () => {
   const [items, setItems] = useState<Equipment[]>([]);
@@ -24,9 +25,10 @@ const Inventory: React.FC = () => {
     id: '', ukswCode: '', name: '', category: '', condition: 'Baik', isAvailable: true, serialNumber: '', location: ''
   });
 
-  // Modal State for Delete Confirmation
+  // Modal State for Delete Confirmation (using reusable ConfirmModal)
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Modal State for QR Code
   const [qrItem, setQrItem] = useState<Equipment | null>(null);
@@ -34,15 +36,8 @@ const Inventory: React.FC = () => {
   // Modal State for Detail View
   const [viewDetailItem, setViewDetailItem] = useState<Equipment | null>(null);
 
-  // Scanner State
+  // Scanner State (using reusable QRScannerModal)
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
-  const [torchOn, setTorchOn] = useState(false);
-  const [torchSupported, setTorchSupported] = useState(false);
-  const [cameras, setCameras] = useState<Array<{id: string, label: string}>>([]);
-  const [selectedCameraId, setSelectedCameraId] = useState<string>('');
-  const scannerRef = useRef<Html5Qrcode | null>(null);
-  const lastScanRef = useRef<{code: string, time: number}>({code: '', time: 0});
 
   // Reset page when filters change
   useEffect(() => {
@@ -121,7 +116,6 @@ const Inventory: React.FC = () => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Template');
 
-    // Define columns
     worksheet.columns = [
       { header: 'id', key: 'id', width: 20 },
       { header: 'ukswCode', key: 'ukswCode', width: 20 },
@@ -132,7 +126,6 @@ const Inventory: React.FC = () => {
       { header: 'location', key: 'location', width: 25 }
     ];
 
-    // Add sample row
     worksheet.addRow({
       id: "FTI-NEW-001",
       ukswCode: "UKSW-NEW-001",
@@ -143,12 +136,9 @@ const Inventory: React.FC = () => {
       location: "Rak 1"
     });
 
-    // Generate buffer
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = window.URL.createObjectURL(blob);
-    
-    // Trigger download
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = 'template_inventaris.xlsx';
@@ -230,13 +220,11 @@ const Inventory: React.FC = () => {
 
           const newItems: Equipment[] = [];
           
-          // Map headers from first row (1-based index)
           const headers: {[key: number]: string} = {};
           worksheet.getRow(1).eachCell((cell, colNumber) => {
               headers[colNumber] = cell.value ? cell.value.toString() : '';
           });
           
-          // Iterate rows starting from 2
           worksheet.eachRow((row, rowNumber) => {
               if (rowNumber === 1) return;
 
@@ -312,6 +300,7 @@ const Inventory: React.FC = () => {
     reader.readAsArrayBuffer(file);
   };
 
+  // Delete handlers using ConfirmModal
   const handleDeleteClick = (id: string) => {
     setDeleteTargetId(id);
     setShowDeleteModal(true);
@@ -319,12 +308,14 @@ const Inventory: React.FC = () => {
 
   const confirmDelete = async () => {
     if (deleteTargetId) {
+      setIsDeleting(true);
       try {
         await api(`/api/inventory/${deleteTargetId}`, { method: 'DELETE' });
         fetchItems();
       } catch (e) { alert("Gagal menghapus"); }
       setShowDeleteModal(false);
       setDeleteTargetId(null);
+      setIsDeleting(false);
     }
   };
 
@@ -332,7 +323,18 @@ const Inventory: React.FC = () => {
     setQrItem(item);
   };
 
-  // Scanner Logic
+  // Scanner handler using QRScannerModal
+  const handleScannerScan = (decodedText: string) => {
+    const foundItem = items.find(i => i.id === decodedText);
+    if (foundItem) {
+      setIsScannerOpen(false);
+      setViewDetailItem(foundItem);
+    } else {
+      alert(`Barang dengan ID ${decodedText} tidak ditemukan.`);
+    }
+  };
+
+  // Handle URL scan parameter
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const scanId = params.get('scan');
@@ -345,108 +347,6 @@ const Inventory: React.FC = () => {
       }
     }
   }, [items]);
-
-  useEffect(() => {
-    if (isScannerOpen) {
-        Html5Qrcode.getCameras().then(devices => {
-            if (devices && devices.length > 0) {
-                setCameras(devices);
-                const backCam = devices.find(d => 
-                    d.label.toLowerCase().includes('back') || 
-                    d.label.toLowerCase().includes('belakang') || 
-                    d.label.toLowerCase().includes('environment')
-                );
-                setSelectedCameraId(backCam ? backCam.id : devices[0].id);
-            }
-        }).catch(err => {
-            console.warn("Error fetching cameras", err);
-        });
-
-        const html5QrCode = new Html5Qrcode("inventory-reader");
-        scannerRef.current = html5QrCode;
-    } else {
-        setIsScanning(false);
-        setTorchOn(false);
-        setTorchSupported(false);
-    }
-
-    return () => {
-        if (scannerRef.current) {
-            if (scannerRef.current.isScanning) {
-                scannerRef.current.stop().catch(() => {});
-            }
-            scannerRef.current.clear();
-            scannerRef.current = null;
-        }
-    };
-  }, [isScannerOpen]);
-
-  const onScanSuccess = (decodedText: string) => {
-      const now = Date.now();
-      if (decodedText === lastScanRef.current.code && now - lastScanRef.current.time < 2000) return;
-      lastScanRef.current = { code: decodedText, time: now };
-      
-      const foundItem = items.find(i => i.id === decodedText);
-      if (foundItem) {
-          handleStopScan();
-          setIsScannerOpen(false);
-          setViewDetailItem(foundItem);
-      } else {
-          alert(`Barang dengan ID ${decodedText} tidak ditemukan.`);
-      }
-  };
-
-  const handleStartScan = async () => {
-      if (!scannerRef.current || !selectedCameraId) return;
-      try {
-          await scannerRef.current.start(
-              selectedCameraId, 
-              { fps: 10, qrbox: 250, aspectRatio: 1.0 },
-              onScanSuccess,
-              () => {}
-          );
-          setIsScanning(true);
-
-          try {
-              const capabilities = scannerRef.current.getRunningTrackCapabilities();
-              if ('torch' in capabilities) {
-                  setTorchSupported(true);
-              }
-          } catch (e) {}
-      } catch (err) {
-          console.error("Error starting scanner:", err);
-          alert("Gagal memulai kamera.");
-      }
-  };
-
-  const handleStopScan = async () => {
-      if (scannerRef.current && isScanning) {
-          await scannerRef.current.stop();
-          setIsScanning(false);
-          setTorchOn(false);
-          setTorchSupported(false);
-      }
-  };
-
-  const toggleTorch = async () => {
-      if (!scannerRef.current || !isScanning) return;
-      try {
-          await scannerRef.current.applyVideoConstraints({
-              advanced: [{ torch: !torchOn } as any]
-          });
-          setTorchOn(!torchOn);
-      } catch (err) {
-          console.error(err);
-      }
-  };
-
-  const handleCloseScanner = async () => {
-      if (scannerRef.current && isScanning) {
-          try { await scannerRef.current.stop(); } catch (e) {}
-      }
-      setIsScanning(false);
-      setIsScannerOpen(false);
-  };
 
   const handleEditFromDetail = () => {
       if (viewDetailItem) {
@@ -839,35 +739,21 @@ const Inventory: React.FC = () => {
         </div>
       )}
 
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
-              <div className="p-6 text-center">
-                 <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mx-auto mb-4">
-                    <Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />
-                 </div>
-                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Hapus Barang?</h3>
-                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                    Apakah Anda yakin ingin menghapus barang ini dari inventaris? Tindakan ini tidak dapat dibatalkan.
-                 </p>
-                 <div className="flex justify-center space-x-3">
-                    <button 
-                       onClick={() => setShowDeleteModal(false)} 
-                       className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                    >
-                       Batal
-                    </button>
-                    <button 
-                       onClick={confirmDelete} 
-                       className="px-4 py-2 text-sm bg-red-600 text-white hover:bg-red-700 rounded-lg shadow-md hover:shadow-lg transition-all"
-                    >
-                       Ya, Hapus
-                    </button>
-                 </div>
-              </div>
-           </div>
-        </div>
-      )}
+      {/* Using reusable ConfirmModal component */}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeleteTargetId(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Hapus Barang"
+        message="Apakah Anda yakin ingin menghapus barang ini dari inventaris? Tindakan ini tidak dapat dibatalkan."
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+        type="danger"
+        isLoading={isDeleting}
+      />
 
       {viewDetailItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -931,72 +817,13 @@ const Inventory: React.FC = () => {
         </div>
       )}
 
-      {isScannerOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in-up relative">
-                  <button 
-                    onClick={handleCloseScanner} 
-                    className="absolute top-4 right-4 z-10 bg-white dark:bg-gray-700 rounded-full p-1 text-gray-600 dark:text-gray-200 shadow-md"
-                  >
-                      <X className="w-5 h-5" />
-                  </button>
-                  <div className="p-6">
-                      <h3 className="text-lg font-bold text-center mb-4 text-gray-900 dark:text-white">Scan QR Code Barang</h3>
-                      
-                      {(window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && !window.location.hostname.includes('127.0.0.1')) && (
-                        <div className="mb-4 p-3 bg-yellow-50 text-yellow-800 text-xs rounded-lg border border-yellow-200 text-left">
-                            <strong>Kamera tidak muncul?</strong><br/>
-                            Browser memblokir akses kamera pada jaringan HTTP. Gunakan <strong>HTTPS</strong> atau akses via localhost.
-                        </div>
-                      )}
-
-                      <div className="mb-4">
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pilih Kamera</label>
-                          <select 
-                              value={selectedCameraId}
-                              onChange={(e) => setSelectedCameraId(e.target.value)}
-                              disabled={isScanning}
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 text-sm disabled:opacity-50 cursor-pointer"
-                          >
-                              {cameras.length === 0 && <option>Mendeteksi kamera...</option>}
-                              {cameras.map(cam => (
-                                  <option key={cam.id} value={cam.id}>{cam.label || `Kamera ${cam.id.slice(0,5)}...`}</option>
-                              ))}
-                          </select>
-                      </div>
-
-                      <div className="relative w-full rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900 min-h-[250px] border border-gray-200 dark:border-gray-700">
-                          <div id="inventory-reader" className="w-full h-full"></div>
-                          {!isScanning && (
-                              <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 pointer-events-none">
-                                  <Camera className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                                  <p className="text-sm">Kamera belum aktif</p>
-                              </div>
-                          )}
-                          {isScanning && torchSupported && (
-                              <button onClick={toggleTorch} className="absolute top-4 right-4 z-20 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors backdrop-blur-sm" title={torchOn ? "Matikan Flash" : "Nyalakan Flash"}>
-                                  {torchOn ? <ZapOff className="w-5 h-5" /> : <Zap className="w-5 h-5" />}
-                              </button>
-                          )}
-                      </div>
-                      
-                      <div className="mt-4 flex justify-center">
-                          {!isScanning ? (
-                              <button onClick={handleStartScan} disabled={!selectedCameraId || cameras.length === 0} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm transition-colors flex items-center disabled:opacity-50">
-                                  <Camera className="w-4 h-4 mr-2" /> Mulai Scan
-                              </button>
-                          ) : (
-                              <button onClick={handleStopScan} className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm transition-colors flex items-center">
-                                  <X className="w-4 h-4 mr-2" /> Stop Scan
-                              </button>
-                          )}
-                      </div>
-
-                      <p className="text-xs text-center text-gray-500 mt-4">Arahkan kamera ke QR Code barang untuk melihat detail.</p>
-                  </div>
-              </div>
-          </div>
-      )}
+      {/* Using reusable QRScannerModal component */}
+      <QRScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScanSuccess={handleScannerScan}
+        title="Scan QR Code Barang"
+      />
 
       {qrItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -1032,4 +859,3 @@ const Inventory: React.FC = () => {
 };
 
 export default Inventory;
-

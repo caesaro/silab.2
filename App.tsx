@@ -332,7 +332,7 @@ const App: React.FC = () => {
           toggleDarkMode={toggleDarkMode}
         />
         {/* Allow toasts even on login screen */}
-        <Toast toasts={toasts} removeToast={removeToast} />
+        <Toast toasts={toasts} removeToast={removeToast} isDarkMode={isDarkMode} />
       </div>
     );
   }
@@ -383,7 +383,8 @@ const App: React.FC = () => {
       </div>
 
       
-      <Toast toasts={toasts} removeToast={removeToast} />
+      
+      <Toast toasts={toasts} removeToast={removeToast} isDarkMode={isDarkMode} />
     </div>
   );
 };

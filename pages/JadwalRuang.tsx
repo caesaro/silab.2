@@ -5,6 +5,7 @@ import {
   X, Save, Repeat, Type, AlignLeft, LogOut, CheckCircle, XCircle, Trash2, Edit
 } from 'lucide-react';
 import { api } from '../services/api';
+import { CLIENT_ID, API_KEY, DISCOVERY_DOCS, SCOPES } from '../src/config/google';
 
 // Declare global types for Google API
 declare global {
@@ -13,11 +14,6 @@ declare global {
     google: any;
   }
 }
-
-// Konfigurasi Google API
-const CLIENT_ID = '828476305239-7hilvfjvadt8ndn9br7n1upmdso38ou8.apps.googleusercontent.com';
-const API_KEY = 'AIzaSyDMKoa430rirp8g8bBU3Xt-IE5EKZjiZWQ';
-const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'];
 
 interface ScheduleProps {
   role: Role;
