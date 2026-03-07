@@ -30,7 +30,7 @@ Sistem Informasi Manajemen Laboratorium FT (SILAB FTI) adalah aplikasi web untuk
 ### 🔐 Autentikasi & Otorisasi
 - Login dengan Email/Username dan Password
 - Three Roles: **Admin**, **Laboran** (Teknisi), dan **User** (Mahasiswa/Dosen)
-- Proteksi Route berdasarkan peran pengguna
+- Proteksi Route berdasarkan peran user
 - Session timeout otomatis (30 menit tidak aktif)
 - Mode Maintenance untuk sementara menonaktifkan akses user biasa
 
@@ -65,77 +65,6 @@ Sistem Informasi Manajemen Laboratorium FT (SILAB FTI) adalah aplikasi web untuk
 - Statistik PKL aktif
 - Recent activities
 - Export laporan ke Excel
-
----
-
-## 🛠️ Teknologi
-
-### Frontend
-| Technology | Usage |
-|------------|-------|
-| React 18 | UI Framework |
-| TypeScript | Type Safety |
-| Vite | Build Tool |
-| Tailwind CSS | Styling |
-| Recharts | Charts/Graphs |
-| Lucide React | Icons |
-| React QR Code | QR Code Generation |
-| html5-qrcode | QR Code Scanner |
-| jsPDF | PDF Generation |
-
-### Backend
-| Technology | Usage |
-|------------|-------|
-| Express.js | Web Framework |
-| PostgreSQL | Database |
-| bcryptjs | Password Hashing |
-| Multer | File Upload |
-| ExcelJS | Excel Export |
-| pg | PostgreSQL Driver |
-
----
-
-## 📁 Struktur Proyek
-
-```
-silab-fti/
-├── components/           # Komponen React reusable
-│   ├── LoadingScreen.tsx
-│   ├── ProtectedRoute.tsx
-│   ├── Sidebar.tsx
-│   ├── Skeleton.tsx
-│   ├── Toast.tsx
-│   └── TopBar.tsx
-├── pages/                 # Halaman utama aplikasi
-│   ├── Dashboard.tsx
-│   ├── Events.tsx
-│   ├── Inventory.tsx
-│   ├── LaboranManagement.tsx
-│   ├── Loans.tsx
-│   ├── Login.tsx
-│   ├── Maintenance.tsx
-│   ├── ManageBookings.tsx
-│   ├── MyBookings.tsx
-│   ├── PKLManagement.tsx
-│   ├── Profile.tsx
-│   ├── Rooms.tsx
-│   ├── Schedule.tsx
-│   ├── Settings.tsx
-│   └── UserManagement.tsx
-├── services/               # Service layer
-│   ├── api.ts            # HTTP Client
-│   └── mockData.ts       # Data dummy untuk development
-├── scripts/               # Utility scripts
-│   └── generate-hash.js  # Generate password hash
-├── uploads/               # Folder upload file temporary
-├── App.tsx               # Root Component
-├── config.ts             # Konfigurasi aplikasi
-├── database_schema.sql   # Skema Database PostgreSQL
-├── server.js             # Backend Express API
-├── package.json          # Dependencies
-├── tsconfig.json         # TypeScript config
-└── vite.config.ts        # Vite config
-```
 
 ---
 
@@ -189,21 +118,12 @@ PORT=5000
 
 ---
 
-## ▶️ Menjalankan Aplikasi
+## ▶️ Menjalankan Aplikasi (Development)
 
-### Mode Development (Rekomendasi)
+Aplikasi ini dirancang untuk dijalankan secara bersamaan (frontend dan backend) dengan satu perintah.
 
-**Terminal 1 - Backend:**
 ```bash
-# Backend berjalan di port 5000
-node server.js
-# Atau jika menggunakan package.json script
-npm run server
-```
-
-**Terminal 2 - Frontend:**
-```bash
-# Frontend berjalan di port 5173 (Vite default)
+# Menjalankan frontend (Vite) di port 5173 dan backend (Express) di port 5000
 npm run dev
 ```
 
@@ -226,7 +146,7 @@ npm run preview
 
 | Tabel | Deskripsi |
 |-------|-----------|
-| `users` | Data semua pengguna (Admin, Laboran, User) |
+| `users` | Data semua user (Admin, Laboran, User) |
 | `staff` | Data staff/laboran (PIC ruangan) |
 | `rooms` | Data ruangan laboratorium |
 | `bookings` | Transaksi peminjaman ruangan |
@@ -456,4 +376,3 @@ Untuk pertanyaan atau masalah, hubungi:
 <div align="center">
 Made with ❤️ by FTI UKSW
 </div>
-

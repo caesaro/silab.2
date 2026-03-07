@@ -1,4 +1,4 @@
-// Google API Configuration
+// Google Calendar API Configuration
 // Used across multiple pages for Calendar integration
 
 export const GOOGLE_API_CONFIG = {

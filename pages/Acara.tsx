@@ -8,6 +8,7 @@ import nocLogo from "../src/assets/noc.png";
 
 interface EventsProps {
   showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void;
+  isDarkMode: boolean;
 }
 
 interface BookingWithTech extends Booking {
@@ -16,7 +17,7 @@ interface BookingWithTech extends Booking {
   techSupportNeeds?: string;
 }
 
-const Acara: React.FC<EventsProps> = ({ showToast }) => {
+const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
   const [events, setEvents] = useState<BookingWithTech[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -65,13 +66,18 @@ const Acara: React.FC<EventsProps> = ({ showToast }) => {
   );
 
   const handleDownloadImage = async () => {
-    if (!ticketRef.current) return;
+    const element = ticketRef.current;
+    if (!element) return;
     
     try {
         showToast("Sedang membuat gambar...", "info");
-        const canvas = await html2canvas(ticketRef.current, {
+        // Tambahkan kelas 'dark' sementara jika mode gelap aktif agar html2canvas dapat mengambil gayanya
+        if (isDarkMode) {
+            element.classList.add('dark');
+        }
+        const canvas = await html2canvas(element, {
             scale: 2,
-            backgroundColor: '#ffffff',
+            backgroundColor: isDarkMode ? '#111827' : '#ffffff', // gray-900 untuk tema gelap
             useCORS: true
         });
         
@@ -84,6 +90,11 @@ const Acara: React.FC<EventsProps> = ({ showToast }) => {
     } catch (error) {
         console.error("Gagal membuat gambar", error);
         showToast("Gagal membuat gambar.", "error");
+    } finally {
+        // Bersihkan kelas setelah selesai
+        if (isDarkMode) {
+            element.classList.remove('dark');
+        }
     }
   };
 
@@ -253,15 +264,15 @@ const Acara: React.FC<EventsProps> = ({ showToast }) => {
                         Preview Gambar
                     </div>
                     
-                    <div ref={ticketRef} className="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm border border-gray-200 relative overflow-hidden">
+                    <div ref={ticketRef} className="bg-white dark:bg-gray-900 p-8 rounded-xl shadow-lg w-full max-w-sm border border-gray-200 dark:border-gray-700 relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 to-purple-600"></div>
                         
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-3">
                                 <img src={nocLogo} alt="Logo" className="w-10 h-10 object-contain" />
                                 <div>
-                                    <h1 className="text-lg font-bold text-gray-900 leading-tight">CORE.FTI</h1>
-                                    <p className="text-[10px] text-gray-500 uppercase tracking-wider">Event Card</p>
+                                    <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100 leading-tight">CORE.FTI</h1>
+                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider">Event Card</p>
                                 </div>
                             </div>
                         </div>
@@ -269,8 +280,8 @@ const Acara: React.FC<EventsProps> = ({ showToast }) => {
                         <div className="space-y-5">
                             {shareConfig.title && (
                                 <div>
-                                    <p className="text-xs text-gray-400 uppercase font-bold mb-1">Nama Acara</p>
-                                    <h2 className="text-xl font-bold text-gray-800 leading-snug">{selectedEvent.purpose}</h2>
+                                    <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-bold mb-1">Nama Acara</p>
+                                    <h2 className="text-xl font-bold text-gray-800 dark:text-white leading-snug">{selectedEvent.purpose}</h2>
                                 </div>
                             )}
 
@@ -278,24 +289,24 @@ const Acara: React.FC<EventsProps> = ({ showToast }) => {
                                 <div className="grid grid-cols-1 gap-4">
                                     {shareConfig.time && (
                                         <div className="flex items-start">
-                                            <div className="bg-blue-50 p-2 rounded-lg mr-3">
-                                                <Calendar className="w-5 h-5 text-blue-600" />
+                                            <div className="bg-blue-50 dark:bg-blue-900/30 p-2 rounded-lg mr-3">
+                                                <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                                             </div>
                                             <div>
-                                                <p className="text-xs text-gray-500 font-medium">Waktu Pelaksanaan</p>
-                                                <p className="text-sm font-bold text-gray-900">{selectedEvent.date}</p>
-                                                <p className="text-sm text-gray-700">{selectedEvent.startTime} - {selectedEvent.endTime}</p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Waktu Pelaksanaan</p>
+                                                <p className="text-sm font-bold text-gray-900 dark:text-white">{selectedEvent.date}</p>
+                                                <p className="text-sm text-gray-700 dark:text-gray-300">{selectedEvent.startTime} - {selectedEvent.endTime}</p>
                                             </div>
                                         </div>
                                     )}
                                     {shareConfig.location && (
                                         <div className="flex items-start">
-                                            <div className="bg-purple-50 p-2 rounded-lg mr-3">
-                                                <MapPin className="w-5 h-5 text-purple-600" />
+                                            <div className="bg-purple-50 dark:bg-purple-900/30 p-2 rounded-lg mr-3">
+                                                <MapPin className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                                             </div>
                                             <div>
-                                                <p className="text-xs text-gray-500 font-medium">Lokasi</p>
-                                                <p className="text-sm font-bold text-gray-900">{getRoomName(selectedEvent.roomId)}</p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Lokasi</p>
+                                                <p className="text-sm font-bold text-gray-900 dark:text-white">{getRoomName(selectedEvent.roomId)}</p>
                                             </div>
                                         </div>
                                     )}
@@ -303,35 +314,35 @@ const Acara: React.FC<EventsProps> = ({ showToast }) => {
                             )}
 
                             {(shareConfig.pic || shareConfig.contact) && (
-                                <div className="pt-4 border-t border-gray-100 grid grid-cols-2 gap-4">
+                                <div className="pt-4 border-t border-gray-100 dark:border-gray-700 grid grid-cols-2 gap-4">
                                     {shareConfig.pic && (
                                         <div>
-                                            <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Penanggung Jawab</p>
-                                            <p className="text-sm font-medium text-gray-800">{selectedEvent.responsiblePerson}</p>
+                                            <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-bold mb-1">Penanggung Jawab</p>
+                                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{selectedEvent.responsiblePerson}</p>
                                         </div>
                                     )}
                                     {shareConfig.contact && (
                                         <div>
-                                            <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Kontak</p>
-                                            <p className="text-sm font-medium text-gray-800">{selectedEvent.contactPerson}</p>
+                                            <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-bold mb-1">Kontak</p>
+                                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{selectedEvent.contactPerson}</p>
                                         </div>
                                     )}
                                 </div>
                             )}
 
                             {(shareConfig.tech || shareConfig.needs) && (
-                                <div className="pt-4 border-t border-gray-100 bg-gray-50 -mx-8 px-8 pb-4 -mb-8 mt-2">
+                                <div className="pt-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 -mx-8 px-8 pb-4 -mb-8 mt-2">
                                     <div className="pt-4 space-y-3">
                                         {shareConfig.tech && selectedEvent.techSupportPicName && (
                                             <div>
-                                                <p className="text-[10px] text-gray-400 uppercase font-bold mb-1 flex items-center"><Wrench className="w-3 h-3 mr-1"/> Tech Support</p>
-                                                <p className="text-sm font-medium text-gray-800">{selectedEvent.techSupportPicName}</p>
+                                                <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-bold mb-1 flex items-center"><Wrench className="w-3 h-3 mr-1"/> Tech Support</p>
+                                                <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{selectedEvent.techSupportPicName}</p>
                                             </div>
                                         )}
                                         {shareConfig.needs && selectedEvent.techSupportNeeds && (
                                             <div>
-                                                <p className="text-[10px] text-gray-400 uppercase font-bold mb-1 flex items-center"><Info className="w-3 h-3 mr-1"/> Kebutuhan</p>
-                                                <p className="text-sm text-gray-700 italic">{selectedEvent.techSupportNeeds}</p>
+                                                <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-bold mb-1 flex items-center"><Info className="w-3 h-3 mr-1"/> Kebutuhan</p>
+                                                <p className="text-sm text-gray-700 dark:text-gray-300 italic">{selectedEvent.techSupportNeeds}</p>
                                             </div>
                                         )}
                                     </div>

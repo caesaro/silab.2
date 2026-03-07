@@ -4,14 +4,15 @@ import { Search, Plus, Filter, Edit, Trash2, X, Check, AlertCircle, Box, Chevron
 import ExcelJS from 'exceljs';
 import QRCode from "react-qr-code";
 import { api } from '../services/api';
-import QRScannerModal from '../components/QRScannerModal';
-import ConfirmModal from '../components/ConfirmModal';
+import QRScannerModal from '../components/QRScannerModal'; // Assuming this is a reusable component
+import ConfirmModal from '../components/ConfirmModal'; // Assuming this is a reusable component
 
 const LabelComponent = ({ item }: { item: Equipment }) => (
-    <div className="p-1 flex flex-col items-center justify-center text-center break-words w-full h-full">
-        <QRCode value={item.id} size={48} level="M" style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
-        <p className="mt-1 font-bold text-[8pt] tracking-tighter font-mono break-all">{item.id}</p>
-        <p className="text-[7pt] leading-tight line-clamp-2">{item.name}</p>
+    <div className="p-1 flex flex-col items-center justify-center text-center break-words w-full h-full font-sans">
+        <QRCode value={item.id} size={40} level="M" style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
+        <p className="mt-1 font-bold text-[7pt] tracking-tighter font-mono break-all leading-none">{item.id}</p>
+        <p className="text-[6pt] leading-tight line-clamp-2 mt-0.5">{item.name}</p>
+        <p className="text-[5pt] mt-auto pt-0.5 text-gray-600 font-semibold">CORE.FTI</p>
     </div>
 );
 
@@ -25,6 +26,7 @@ const Inventory: React.FC = () => {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [paperSize, setPaperSize] = useState<'A4' | 'F4'>('A4');
+  const [singleLabelPaperSize, setSingleLabelPaperSize] = useState<'A4' | 'F4'>('A4');
   const [isExportOpen, setIsExportOpen] = useState(false);
 
   // Modal State for Form
@@ -344,29 +346,257 @@ const Inventory: React.FC = () => {
   };
 
   const handlePrintMulti = () => {
-    const content = document.getElementById('multi-label-print-area')?.innerHTML;
-    if (content) {
-        const printWindow = window.open('', '', 'height=800,width=800');
-        if (printWindow) {
-            printWindow.document.write('<html><head><title>Cetak Label</title>');
-            printWindow.document.write('<style>@page { size: ' + paperSize + '; margin: 0.5cm; } .sticker-sheet-content { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 0; } .sticker-label { page-break-inside: avoid; box-sizing: border-box; border: 1px dashed #ccc; width: 50mm; height: 30mm; } </style>');
-            printWindow.document.write('</head><body><div class="sticker-sheet-content">');
-            printWindow.document.write(content);
-            printWindow.document.write('</div></body></html>');
-            printWindow.document.close();
-            printWindow.focus();
-            setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
-        }
+    const selectedItemsData = items.filter(i => selectedItems.includes(i.id));
+    
+    // Generate QR code using qrserver.com API with 45px size to match 40mm label
+    const getQRCodeURL = (value: string) => {
+      return `https://api.qrserver.com/v1/create-qr-code/?size=45x45&data=${encodeURIComponent(value)}`;
+    };
+
+    const labelsHTML = selectedItemsData.map(item => `
+      <div style="width: 40mm; height: 25mm; padding: 2mm; box-sizing: border-box; border: 1px dashed #ccc; display: flex; flex-direction: column; overflow: hidden; page-break-inside: avoid; float: left; margin: 1mm;">
+        <div style="display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start;">
+          <span style="font-size: 5pt; color: #666; font-weight: 600;">CORE.FTI</span>
+        </div>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; margin: 1mm 0;">
+          <img src="${getQRCodeURL(item.id)}" alt="QR Code" style="width: 45px; height: 45px;" />
+        </div>
+        <p style="margin: 0; font-weight: bold; font-size: 7pt; font-family: monospace; text-align: center; word-break: break-all;">${item.id}</p>
+        <p style="margin: 1px 0 0 0; font-size: 5pt; text-align: center; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; max-height: 2.2em;">${item.name}</p>
+      </div>
+    `).join('');
+
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    if (printWindow) {
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Cetak Label Inventaris - CORE.FTI</title>
+          <style>
+            @page {
+              size: ${paperSize};
+              margin: 0.5cm;
+            }
+            body {
+              margin: 0;
+              padding: 5mm;
+              font-family: Arial, sans-serif;
+            }
+            .label-container {
+              width: ${paperSize === 'A4' ? '210mm' : '215mm'};
+              min-height: ${paperSize === 'A4' ? '297mm' : '330mm'};
+            }
+            .clearfix::after {
+              content: "";
+              clear: both;
+              display: table;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="label-container clearfix">
+            ${labelsHTML}
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.close();
+              }, 1000);
+            };
+          </script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
     }
   };
 
   const handlePrintSingle = () => {
-    const content = document.getElementById('single-label-print-area')?.innerHTML;
-    if (content) {
-        const printWindow = window.open('', '', 'height=400,width=400');
-        printWindow?.document.write(`<html><head><title>Cetak Label</title><style>body { margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; }</style></head><body>${content}</body></html>`);
-        printWindow?.document.close();
-        setTimeout(() => { printWindow?.print(); printWindow?.close(); }, 250);
+    if (!qrItem) return;
+    
+    // Generate QR code as PNG using qrserver.com API
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrItem.id)}`;
+    
+    // Create a canvas to compose the label image
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 250;
+    const ctx = canvas.getContext('2d');
+    
+    if (ctx) {
+      // White background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw CORE.FTI at top-left
+      ctx.fillStyle = '#666666';
+      ctx.font = 'bold 14px Arial';
+      ctx.fillText('CORE.FTI', 10, 25);
+      
+      // Load and draw QR code image
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        // Center QR code
+        const qrSize = 120;
+        const qrX = (canvas.width - qrSize) / 2;
+        const qrY = 35;
+        ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
+        
+        // Draw FTI Code below QR
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 16px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(qrItem.id, canvas.width / 2, qrY + qrSize + 20);
+        
+        // Draw Item Name at bottom
+        ctx.fillStyle = '#333333';
+        ctx.font = '12px Arial';
+        ctx.fillText(qrItem.name, canvas.width / 2, qrY + qrSize + 45);
+        
+        // Convert to PNG and download
+        const link = document.createElement('a');
+        link.download = `label-${qrItem.id}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      };
+      img.onerror = () => {
+        alert('Gagal menghasilkan gambar QR. Silakan coba lagi.');
+      };
+      img.src = qrImageUrl;
+    }
+  };
+
+  const handlePrintSingleDirect = () => {
+    if (!qrItem) return;
+    
+    // Generate QR code using qrserver.com API
+    const getQRCodeURL = (value: string) => {
+      return `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(value)}`;
+    };
+
+    const singleLabelHTML = `
+      <div style="width: 40mm; height: 25mm; padding: 2mm; box-sizing: border-box; border: 1px dashed #ccc; display: flex; flex-direction: column; overflow: hidden; margin: 5mm auto;">
+        <div style="display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start;">
+          <span style="font-size: 5pt; color: #666; font-weight: 600;">CORE.FTI</span>
+        </div>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; margin: 1mm 0;">
+          <img src="${getQRCodeURL(qrItem.id)}" alt="QR Code" style="width: 45px; height: 45px;" />
+        </div>
+        <p style="margin: 0; font-weight: bold; font-size: 7pt; font-family: monospace; text-align: center; word-break: break-all;">${qrItem.id}</p>
+        <p style="margin: 1px 0 0 0; font-size: 5pt; text-align: center; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; max-height: 2.2em;">${qrItem.name}</p>
+      </div>
+    `;
+
+    const printWindow = window.open('', '_blank', 'width=400,height=300');
+    if (printWindow) {
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Cetak Label - CORE.FTI</title>
+          <style>
+            @page {
+              size: 40mm 25mm;
+              margin: 0;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+              font-family: Arial, sans-serif;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              min-height: 100vh;
+            }
+          </style>
+        </head>
+        <body>
+          ${singleLabelHTML}
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.close();
+              }, 500);
+            };
+          </script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+  };
+
+  // Print single label to A4/F4 sheet (similar to multiple print)
+  const handlePrintSingleToSheet = () => {
+    if (!qrItem) return;
+    
+    // Generate QR code using qrserver.com API
+    const getQRCodeURL = (value: string) => {
+      return `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(value)}`;
+    };
+
+    // Single label in the same format as multiple print
+    const singleLabelHTML = `
+      <div style="width: 40mm; height: 25mm; padding: 2mm; box-sizing: border-box; border: 1px dashed #ccc; display: flex; flex-direction: column; overflow: hidden; page-break-inside: avoid; float: left; margin: 1mm;">
+        <div style="display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start;">
+          <span style="font-size: 5pt; color: #666; font-weight: 600;">CORE.FTI</span>
+        </div>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; margin: 1mm 0;">
+          <img src="${getQRCodeURL(qrItem.id)}" alt="QR Code" style="width: 45px; height: 45px;" />
+        </div>
+        <p style="margin: 0; font-weight: bold; font-size: 7pt; font-family: monospace; text-align: center; word-break: break-all;">${qrItem.id}</p>
+        <p style="margin: 1px 0 0 0; font-size: 5pt; text-align: center; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; max-height: 2.2em;">${qrItem.name}</p>
+      </div>
+    `;
+
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    if (printWindow) {
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Cetak Label - CORE.FTI</title>
+          <style>
+            @page {
+              size: ${singleLabelPaperSize};
+              margin: 0.5cm;
+            }
+            body {
+              margin: 0;
+              padding: 5mm;
+              font-family: Arial, sans-serif;
+            }
+            .label-container {
+              width: ${singleLabelPaperSize === 'A4' ? '210mm' : '215mm'};
+              min-height: ${singleLabelPaperSize === 'A4' ? '297mm' : '330mm'};
+            }
+            .clearfix::after {
+              content: "";
+              clear: both;
+              display: table;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="label-container clearfix">
+            ${singleLabelHTML}
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.close();
+              }, 1000);
+            };
+          </script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
     }
   };
 
@@ -818,9 +1048,46 @@ const Inventory: React.FC = () => {
       />
 
       {isPrintModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 no-print">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 flex-shrink-0">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 print-modal-active">
+            <style>{`
+              @media print {
+                body > *:not(.print-modal-active) {
+                  display: none;
+                }
+                .print-modal-active {
+                  position: static;
+                  background: none;
+                  backdrop-filter: none;
+                }
+                .print-content-wrapper {
+                  box-shadow: none;
+                  border: none;
+                  height: auto;
+                  max-height: none;
+                }
+                .print-controls, .no-print {
+                  display: none;
+                }
+                #print-preview-area {
+                  padding: 0;
+                  background: none;
+                }
+                #multi-label-print-area {
+                  box-shadow: none;
+                  margin: 0;
+                  padding: 0;
+                }
+                .sticker-label {
+                  border: none !important; /* Hilangkan border saat print */
+                }
+                @page { 
+                  size: ${paperSize};
+                  margin: 0.5cm;
+                }
+              }
+            `}</style>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up print-content-wrapper">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 flex-shrink-0 print-controls">
                     <h3 className="font-bold text-gray-900 dark:text-white">Cetak Label ({selectedItems.length} Barang)</h3>
                     <div className="flex items-center gap-4">
                         <div>
@@ -839,9 +1106,9 @@ const Inventory: React.FC = () => {
                     </div>
                 </div>
                 <div id="print-preview-area" className="flex-1 overflow-auto p-6 bg-gray-200 dark:bg-gray-900">
-                    <div id="multi-label-print-area" className="bg-white shadow-lg mx-auto p-[5mm] box-border flex flex-wrap content-start gap-0" style={paperSize === 'A4' ? {width: '210mm', minHeight: '297mm'} : {width: '215mm', minHeight: '330mm'}}>
+                    <div id="multi-label-print-area" className="bg-white shadow-lg mx-auto p-[5mm] box-border flex flex-wrap content-start gap-0" style={paperSize === 'A4' ? { width: '210mm', minHeight: '297mm' } : { width: '215mm', minHeight: '330mm' }}>
                         {items.filter(i => selectedItems.includes(i.id)).map(item => (
-                            <div key={item.id} className="sticker-label" style={{width: '50mm', height: '30mm', padding: '2mm', boxSizing: 'border-box', border: '1px dashed #ccc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'}}>
+                            <div key={item.id} className="sticker-label" style={{ width: '40mm', height: '25mm', padding: '2mm', boxSizing: 'border-box', border: '1px dashed #ccc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', pageBreakInside: 'avoid' }}>
                                 <LabelComponent item={item} />
                             </div>
                         ))}
@@ -923,7 +1190,7 @@ const Inventory: React.FC = () => {
 
       {qrItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-xs overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
+           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
               <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
                  <h3 className="font-bold text-gray-900 dark:text-white flex items-center">
                     <QrCode className="w-5 h-5 mr-2 text-blue-600" />
@@ -938,12 +1205,30 @@ const Inventory: React.FC = () => {
                       <QRCode value={qrItem.id} size={150} level="M" />
                       <p className="mt-4 font-bold text-lg text-gray-900 font-mono tracking-wide">{qrItem.id}</p>
                       <p className="text-sm text-gray-600 text-center">{qrItem.name}</p>
+                      <p className="text-xs text-gray-500 mt-2 font-semibold">CORE.FTI</p>
                   </div>
               </div>
-              <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex justify-end">
-                  <button onClick={handlePrintSingle} className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex items-center shadow-md">
-                      <Printer className="w-4 h-4 mr-2" /> Cetak Label
-                  </button>
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                  {/* Paper Size Selector for Single Label */}
+                  <div className="mb-3 flex items-center justify-center">
+                      <label className="text-sm font-medium mr-2 dark:text-gray-300">Ukuran Kertas:</label>
+                      <select 
+                          value={singleLabelPaperSize} 
+                          onChange={(e) => setSingleLabelPaperSize(e.target.value as 'A4' | 'F4')} 
+                          className="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm"
+                      >
+                          <option value="A4">A4</option>
+                          <option value="F4">F4</option>
+                      </select>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-2">
+                      <button onClick={handlePrintSingleToSheet} className="px-4 py-2 text-sm bg-purple-600 text-white hover:bg-purple-700 rounded-lg flex items-center shadow-md">
+                          <Printer className="w-4 h-4 mr-2" /> Cetak ke Kertas ({singleLabelPaperSize})
+                      </button>
+                      <button onClick={handlePrintSingle} className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex items-center shadow-md">
+                          <Download className="w-4 h-4 mr-2" /> Download PNG
+                      </button>
+                  </div>
               </div>
            </div>
         </div>

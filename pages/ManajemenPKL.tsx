@@ -258,8 +258,19 @@ const PKLManagement: React.FC<PKLManagementProps> = ({ showToast }) => {
   };
 
   // View Surat
-  const handleViewSurat = (suratUrl: string) => {
-    window.open(suratUrl, '_blank');
+  const handleViewSurat = async (suratUrl: string) => {
+    try {
+      const res = await fetch(suratUrl);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (e) {
+      console.error("Gagal membuka file", e);
+      const win = window.open();
+      if (win) {
+        win.document.write(`<iframe src="${suratUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+      }
+    }
   };
 
   // Add student row for batch mode

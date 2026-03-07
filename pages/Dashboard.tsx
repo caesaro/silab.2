@@ -97,20 +97,24 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
 
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
       try {
-        const [resBookings, resLoans, resRooms, resUsers, resEquipment, resAnnounce] = await Promise.all([
+        // Definisikan semua panggilan API yang mungkin
+        const apiCalls = [
           api('/api/bookings'),
           api('/api/loans'),
           api('/api/rooms'),
-          api('/api/users'),
+          !isUser ? api('/api/users') : Promise.resolve(new Response(JSON.stringify([]))), // Hanya panggil jika bukan 'User'
           api('/api/inventory'),
           api('/api/settings/announcement')
-        ]);
+        ];
 
+        const [resBookings, resLoans, resRooms, resUsers, resEquipment, resAnnounce] = await Promise.all(apiCalls);
+        
         if (resBookings.ok) setBookings(await resBookings.json());
         if (resLoans.ok) setLoans(await resLoans.json());
         if (resRooms.ok) setRooms(await resRooms.json());
-        if (resUsers.ok) setUsers(await resUsers.json());
+        if (resUsers.ok && !isUser) setUsers(await resUsers.json());
         if (resEquipment.ok) setEquipment(await resEquipment.json());
         if (resAnnounce.ok) setAnnouncement(await resAnnounce.json());
       } catch (error) {
@@ -121,7 +125,7 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
     };
 
     fetchData();
-  }, []);
+  }, [isUser]);
 
   // Calculate Statistics Dynamically
   const stats = useMemo(() => {

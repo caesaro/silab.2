@@ -2,6 +2,28 @@
 -- SKEMA DATABASE CORE.FTI (PostgreSQL)
 -- ==========================================
 
+-- Fungsi Trigger untuk update kolom 'updated_at' secara otomatis
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+   NEW.updated_at = NOW();
+   RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Definisi Tipe Data ENUM untuk Status
+CREATE TYPE user_status_enum AS ENUM ('Aktif', 'Non-Aktif', 'Reset');
+CREATE TYPE booking_status_enum AS ENUM ('Pending', 'Disetujui', 'Ditolak', 'Dibatalkan');
+CREATE TYPE loan_status_enum AS ENUM ('Dipinjam', 'Dikembalikan', 'Terlambat');
+CREATE TYPE pkl_status_enum AS ENUM ('Aktif', 'Selesai', 'Dibatalkan');
+
+-- Catatan: Jika tabel sudah ada dan berisi data, Anda mungkin perlu menjalankan:
+-- ALTER TABLE users ALTER COLUMN status TYPE user_status_enum USING status::user_status_enum;
+-- ALTER TABLE staff ALTER COLUMN status TYPE user_status_enum USING status::user_status_enum;
+-- ALTER TABLE bookings ALTER COLUMN status TYPE booking_status_enum USING status::booking_status_enum;
+-- ALTER TABLE loans ALTER COLUMN status TYPE loan_status_enum USING status::loan_status_enum;
+-- ALTER TABLE pkl_students ALTER COLUMN status TYPE pkl_status_enum USING status::pkl_status_enum;
+
 -- 1. Tabel Users
 -- Menyimpan data semua pengguna (Mahasiswa, Dosen, Admin, Teknisi)
 CREATE TABLE users (
@@ -14,11 +36,14 @@ CREATE TABLE users (
     identifier VARCHAR(50),
     telepon VARCHAR(20),
     avatar_image BYTEA,
-    status VARCHAR(20) DEFAULT 'Aktif',
+    status user_status_enum DEFAULT 'Aktif',
     last_login TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Contoh penerapan trigger pada tabel users
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- 1b. Tabel Staff
 -- Menyimpan data staff/laboran yang bisa menjadi PIC ruangan
@@ -30,11 +55,13 @@ CREATE TABLE staff (
     telepon VARCHAR(20),
     jabatan VARCHAR(50),
     user_id VARCHAR(50),
-    status VARCHAR(20) DEFAULT 'Aktif',
+    status user_status_enum DEFAULT 'Aktif',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_staff_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
+
+CREATE TRIGGER update_staff_updated_at BEFORE UPDATE ON staff FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- 2. Tabel Rooms
 -- Menyimpan data ruangan laboratorium
@@ -53,6 +80,8 @@ CREATE TABLE rooms (
     CONSTRAINT fk_room_staff FOREIGN KEY (pic_id) REFERENCES staff(id) ON DELETE SET NULL
 );
 
+CREATE TRIGGER update_rooms_updated_at BEFORE UPDATE ON rooms FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- 3. Tabel Bookings
 -- Transaksi peminjaman ruangan
 CREATE TABLE bookings (
@@ -62,7 +91,7 @@ CREATE TABLE bookings (
     penanggung_jawab VARCHAR(100) NOT NULL,
     contact_person VARCHAR(50) NOT NULL,
     keperluan TEXT NOT NULL,
-    status VARCHAR(20) DEFAULT 'PENDING',
+    status booking_status_enum DEFAULT 'Pending',
     file_proposal BYTEA,
     tech_support_pic TEXT[],
     tech_support_needs TEXT,
@@ -72,6 +101,8 @@ CREATE TABLE bookings (
     CONSTRAINT fk_booking_room FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE,
     CONSTRAINT fk_booking_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE TRIGGER update_bookings_updated_at BEFORE UPDATE ON bookings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- 3b. Tabel Booking Schedules (Detail Jadwal)
 CREATE TABLE booking_schedules (
@@ -90,13 +121,15 @@ CREATE TABLE inventory (
     uksw_code VARCHAR(50),
     nama VARCHAR(100) NOT NULL,
     kategori VARCHAR(50),
-    kondisi VARCHAR(20) DEFAULT 'Baik',
+    kondisi VARCHAR(20) DEFAULT 'Baik', -- Bisa juga jadi ENUM jika nilainya tetap
     is_available BOOLEAN DEFAULT TRUE,
     serial_number VARCHAR(100),
     lokasi VARCHAR(100), -- Lokasi/Rak/Ruangan barang saat ini
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TRIGGER update_inventory_updated_at BEFORE UPDATE ON inventory FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- 5. Tabel Transactions
 -- Header peminjaman (Satu transaksi bisa memuat banyak barang)
@@ -105,13 +138,14 @@ CREATE TABLE transactions (
     peminjam_identifier VARCHAR(50) NOT NULL,
     nama_peminjam VARCHAR(100) NOT NULL,
     petugas_pinjam VARCHAR(100),
-    petugas_kembali VARCHAR(100),
     jaminan VARCHAR(50),
     tgl_pinjam DATE NOT NULL,
     waktu_pinjam TIME,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TRIGGER update_transactions_updated_at BEFORE UPDATE ON transactions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- 6. Tabel Loans (Detail Barang)
 -- Detail barang dalam satu transaksi
@@ -121,13 +155,15 @@ CREATE TABLE loans (
     inventory_id VARCHAR(50) NOT NULL,
     actual_return_date DATE,
     actual_return_time TIME,
-    status VARCHAR(20) DEFAULT 'Dipinjam',
+    status loan_status_enum DEFAULT 'Dipinjam',
     petugas_pengembalian VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_loan_transaction FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
     CONSTRAINT fk_loan_inventory FOREIGN KEY (inventory_id) REFERENCES inventory(id) ON DELETE RESTRICT
 );
+
+CREATE TRIGGER update_loans_updated_at BEFORE UPDATE ON loans FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- 6b. Tabel Item Movements (Tracking Perpindahan Barang)
 -- Mencatat perpindahan barang (baik dari peminjaman maupun input manual)
@@ -172,6 +208,10 @@ CREATE INDEX idx_bookings_status ON bookings(status);
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_inventory_uksw_code ON inventory(uksw_code);
+CREATE INDEX idx_inventory_category ON inventory(kategori);
+CREATE INDEX idx_inventory_available ON inventory(is_available);
+CREATE INDEX idx_inventory_location ON inventory(lokasi);
+CREATE INDEX idx_rooms_name ON rooms(name);
 -- Indexing untuk Foreign Keys (Mempercepat JOIN)
 CREATE INDEX idx_bookings_room_id ON bookings(room_id);
 CREATE INDEX idx_bookings_user_id ON bookings(user_id);
@@ -188,6 +228,8 @@ CREATE TABLE system_settings (
     value TEXT,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TRIGGER update_system_settings_updated_at BEFORE UPDATE ON system_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Insert default value (Maintenance Mode: OFF)
 INSERT INTO system_settings (key, value) VALUES ('maintenance_mode', 'false');
@@ -221,13 +263,15 @@ CREATE TABLE pkl_students (
     Jurusan VARCHAR(100),
     tanggal_mulai DATE NOT NULL,
     tanggal_selesai DATE NOT NULL,
-    status VARCHAR(20) DEFAULT 'Aktif',
+    status pkl_status_enum DEFAULT 'Aktif',
     surat_pengajuan BYTEA,
     pembimbing_id VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_pkl_staff FOREIGN KEY (pembimbing_id) REFERENCES staff(id) ON DELETE SET NULL
 );
+
+CREATE TRIGGER update_pkl_students_updated_at BEFORE UPDATE ON pkl_students FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Indexing untuk PKL
 CREATE INDEX idx_pkl_sekolah ON pkl_students(sekolah);
@@ -253,6 +297,8 @@ CREATE TABLE class_schedules (
     CONSTRAINT fk_class_room FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE SET NULL
 );
 
+CREATE TRIGGER update_class_schedules_updated_at BEFORE UPDATE ON class_schedules FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- Indexing untuk Class Schedules
 CREATE INDEX idx_class_schedules_room ON class_schedules(room_id);
 CREATE INDEX idx_class_schedules_semester ON class_schedules(semester);
@@ -276,8 +322,23 @@ CREATE TABLE software (
     CONSTRAINT fk_software_room FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE SET NULL
 );
 
+CREATE TRIGGER update_software_updated_at BEFORE UPDATE ON software FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- Indexing untuk Software
 CREATE INDEX idx_software_room ON software(room_id);
 CREATE INDEX idx_software_category ON software(category);
 CREATE INDEX idx_software_name ON software(name);
 
+CREATE TABLE user_tokens (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token TEXT NOT NULL UNIQUE,
+  user_agent TEXT,
+  ip_address VARCHAR(45),
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  last_used_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_tokens_user_id ON user_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_tokens_expires_at ON user_tokens(expires_at);

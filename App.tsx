@@ -69,13 +69,15 @@ const App: React.FC = () => {
         }
       } catch (e) {
         console.error("Gagal cek status maintenance", e);
+        // Non-blocking: lanjutkan meskipun gagal
+        setIsMaintenanceMode(false);
       }
     };
     checkSystemStatus();
 
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 2000); // 2 seconds initial load
+    }, 1500); // Reduced from 2000ms to 1500ms for faster initial render
 
     // Fetch Notifications
     const fetchNotifications = async () => {
@@ -98,7 +100,8 @@ const App: React.FC = () => {
       clearTimeout(timer);
       if (notifInterval) clearInterval(notifInterval);
     };
-  }, [isAuthenticated]); // Re-run when auth status changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Changed dependency to empty array - only run once on mount
 
   useEffect(() => {
     if (isDarkMode) {
@@ -126,18 +129,25 @@ const App: React.FC = () => {
     setIsLoading(false);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      // Beri tahu backend untuk menghapus token dari database
+      await api('/api/logout', { method: 'POST' });
+    } catch (error) {
+      console.error("Gagal menghubungi server untuk logout, melanjutkan logout di sisi klien.", error);
+    } finally {
+      // Selalu bersihkan data di client, apapun hasil dari server
       setIsAuthenticated(false);
       setCurrentRole('User' as Role);
       setUserName('User');
       localStorage.removeItem('isAuthenticated');
       localStorage.removeItem('currentRole');
       localStorage.removeItem('userName');
-      localStorage.removeItem('userId'); // Pastikan ID user juga dihapus
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userId');
       setIsLoading(false);
-    }, 800);
+    }
   };
 
   // Helper: Add Notification
@@ -219,7 +229,7 @@ const App: React.FC = () => {
         case 'rooms':
           return <Ruangan role={currentRole} isDarkMode={isDarkMode} />;
         case 'events':
-          return <Acara showToast={showToast} />;
+          return <Acara showToast={showToast} isDarkMode={isDarkMode} />;
         case 'loans':
           return (
             <ProtectedRoute 

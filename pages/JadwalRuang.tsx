@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Role, Room } from '../types';
 import { 
-  Calendar as CalendarIcon, Filter, ExternalLink, Clock, MapPin, RefreshCw, AlertCircle, Loader2, LogIn, ChevronRight, Plus, ChevronLeft,
-  X, Save, Repeat, Type, AlignLeft, LogOut, CheckCircle, XCircle, Trash2, Edit
+  Calendar as CalendarIcon, Filter, ExternalLink, MapPin, Plus,
+  RefreshCw, LogIn, LogOut, CheckCircle, Loader2
 } from 'lucide-react';
 import { api } from '../services/api';
 import { CLIENT_ID, API_KEY, DISCOVERY_DOCS, SCOPES } from '../src/config/google';
+import RoomCalendar from '../components/RoomCalendar';
 
 // Declare global types for Google API
 declare global {
@@ -38,6 +39,30 @@ interface GoogleAuthState {
   accessToken: string;
 }
 
+interface EventForm {
+  summary: string;
+  description: string;
+  startDate: string;
+  startTime: string;
+  endTime: string;
+  recurrence: string;
+  recurrenceEnd: string;
+}
+
+interface EditEventForm {
+  summary: string;
+  description: string;
+  startDate: string;
+  startTime: string;
+  endTime: string;
+}
+
+interface DayDetail {
+  date: number;
+  events: GoogleEvent[];
+  fullDate: string;
+}
+
 const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) => {
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -52,17 +77,17 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
   const [isDeletingEvent, setIsDeletingEvent] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<GoogleEvent | null>(null);
-  const [selectedDayDetail, setSelectedDayDetail] = useState<{ date: number; events: GoogleEvent[]; fullDate: string } | null>(null);
+  const [selectedDayDetail, setSelectedDayDetail] = useState<DayDetail | null>(null);
   
   // Form State for Add Event
   const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
-  const [eventForm, setEventForm] = useState({
+  const [eventForm, setEventForm] = useState<EventForm>({
     summary: '',
     description: '',
     startDate: new Date().toISOString().split('T')[0],
     startTime: '08:00',
     endTime: '10:00',
-    recurrence: 'NONE', // NONE, DAILY, WEEKLY, MONTHLY
+    recurrence: 'NONE',
     recurrenceEnd: ''
   });
   
@@ -74,14 +99,16 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
   // Edit Event Modal State
   const [isEditEventModalOpen, setIsEditEventModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<GoogleEvent | null>(null);
-  const [editEventForm, setEditEventForm] = useState({
+  const [editEventForm, setEditEventForm] = useState<EditEventForm>({
     summary: '',
     description: '',
     startDate: new Date().toISOString().split('T')[0],
     startTime: '08:00',
     endTime: '10:00'
   });
-  
+
+  const selectedRoom = rooms.find(r => r.id === filterRoom);
+
   // Check for persistent auth on mount
   useEffect(() => {
     const savedAuth = localStorage.getItem('googleAuth');
@@ -91,7 +118,6 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
         if (authState.isAuthenticated && authState.accessToken) {
           setIsAuthenticated(true);
           setGoogleUserEmail(authState.email || '');
-          // Set the access token for gapi
           if (window.gapi) {
             window.gapi.client.setToken({ access_token: authState.accessToken });
           }
@@ -119,12 +145,10 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
 
   // Logout from Google (revoke access)
   const handleGoogleLogout = () => {
-    // Clear local storage
     localStorage.removeItem('googleAuth');
     setIsAuthenticated(false);
     setGoogleUserEmail('');
     
-    // Revoke Google token if possible
     if (window.google && window.google.accounts && window.google.accounts.oauth2) {
       const token = localStorage.getItem('googleAuth');
       if (token) {
@@ -137,7 +161,6 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
       }
     }
     
-    // Reset gapi token
     if (window.gapi) {
       window.gapi.client.setToken({});
     }
@@ -153,7 +176,6 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
         if (res.ok) {
           const data = await res.json();
           setRooms(data);
-          // Set default room to the first one if available
           if (data.length > 0) {
             setFilterRoom(data[0].id);
           }
@@ -165,8 +187,6 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
     };
     fetchRooms();
   }, []);
-
-  const selectedRoom = rooms.find(r => r.id === filterRoom);
 
   // Helper: Extract Calendar ID from Embed URL
   const getCalendarId = (input: string) => {
@@ -184,7 +204,7 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
     }
   };
 
-  // 4. Fetch Events (based on view)
+  // Fetch Events (based on view)
   const fetchEvents = async () => {
     if (!selectedRoom?.googleCalendarUrl || !isGapiInitialized) return;
     
@@ -223,7 +243,7 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
     }
   };
 
-  // 1. Load Google API Scripts
+  // Load Google API Scripts
   useEffect(() => {
     const loadScripts = () => {
       if (typeof window.gapi === 'undefined') {
@@ -250,7 +270,7 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
     loadScripts();
   }, []);
 
-  // 2. Initialize GAPI Client
+  // Initialize GAPI Client
   const initializeGapiClient = async () => {
     try {
       await window.gapi.client.init({
@@ -262,7 +282,6 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
       console.error("Gagal inisialisasi GAPI:", error.result || error);
       let friendlyMessage = "Gagal memuat Google API. Cek konsol untuk detail.";
       
-      // Cek struktur error dari GAPI
       const gapiError = error.result?.error;
       if (gapiError && gapiError.status === 'PERMISSION_DENIED' && gapiError.message.includes('API has not been used')) {
           friendlyMessage = "Google API tidak aktif. Hubungi admin untuk mengaktifkan Google Drive & Calendar API di Google Cloud Console.";
@@ -273,9 +292,8 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
     }
   };
 
-  // 3. Initialize GIS Client (Auth) - Modified for persistent login
+  // Initialize GIS Client (Auth)
   const initializeGisClient = () => {
-    // Tentukan scope berdasarkan role: Admin dapat Write, User hanya Read
     const scope = (role === Role.ADMIN || role === Role.LABORAN)
       ? 'https://www.googleapis.com/auth/calendar.events' 
       : 'https://www.googleapis.com/auth.calendar.events.readonly';
@@ -290,13 +308,10 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
           return;
         }
         
-        // Success - save auth state
         setIsAuthenticated(true);
         
-        // Get user email if available
         let userEmail = '';
         try {
-          // Try to get user info
           const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
             headers: { Authorization: `Bearer ${resp.access_token}` }
           });
@@ -309,10 +324,7 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
           console.error("Error getting user info:", e);
         }
         
-        // Save to localStorage for persistence
         saveAuthState(true, userEmail, resp.access_token);
-        
-        // Set token for gapi
         window.gapi.client.setToken({ access_token: resp.access_token });
         
         showToast("Berhasil terhubung ke Google Calendar!", "success");
@@ -332,24 +344,61 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
     setCurrentDate(new Date());
   };
 
-  // 5. Handle Add Event Modal
+  // Navigation handlers
+  const handlePrev = () => {
+    const newDate = new Date(currentDate);
+    if (viewMode === 'month') newDate.setMonth(newDate.getMonth() - 1);
+    else if (viewMode === 'week') newDate.setDate(newDate.getDate() - 7);
+    else newDate.setDate(newDate.getDate() - 1);
+    setCurrentDate(newDate);
+  };
+
+  const handleNext = () => {
+    const newDate = new Date(currentDate);
+    if (viewMode === 'month') newDate.setMonth(newDate.getMonth() + 1);
+    else if (viewMode === 'week') newDate.setDate(newDate.getDate() + 7);
+    else newDate.setDate(newDate.getDate() + 1);
+    setCurrentDate(newDate);
+  };
+
+  // Date range helper
+  const getDateRangeForView = (date: Date, view: 'month' | 'week' | 'day') => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const day = date.getDate();
+    let timeMin, timeMax;
+
+    if (view === 'month') {
+      timeMin = new Date(year, month, 1);
+      timeMax = new Date(year, month + 1, 0, 23, 59, 59);
+    } else if (view === 'week') {
+      timeMin = new Date(date);
+      timeMin.setDate(day - date.getDay());
+      timeMin.setHours(0, 0, 0, 0);
+      timeMax = new Date(timeMin);
+      timeMax.setDate(timeMin.getDate() + 6);
+      timeMax.setHours(23, 59, 59, 999);
+    } else {
+      timeMin = new Date(year, month, day, 0, 0, 0);
+      timeMax = new Date(year, month, day, 23, 59, 59);
+    }
+    return { timeMin, timeMax };
+  };
+
+  // Handle Add Event Modal
   const handleOpenAddEventModal = () => {
     if (!isAuthenticated) {
-        handleAuthClick(); // Trigger login jika belum auth (untuk write)
+        handleAuthClick();
         return;
     }
     
-    // Determine the default date based on view mode
     let defaultDate: string;
     if (viewMode === 'day') {
-      // Use the current viewed date when in day mode
       defaultDate = currentDate.toISOString().split('T')[0];
     } else {
-      // Default to today for month/week views
       defaultDate = new Date().toISOString().split('T')[0];
     }
     
-    // Reset form
     setEventForm({
         summary: '',
         description: '',
@@ -377,7 +426,6 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
       const startDateTime = new Date(`${eventForm.startDate}T${eventForm.startTime}:00`);
       const endDateTime = new Date(`${eventForm.startDate}T${eventForm.endTime}:00`);
 
-      // Validasi Waktu
       if (endDateTime <= startDateTime) {
           showToast("Waktu selesai harus lebih besar dari waktu mulai.", "warning");
           setIsCreatingEvent(false);
@@ -401,7 +449,6 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
       if (eventForm.recurrence !== 'NONE') {
           let rrule = `RRULE:FREQ=${eventForm.recurrence}`;
           if (eventForm.recurrenceEnd) {
-              // Format UNTIL to YYYYMMDDTHHMMSSZ (UTC)
               const untilDate = new Date(eventForm.recurrenceEnd);
               untilDate.setHours(23, 59, 59);
               const untilStr = untilDate.toISOString().replace(/[-:.]/g, '').substring(0, 15) + 'Z';
@@ -448,21 +495,11 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
 
     setIsDeletingEvent(true);
     try {
-      if (deleteOption === 'single') {
-        await window.gapi.client.calendar.events.delete({
-          calendarId: calendarId,
-          eventId: eventToDelete.id
-        });
-        showToast("Jadwal berhasil dihapus!", "success");
-      } else {
-        // For recurring events, we need to handle this differently
-        // For simplicity, we'll just delete the single event
-        await window.gapi.client.calendar.events.delete({
-          calendarId: calendarId,
-          eventId: eventToDelete.id
-        });
-        showToast("Jadwal berhasil dihapus!", "success");
-      }
+      await window.gapi.client.calendar.events.delete({
+        calendarId: calendarId,
+        eventId: eventToDelete.id
+      });
+      showToast("Jadwal berhasil dihapus!", "success");
       
       setIsDeleteModalOpen(false);
       setSelectedEvent(null);
@@ -483,7 +520,6 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
       return;
     }
     
-    // Parse existing event data
     const startDateTime = event.start.dateTime ? new Date(event.start.dateTime) : new Date(event.start.date || '');
     const endDateTime = event.end.dateTime ? new Date(event.end.dateTime) : new Date(event.end.date || '');
     
@@ -550,9 +586,10 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
       setIsCreatingEvent(false);
     }
   };
+
+  // Fetch events when dependencies change
   useEffect(() => {
     if (isGapiInitialized) {
-      // Debounce fetchEvents to avoid rapid firing on view/date change
       const handler = setTimeout(() => {
         fetchEvents();
       }, 200);
@@ -575,7 +612,6 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
 
     const canAdd = role === Role.ADMIN || role === Role.LABORAN;
 
-    // Jika Admin/Laboran klik tanggal kosong (tidak ada event), langsung buka form tambah
     if (canAdd && day.events.length === 0) {
         if (!isAuthenticated) {
             handleAuthClick();
@@ -584,7 +620,7 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
         setEventForm({
             summary: '',
             description: '',
-            startDate: day.fullDate, // Isi otomatis tanggal yang diklik
+            startDate: day.fullDate,
             startTime: '08:00',
             endTime: '10:00',
             recurrence: 'NONE',
@@ -592,327 +628,13 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
         });
         setIsAddEventModalOpen(true);
     } else {
-        // Jika ada event atau user biasa, buka detail harian
         setSelectedDayDetail(day);
-    }
-  };
-
-  const formatEventTime = (dateTime?: string, date?: string) => {
-    if (dateTime) {
-      return new Date(dateTime).toLocaleString('id-ID', { 
-        weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' 
-      });
-    }
-    if (date) {
-      return new Date(date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' }) + " (Seharian)";
-    }
-    return "-";
-  };
-
-  // --- Calendar Navigation & Header ---
-  const handlePrev = () => {
-    const newDate = new Date(currentDate);
-    if (viewMode === 'month') newDate.setMonth(newDate.getMonth() - 1);
-    else if (viewMode === 'week') newDate.setDate(newDate.getDate() - 7);
-    else newDate.setDate(newDate.getDate() - 1);
-    setCurrentDate(newDate);
-  };
-
-  const handleNext = () => {
-    const newDate = new Date(currentDate);
-    if (viewMode === 'month') newDate.setMonth(newDate.getMonth() + 1);
-    else if (viewMode === 'week') newDate.setDate(newDate.getDate() + 7);
-    else newDate.setDate(newDate.getDate() + 1);
-    setCurrentDate(newDate);
-  };
-
-  const formatDateHeader = () => {
-    if (viewMode === 'month') {
-      return currentDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
-    }
-    if (viewMode === 'day') {
-      return currentDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    }
-    if (viewMode === 'week') {
-      const startOfWeek = new Date(currentDate);
-      startOfWeek.setDate(currentDate.getDate() - currentDate.getDay()); // Sunday
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6);
-
-      const startMonth = startOfWeek.toLocaleDateString('id-ID', { month: 'short' });
-      const endMonth = endOfWeek.toLocaleDateString('id-ID', { month: 'short' });
-
-      return `${startOfWeek.getDate()} ${startMonth} - ${endOfWeek.getDate()} ${endMonth}, ${endOfWeek.getFullYear()}`;
-    }
-  };
-  // Calendar Grid Logic
-  const calendarGrid = useMemo(() => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    
-    const daysInMonth = lastDay.getDate();
-    const startingDay = firstDay.getDay(); // 0 = Sunday
-    
-    // Adjust for Monday start if needed (currently Sunday start)
-    
-    const days: { date: number; events: GoogleEvent[]; isCurrentMonth: boolean; fullDate: string }[] = [];
-
-    // Padding days from previous month
-    for (let i = 0; i < startingDay; i++) {
-        days.push({ date: 0, events: [], isCurrentMonth: false, fullDate: '' });
-    }
-
-    // Days of current month
-    for (let i = 1; i <= daysInMonth; i++) {
-        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-        days.push({ 
-            date: i, 
-            events: [], 
-            isCurrentMonth: true,
-            fullDate: dateStr
-        });
-    }
-
-    // Map events to days
-    events.forEach(event => {
-      const dateKey = event.start.date || (event.start.dateTime ? event.start.dateTime.split('T')[0] : 'Unknown');
-      const dayObj = days.find(d => d.fullDate === dateKey);
-      if (dayObj) {
-          dayObj.events.push(event);
-      }
-    });
-
-    return days;
-  }, [currentDate, events]);
-
-  // --- Day/Week View Helpers ---
-  const getDateRangeForView = (date: Date, view: 'month' | 'week' | 'day') => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const day = date.getDate();
-    let timeMin, timeMax;
-
-    if (view === 'month') {
-      timeMin = new Date(year, month, 1);
-      timeMax = new Date(year, month + 1, 0, 23, 59, 59);
-    } else if (view === 'week') {
-      timeMin = new Date(date);
-      timeMin.setDate(day - date.getDay());
-      timeMin.setHours(0, 0, 0, 0);
-      timeMax = new Date(timeMin);
-      timeMax.setDate(timeMin.getDate() + 6);
-      timeMax.setHours(23, 59, 59, 999);
-    } else { // day
-      timeMin = new Date(year, month, day, 0, 0, 0);
-      timeMax = new Date(year, month, day, 23, 59, 59);
-    }
-    return { timeMin, timeMax };
-  };
-
-  // Helper to check overlap for styling (Visual indication only, not conflict)
-  const checkOverlap = (currentEvent: GoogleEvent, dayEvents: GoogleEvent[]) => {
-      if (!currentEvent.start.dateTime || !currentEvent.end.dateTime) return false;
-      const currentStart = new Date(currentEvent.start.dateTime).getTime();
-      const currentEnd = new Date(currentEvent.end.dateTime).getTime();
-
-      return dayEvents.some(other => {
-          if (other.id === currentEvent.id) return false;
-          if (!other.start.dateTime || !other.end.dateTime) return false;
-          const otherStart = new Date(other.start.dateTime).getTime();
-          const otherEnd = new Date(other.end.dateTime).getTime();
-
-          return currentStart < otherEnd && currentEnd > otherStart;
-      });
-  };
-
-  // --- RENDER FUNCTIONS FOR VIEWS ---
-
-  const MonthView = () => (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-      <div className="grid grid-cols-7 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200 dark:border-gray-700">
-        {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((day, idx) => (
-          <div key={day} className={`py-3 text-center text-sm font-bold ${idx === 0 ? 'text-red-500 dark:text-red-400' : idx === 6 ? 'text-blue-500 dark:text-blue-400' : 'text-gray-600 dark:text-gray-300'}`}>
-            {day}
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-7 auto-rows-fr bg-white dark:bg-gray-800">
-        {calendarGrid.map((day, idx) => (
-          <div 
-            key={idx}
-            onClick={() => handleDayClick(day)}
-            className={`min-h-[120px] border-b border-r border-gray-100 dark:border-gray-700 p-2 transition-colors ${!day.isCurrentMonth ? 'bg-gray-50/50 dark:bg-gray-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer'}`}
-          >
-            {day.isCurrentMonth && (
-              <>
-                <div className={`text-sm font-medium mb-2 ${
-                    day.fullDate === new Date().toISOString().split('T')[0] 
-                    ? 'bg-blue-600 text-white w-7 h-7 flex items-center justify-center rounded-full' 
-                    : 'text-gray-700 dark:text-gray-300'
-                }`}>
-                    {day.date}
-                </div>
-                <div className="space-y-1">
-                  {day.events.map(event => {
-                      const isOverlapping = checkOverlap(event, day.events);
-                      return (
-                      <div 
-                          key={event.id}
-                          onClick={(e) => { e.stopPropagation(); setSelectedEvent(event); }}
-                          className={`block text-xs p-1.5 rounded border truncate hover:opacity-80 transition-opacity cursor-pointer ${
-                              isOverlapping 
-                              ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' 
-                              : 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-100 dark:border-blue-800'
-                          }`}
-                          title={`${event.summary}\n${formatEventTime(event.start.dateTime, event.start.date)}${isOverlapping ? '\n(Jadwal Bersamaan)' : ''}`}
-                      >
-                          <div className="flex items-center">
-                              {isOverlapping && <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 mr-1.5 flex-shrink-0" />}
-                              {event.start.dateTime && <span className="font-mono text-[10px] mr-1 opacity-75 flex-shrink-0">{new Date(event.start.dateTime).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})}</span>}
-                              <span className="truncate">{event.summary}</span>
-                          </div>
-                      </div>
-                      );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  const DayWeekView = ({ days }: { days: Date[] }) => {
-    const timeSlots = Array.from({ length: 16 }, (_, i) => `${String(i + 7).padStart(2, '0')}:00`); // 7 AM to 10 PM
-
-    const calculateEventPosition = (event: GoogleEvent) => {
-      const startHour = 7;
-      const totalHours = 16;
-      if (!event.start.dateTime || !event.end.dateTime) return { top: 0, height: 0 };
-
-      const startTime = new Date(event.start.dateTime);
-      const endTime = new Date(event.end.dateTime);
-      const startMinutes = Math.max(0, (startTime.getHours() - startHour) * 60 + startTime.getMinutes());
-      const endMinutes = Math.min(totalHours * 60, (endTime.getHours() - startHour) * 60 + endTime.getMinutes());
-      const durationMinutes = Math.max(15, endMinutes - startMinutes);
-
-      const top = (startMinutes / (totalHours * 60)) * 100;
-      const height = (durationMinutes / (totalHours * 60)) * 100;
-
-      return { top: `${top}%`, height: `${height}%` };
-    };
-
-    const allDayEvents = events.filter(e => e.start.date);
-
-    return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        {/* Header */}
-        <div className="flex sticky top-0 bg-white dark:bg-gray-800 z-10">
-          <div className="w-16 flex-shrink-0 border-r border-gray-100 dark:border-gray-700" />
-          <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
-            {days.map(date => (
-              <div key={date.toISOString()} className="text-center py-3 border-b border-r border-gray-100 dark:border-gray-700">
-                <p className="text-xs text-gray-500 uppercase">{date.toLocaleDateString('id-ID', { weekday: 'short' })}</p>
-                <p className={`text-xl font-bold ${date.toDateString() === new Date().toDateString() ? 'text-blue-600' : 'text-gray-800 dark:text-white'}`}>{date.getDate()}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* All Day Events */}
-        {allDayEvents.length > 0 && (
-          <div className="flex border-b border-gray-200 dark:border-gray-700">
-            <div className="w-16 flex-shrink-0 border-r border-gray-100 dark:border-gray-700 text-center py-1">
-              <span className="text-xs text-gray-400">All-day</span>
-            </div>
-            <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
-              {days.map(date => {
-                const dateStr = date.toISOString().split('T')[0];
-                const dayEvents = allDayEvents.filter(e => e.start.date === dateStr);
-                return (
-                  <div key={dateStr} className="border-r border-gray-100 dark:border-gray-700 p-1 space-y-1">
-                    {dayEvents.map(event => (
-                      <div key={event.id} onClick={() => setSelectedEvent(event)} className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs p-1 rounded truncate cursor-pointer">
-                        {event.summary}
-                      </div>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Main Grid */}
-        <div className="flex overflow-auto max-h-[70vh]">
-          {/* Time Axis */}
-          <div className="w-16 flex-shrink-0 text-right pr-2 -mt-2">
-            {timeSlots.map(time => (
-              <div key={time} className="h-16 flex items-start justify-end text-xs text-gray-400 pt-1">
-                <span>{time}</span>
-              </div>
-            ))}
-          </div>
-          {/* Day Columns */}
-          <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
-            {days.map((date, index) => {
-              const dateStr = date.toISOString().split('T')[0];
-              const dayEvents = events.filter(e => e.start.dateTime?.startsWith(dateStr));
-              return (
-                <div key={index} className="relative border-r border-gray-100 dark:border-gray-700">
-                  {/* Background grid lines */}
-                  {timeSlots.map(time => <div key={time} className="h-16 border-t border-gray-100 dark:border-gray-700/50"></div>)}
-                  {/* Events */}
-                  {dayEvents.map(event => {
-                    const { top, height } = calculateEventPosition(event);
-                    return (
-                      <div 
-                        key={event.id}
-                        onClick={() => setSelectedEvent(event)}
-                        style={{ top, height }} 
-                        className="absolute w-full px-1 cursor-pointer group"
-                      >
-                        <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 h-full rounded-lg p-2 overflow-hidden border border-blue-200 dark:border-blue-800 group-hover:border-blue-400 transition-all">
-                          <p className="text-xs font-bold line-clamp-1">{event.summary}</p>
-                          <p className="text-[10px] opacity-80">{new Date(event.start.dateTime!).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})} - {new Date(event.end.dateTime!).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderCalendarView = () => {
-    switch (viewMode) {
-      case 'day':
-        return <DayWeekView days={[currentDate]} />;
-      case 'week':
-        const startOfWeek = new Date(currentDate);
-        startOfWeek.setDate(currentDate.getDate() - currentDate.getDay()); // Sunday
-        const weekDates = Array.from({ length: 7 }, (_, i) => {
-            const date = new Date(startOfWeek);
-            date.setDate(startOfWeek.getDate() + i);
-            return date;
-        });
-        return <DayWeekView days={weekDates} />;
-      case 'month':
-      default:
-        return <MonthView />;
     }
   };
 
   return (
     <div className="space-y-6">
+      {/* Header Section - Room Selection */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Jadwal Ruang</h1>
@@ -924,74 +646,22 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 flex flex-col md:flex-row gap-4 justify-between items-center">
-         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-             <div className="flex items-center gap-2 w-full md:w-72">
-                 <Filter className="w-4 h-4 text-gray-400" />
-                 <select 
+      {/* Room Filter */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            <div className="flex items-center gap-2 w-full md:w-72">
+                <Filter className="w-4 h-4 text-gray-400" />
+                <select 
                     value={filterRoom}
                     onChange={(e) => setFilterRoom(e.target.value)}
                     className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
-                 >
+                >
                     {rooms.length === 0 && <option value="">Memuat ruangan...</option>}
                     {rooms.map(r => (
-                      <option key={r.id} value={r.id}>{r.name}</option>
+                    <option key={r.id} value={r.id}>{r.name}</option>
                     ))}
-                 </select>
-             </div>
-             {(role === Role.ADMIN || role === Role.LABORAN) && (
-                <button 
-                  onClick={handleOpenAddEventModal}
-                  disabled={isLoading}
-                  className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors disabled:opacity-50"
-                >
-                   <Plus className="w-4 h-4 mr-2" />
-                   Tambah Jadwal
-                </button>
-             )}
-             {isGapiInitialized && (
-                <button 
-                  onClick={() => fetchEvents()} 
-                  className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                  title="Refresh Jadwal"
-                >
-                   <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                </button>
-             )}
-         </div>
-         
-         <div className="flex items-center gap-3">
-            {/* Google Auth Status */}
-            {(role === Role.ADMIN || role === Role.LABORAN) && (
-                <div className="flex items-center gap-2">
-                    {isAuthenticated ? (
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                            <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
-                            <span className="text-xs text-green-700 dark:text-green-300 font-medium max-w-[150px] truncate">
-                                {googleUserEmail || 'Terhubung'}
-                            </span>
-                            <button 
-                                onClick={handleGoogleLogout}
-                                className="p-1 hover:bg-green-100 dark:hover:bg-green-900/40 rounded transition-colors"
-                                title="Logout Google"
-                            >
-                                <LogOut className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
-                            </button>
-                        </div>
-                    ) : (
-                        <button 
-                            onClick={handleAuthClick}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-                            title="Login dengan Google untuk menambahkan jadwal"
-                        >
-                            <LogIn className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                            <span className="text-xs text-gray-600 dark:text-gray-300">Login Google</span>
-                        </button>
-                    )}
-                </div>
-            )}
-            
+                </select>
+            </div>
             {selectedRoom?.googleCalendarUrl && role !== Role.USER && (
                 <a 
                     href={`https://calendar.google.com/calendar/embed?src=${encodeURIComponent(getCalendarId(selectedRoom.googleCalendarUrl) || '')}`}
@@ -1002,483 +672,62 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
                     Buka di Tab Baru <ExternalLink className="w-4 h-4 ml-1" />
                 </a>
             )}
-         </div>
+        </div>
       </div>
 
-      {/* Calendar Content */}
-      <div className="animate-fade-in-up">
-          {rooms.length === 0 && !isLoading ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                  <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-full mb-4">
-                      <MapPin className="w-12 h-12 text-gray-400" />
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Data Ruangan Kosong</h3>
-                  <p className="text-gray-500 dark:text-gray-400 max-w-sm">
-                      Belum ada ruangan yang terdaftar. Silakan tambahkan ruangan terlebih dahulu di menu Daftar Ruangan.
-                  </p>
-              </div>
-          ) : (
-            <div>
-               {/* Calendar Header */}
-               <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
-                   <div className="flex items-center gap-3">
-                       <div className="flex items-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-1 shadow-sm">
-                           <button onClick={handlePrev} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors text-gray-600 dark:text-gray-300">
-                               <ChevronLeft className="w-5 h-5"/>
-                           </button>
-                           <span className="px-4 text-base font-bold text-gray-900 dark:text-white capitalize min-w-[200px] text-center select-none">
-                               {formatDateHeader()}
-                           </span>
-                           <button onClick={handleNext} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors text-gray-600 dark:text-gray-300">
-                               <ChevronRight className="w-5 h-5"/>
-                           </button>
-                       </div>
-                       {isLoading && <Loader2 className="w-5 h-5 animate-spin text-blue-500"/>}
-                   </div>
-                   <div className="flex items-center gap-2">
-                      <button onClick={goToToday} className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">Hari Ini</button>
-                      <div className="flex items-center bg-gray-100 dark:bg-gray-900 p-1 rounded-lg">
-                        <button onClick={() => setViewMode('day')} className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${viewMode === 'day' ? 'bg-white dark:bg-gray-700 shadow text-gray-800 dark:text-white' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400'}`}>Hari</button>
-                        <button onClick={() => setViewMode('week')} className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${viewMode === 'week' ? 'bg-white dark:bg-gray-700 shadow text-gray-800 dark:text-white' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400'}`}>Minggu</button>
-                        <button onClick={() => setViewMode('month')} className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${viewMode === 'month' ? 'bg-white dark:bg-gray-700 shadow text-gray-800 dark:text-white' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400'}`}>Bulan</button>
-                      </div>
-                   </div>
-               </div>
-               
-               {renderCalendarView()}
-            </div>
-          )}
-      </div>
-
-      {/* Day Detail Modal */}
-      {selectedDayDetail && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setSelectedDayDetail(null)}>
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up" onClick={e => e.stopPropagation()}>
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
-                    <h3 className="font-bold text-gray-900 dark:text-white flex items-center pr-4">
-                        <CalendarIcon className="w-5 h-5 mr-2 text-blue-600 flex-shrink-0" />
-                        {new Date(selectedDayDetail.fullDate).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                    </h3>
-                    <button onClick={() => setSelectedDayDetail(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-                
-                {/* Tombol Tambah di Modal Detail (Untuk tanggal yang sudah ada isinya) */}
-                {(role === Role.ADMIN || role === Role.LABORAN) && (
-                    <div className="px-6 pt-4">
-                        <button 
-                            onClick={() => {
-                                setSelectedDayDetail(null);
-                                setEventForm(prev => ({ ...prev, startDate: selectedDayDetail.fullDate }));
-                                setIsAddEventModalOpen(true);
-                            }}
-                            className="w-full py-2 bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 rounded-lg text-sm font-medium hover:bg-blue-100 dark:hover:bg-blue-900/30 flex items-center justify-center"
-                        >
-                            <Plus className="w-4 h-4 mr-2" /> Tambah Jadwal di Tanggal Ini
-                        </button>
-                    </div>
-                )}
-
-                <div className="p-6 max-h-[60vh] overflow-y-auto scrollbar-thin">
-                    {selectedDayDetail.events.length > 0 ? (
-                        <div className="space-y-3">
-                            {selectedDayDetail.events.map(event => {
-                                const isOverlapping = checkOverlap(event, selectedDayDetail.events);
-                                return (
-                                    <div 
-                                        key={event.id}
-                                        onClick={() => setSelectedEvent(event)}
-                                        className={`block p-3 rounded-lg border hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-pointer ${
-                                            isOverlapping 
-                                            ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' 
-                                            : 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-100 dark:border-blue-800'
-                                        }`}
-                                    >
-                                        <p className="font-bold text-sm mb-1">{event.summary}</p>
-                                        <div className="flex items-center text-xs opacity-80">
-                                            <Clock className="w-3 h-3 mr-1.5" />
-                                            <span>
-                                                {event.start.dateTime 
-                                                    ? `${new Date(event.start.dateTime).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})} - ${event.end.dateTime ? new Date(event.end.dateTime).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}) : ''}`
-                                                    : 'Seharian'
-                                                }
-                                            </span>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <div className="text-center py-10 text-gray-500">
-                            <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                            <p className="font-medium">Tidak ada kegiatan terjadwal pada hari ini.</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-      )}
-
-      {/* Event Detail Modal */}
-      {selectedEvent && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setSelectedEvent(null)}>
-           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up" onClick={e => e.stopPropagation()}>
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
-                 <h3 className="font-bold text-gray-900 dark:text-white flex items-center pr-4">
-                    <CalendarIcon className="w-5 h-5 mr-2 text-blue-600 flex-shrink-0" />
-                    Detail Kegiatan
-                 </h3>
-                 <button onClick={() => setSelectedEvent(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                    <X className="w-5 h-5" />
-                 </button>
-              </div>
-              <div className="p-6 space-y-4">
-                 <div className="flex items-start">
-                    <Type className="w-5 h-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
-                    <div>
-                       <p className="text-sm font-medium text-gray-900 dark:text-white">Nama Kegiatan</p>
-                       <p className="text-sm text-gray-800 dark:text-gray-200 font-semibold mt-0.5">
-                          {selectedEvent.summary}
-                       </p>
-                    </div>
-                 </div>
-
-                 <div className="flex items-start">
-                    <Clock className="w-5 h-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
-                    <div>
-                       <p className="text-sm font-medium text-gray-900 dark:text-white">Waktu</p>
-                       <p className="text-sm text-gray-600 dark:text-gray-300">
-                          {formatEventTime(selectedEvent.start.dateTime, selectedEvent.start.date)}
-                          {selectedEvent.end.dateTime && ` - ${new Date(selectedEvent.end.dateTime).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})}`}
-                       </p>
-                    </div>
-                 </div>
-                 
-                 <div className="flex items-start">
-                    <AlignLeft className="w-5 h-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
-                    <div>
-                       <p className="text-sm font-medium text-gray-900 dark:text-white">Deskripsi</p>
-                       <div className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap max-h-40 overflow-y-auto mt-1 scrollbar-thin">
-                          {selectedEvent.description || "Tidak ada deskripsi."}
-                       </div>
-                    </div>
-                 </div>
-              </div>
-              <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
-                 {(role === Role.ADMIN || role === Role.LABORAN) && isAuthenticated ? (
-                    <div className="flex gap-2">
-                       <button 
-                          onClick={() => handleEditEventClick(selectedEvent)}
-                          className="px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex items-center transition-colors shadow-sm hover:shadow"
-                       >
-                          <Edit className="w-4 h-4 mr-1.5" />
-                          Edit
-                       </button>
-                       <button 
-                          onClick={() => handleDeleteEventClick(selectedEvent)}
-                          className="px-3 py-1.5 text-sm bg-red-600 text-white hover:bg-red-700 rounded-lg flex items-center transition-colors shadow-sm hover:shadow"
-                       >
-                          <Trash2 className="w-4 h-4 mr-1.5" />
-                          Hapus
-                       </button>
-                    </div>
-                 ) : <div />}
-                 <a 
-                    href={selectedEvent.htmlLink} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-600 hover:underline flex items-center"
-                 >
-                    Buka di Google Calendar <ExternalLink className="w-4 h-4 ml-1" />
-                 </a>
-              </div>
-           </div>
-        </div>
-      )}
-
-      {/* Add Event Modal */}
-      {isAddEventModalOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4">
-           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-full sm:max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up max-h-[90vh] flex flex-col">
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
-                 <h3 className="font-bold text-gray-900 dark:text-white flex items-center">
-                    <CalendarIcon className="w-5 h-5 mr-2 text-blue-600" />
-                    Tambah Jadwal Baru
-                 </h3>
-                 <button onClick={() => setIsAddEventModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                    <X className="w-5 h-5" />
-                 </button>
-              </div>
-              <form onSubmit={handleSaveEvent} className="p-6 space-y-4">
-                 <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Judul Kegiatan</label>
-                    <div className="relative">
-                        <Type className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input 
-                            type="text" required 
-                            value={eventForm.summary} 
-                            onChange={e => setEventForm({...eventForm, summary: e.target.value})}
-                            className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                            placeholder="Contoh: Praktikum Jarkom A"
-                        />
-                    </div>
-                 </div>
-                 
-                 <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Deskripsi</label>
-                    <div className="relative">
-                        <AlignLeft className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
-                        <textarea 
-                            rows={3}
-                            value={eventForm.description} 
-                            onChange={e => setEventForm({...eventForm, description: e.target.value})}
-                            className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                            placeholder="Tambahkan detail kegiatan..."
-                        />
-                    </div>
-                 </div>
-
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tanggal</label>
-                        <input 
-                            type="date" required 
-                            value={eventForm.startDate} 
-                            onChange={e => setEventForm({...eventForm, startDate: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Jam Mulai</label>
-                        <input 
-                            type="time" required 
-                            value={eventForm.startTime} 
-                            onChange={e => setEventForm({...eventForm, startTime: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Jam Selesai</label>
-                        <input 
-                            type="time" required 
-                            value={eventForm.endTime} 
-                            onChange={e => setEventForm({...eventForm, endTime: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                        />
-                    </div>
-                 </div>
-
-                 <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pengulangan (Repeat)</label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <select 
-                            value={eventForm.recurrence}
-                            onChange={e => setEventForm({...eventForm, recurrence: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                        >
-                            <option value="NONE">Tidak Berulang</option>
-                            <option value="DAILY">Harian (Daily)</option>
-                            <option value="WEEKLY">Mingguan (Weekly)</option>
-                            <option value="MONTHLY">Bulanan (Monthly)</option>
-                        </select>
-                        {eventForm.recurrence !== 'NONE' && (
-                            <div className="animate-fade-in">
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Berakhir Pada (Opsional)</label>
-                                <input 
-                                    type="date" 
-                                    value={eventForm.recurrenceEnd} 
-                                    onChange={e => setEventForm({...eventForm, recurrenceEnd: e.target.value})}
-                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">Kosongkan jika ingin berulang selamanya.</p>
-                            </div>
-                        )}
-                    </div>
-                 </div>
-
-                 <div className="pt-4 flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 mt-2">
-                    <button type="button" onClick={() => setIsAddEventModalOpen(false)} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                       Batal
-                    </button>
-                    <button type="submit" disabled={isCreatingEvent} className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex items-center shadow-md hover:shadow-lg transition-all disabled:opacity-50">
-                       {isCreatingEvent ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />} Simpan Jadwal
-                    </button>
-                 </div>
-              </form>
-           </div>
-        </div>
-      )}
-
-      {/* Delete Event Confirmation Modal */}
-      {isDeleteModalOpen && eventToDelete && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20">
-                 <h3 className="font-bold text-red-800 dark:text-red-400 flex items-center">
-                    <Trash2 className="w-5 h-5 mr-2" />
-                    Hapus Jadwal
-                 </h3>
-              </div>
-              <div className="p-6 space-y-4">
-                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                    Anda akan menghapus jadwal <strong>"{eventToDelete.summary}"</strong>. Pilih metode penghapusan:
-                 </p>
-                 
-                 <div className="space-y-2">
-                    <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${deleteOption === 'single' ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
-                      <input 
-                        type="radio" 
-                        name="deleteOption" 
-                        value="single"
-                        checked={deleteOption === 'single'}
-                        onChange={() => setDeleteOption('single')}
-                        className="mr-3"
-                      />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">Hapus ini saja</p>
-                        <p className="text-xs text-gray-500">Menghapus hanya event ini</p>
-                      </div>
-                    </label>
-                    
-                    <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${deleteOption === 'thisAndFollowing' ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
-                      <input 
-                        type="radio" 
-                        name="deleteOption" 
-                        value="thisAndFollowing"
-                        checked={deleteOption === 'thisAndFollowing'}
-                        onChange={() => setDeleteOption('thisAndFollowing')}
-                        className="mr-3"
-                      />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">Ini dan selanjutnya</p>
-                        <p className="text-xs text-gray-500">Menghapus event ini dan event mendatang</p>
-                      </div>
-                    </label>
-                    
-                    <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${deleteOption === 'all' ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
-                      <input 
-                        type="radio" 
-                        name="deleteOption" 
-                        value="all"
-                        checked={deleteOption === 'all'}
-                        onChange={() => setDeleteOption('all')}
-                        className="mr-3"
-                      />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">Semua event</p>
-                        <p className="text-xs text-gray-500">Menghapus semua event yang cocok</p>
-                      </div>
-                    </label>
-                 </div>
-
-                 <div className="flex justify-end gap-3 pt-2">
-                    <button 
-                      onClick={() => setIsDeleteModalOpen(false)}
-                      className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-                    >
-                       Batal
-                    </button>
-                    <button 
-                      onClick={confirmDeleteEvent}
-                      disabled={isDeletingEvent}
-                      className="px-4 py-2 text-sm bg-red-600 text-white hover:bg-red-700 rounded-lg shadow-md flex items-center disabled:opacity-50"
-                    >
-                       {isDeletingEvent ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-                       Hapus Jadwal
-                    </button>
-                 </div>
-              </div>
-           </div>
-        </div>
-      )}
-
-      {/* Edit Event Modal */}
-      {isEditEventModalOpen && editingEvent && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4">
-           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-full sm:max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up max-h-[90vh] flex flex-col">
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
-                 <h3 className="font-bold text-gray-900 dark:text-white flex items-center">
-                    <Edit className="w-5 h-5 mr-2 text-blue-600" />
-                    Edit Jadwal
-                 </h3>
-                 <button onClick={() => setIsEditEventModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                    <X className="w-5 h-5" />
-                 </button>
-              </div>
-              <form onSubmit={handleUpdateEvent} className="p-6 space-y-4">
-                 <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Judul Kegiatan</label>
-                    <div className="relative">
-                        <Type className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input 
-                            type="text" required 
-                            value={editEventForm.summary} 
-                            onChange={e => setEditEventForm({...editEventForm, summary: e.target.value})}
-                            className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                            placeholder="Contoh: Praktikum Jarkom A"
-                        />
-                    </div>
-                 </div>
-                 
-                 <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Deskripsi</label>
-                    <div className="relative">
-                        <AlignLeft className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
-                        <textarea 
-                            rows={3}
-                            value={editEventForm.description} 
-                            onChange={e => setEditEventForm({...editEventForm, description: e.target.value})}
-                            className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                            placeholder="Tambahkan detail kegiatan..."
-                        />
-                    </div>
-                 </div>
-
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tanggal</label>
-                        <input 
-                            type="date" required 
-                            value={editEventForm.startDate} 
-                            onChange={e => setEditEventForm({...editEventForm, startDate: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Jam Mulai</label>
-                        <input 
-                            type="time" required 
-                            value={editEventForm.startTime} 
-                            onChange={e => setEditEventForm({...editEventForm, startTime: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Jam Selesai</label>
-                        <input 
-                            type="time" required 
-                            value={editEventForm.endTime} 
-                            onChange={e => setEditEventForm({...editEventForm, endTime: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                        />
-                    </div>
-                 </div>
-
-                 <div className="pt-4 flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 mt-2">
-                    <button type="button" onClick={() => setIsEditEventModalOpen(false)} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                       Batal
-                    </button>
-                    <button type="submit" disabled={isCreatingEvent} className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex items-center shadow-md hover:shadow-lg transition-all disabled:opacity-50">
-                       {isCreatingEvent ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />} Simpan Perubahan
-                    </button>
-                 </div>
-              </form>
-           </div>
-        </div>
-      )}
+      {/* RoomCalendar Component - handles all calendar rendering and modals */}
+      <RoomCalendar
+        events={events}
+        rooms={rooms}
+        selectedRoom={selectedRoom}
+        viewMode={viewMode}
+        currentDate={currentDate}
+        isAuthenticated={isAuthenticated}
+        googleUserEmail={googleUserEmail}
+        role={role}
+        isAddEventModalOpen={isAddEventModalOpen}
+        isEditEventModalOpen={isEditEventModalOpen}
+        isDeleteModalOpen={isDeleteModalOpen}
+        selectedEvent={selectedEvent}
+        selectedDayDetail={selectedDayDetail}
+        eventForm={eventForm}
+        editEventForm={editEventForm}
+        eventToDelete={eventToDelete}
+        deleteOption={deleteOption}
+        isCreatingEvent={isCreatingEvent}
+        isDeletingEvent={isDeletingEvent}
+        isLoading={isLoading}
+        isGapiInitialized={isGapiInitialized}
+        setViewMode={setViewMode}
+        setCurrentDate={setCurrentDate}
+        goToToday={goToToday}
+        handlePrev={handlePrev}
+        handleNext={handleNext}
+        handleAuthClick={handleAuthClick}
+        handleGoogleLogout={handleGoogleLogout}
+        handleOpenAddEventModal={handleOpenAddEventModal}
+        handleDayClick={handleDayClick}
+        setSelectedEvent={setSelectedEvent}
+        setSelectedDayDetail={setSelectedDayDetail}
+        setEventForm={setEventForm}
+        setEditEventForm={setEditEventForm}
+        setIsAddEventModalOpen={setIsAddEventModalOpen}
+        setIsEditEventModalOpen={setIsEditEventModalOpen}
+        setIsDeleteModalOpen={setIsDeleteModalOpen}
+        setEventToDelete={setEventToDelete}
+        setDeleteOption={setDeleteOption}
+        handleEditEventClick={handleEditEventClick}
+        handleDeleteEventClick={handleDeleteEventClick}
+        handleSaveEvent={handleSaveEvent}
+        handleUpdateEvent={handleUpdateEvent}
+        confirmDeleteEvent={confirmDeleteEvent}
+        fetchEvents={fetchEvents}
+        isDarkMode={isDarkMode}
+        showToast={showToast}
+      />
     </div>
   );
 };
 
 export default JadwalRuang;
+

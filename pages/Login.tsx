@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mail, Lock, User, ArrowLeft, Eye, EyeOff, Loader2, Moon, Sun, Check } from 'lucide-react';
 import { Role } from '../types';
 import fti from "../src/assets/fti.jpg";
@@ -18,6 +18,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
   const [view, setView] = useState<ViewState>('login');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -28,6 +29,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
     fullName: '',
     nim: ''
   });
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('rememberedEmail');
+    if (savedEmail) {
+      setFormData(prev => ({ ...prev, email: savedEmail }));
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -66,8 +75,16 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
 
       if (response.ok && data.success) {
         // Simpan User ID dan Nama untuk keperluan Profile
+        localStorage.setItem('authToken', data.token); // Simpan token
         localStorage.setItem('userId', data.id);
         localStorage.setItem('userName', data.name);
+
+        // Handle "Remember Me"
+        if (rememberMe) {
+          localStorage.setItem('rememberedEmail', formData.email);
+        } else {
+          localStorage.removeItem('rememberedEmail');
+        }
         
         if (data.profileIncomplete) {
            showToast(`Halo ${data.name}, yuk lengkapi data profil Anda (No. HP & Prodi) agar memudahkan administrasi.`, 'info');
@@ -87,6 +104,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validasi kekuatan password
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(formData.password)) {
+      showToast(
+        'Password harus minimal 8 karakter, mengandung huruf besar, huruf kecil, angka, dan simbol.',
+        'error'
+      );
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       showToast('Password dan konfirmasi password tidak cocok!', 'error');
       return;
@@ -141,12 +169,16 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
 
   const handleSetNewPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      showToast('Password dan konfirmasi tidak cocok!', 'error');
+
+    // Validasi kekuatan password
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(formData.password)) {
+      showToast('Password harus minimal 8 karakter, mengandung huruf besar, huruf kecil, angka, dan simbol.', 'error');
       return;
     }
-    if (formData.password.length < 6) {
-      showToast('Password minimal 6 karakter.', 'warning');
+
+    if (formData.password !== formData.confirmPassword) {
+      showToast('Password dan konfirmasi tidak cocok!', 'error');
       return;
     }
 
@@ -186,22 +218,25 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
       </button>
 
       {/* Left Side - Branding & Image */}
-      <div className="lg:w-1/2 bg-blue-600 dark:bg-blue-800 relative overflow-hidden flex flex-col justify-between p-12 text-white">
-      <div className="absolute inset-0 bg-cover bg-center opacity-20 mix-blend-overlay"
-      style={{ backgroundImage: `url(${fti})` }}></div>
+      <div className="lg:w-1/2 bg-blue-700 dark:bg-blue-900 relative overflow-hidden flex flex-col justify-between p-8 sm:p-12 text-white">
+        {/* Animated Background */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center opacity-20 mix-blend-overlay scale-110 animate-bg-pan"
+          style={{ backgroundImage: `url(${fti})` }}
+        ></div>
+
         <div className="relative z-10">
           <div className="flex items-center space-x-3 mb-6">
-          <div className="flex items-center justify-center">
-          <img
-            src={nocLogo}
-            alt="NOC Logo"
-            className="w-16 h-16 object-contain"/>
-          </div>
+            <img
+              src={nocLogo}
+              alt="NOC Logo"
+              className="w-16 h-16 object-contain"
+            />
   
             <span className="text-2xl font-bold tracking-wide">CORE.FTI</span>
           </div>
-          <h1 className="text-4xl lg:text-5xl font-bold leading-tight mb-4">
-            Campus Operational <br/> Resource Environment
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-4">
+            Campus<br/>Operational Resource<br/>Environment
           </h1>
           <p className="text-blue-100 text-lg max-w-md">
             Fakultas Teknologi Informasi<br/> Universitas Kristen Satya Wacana
@@ -244,10 +279,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
                 </div>
 
                 <div>
-                  <div className="flex justify-between items-center mb-1">
-                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
-                     <button type="button" onClick={() => setView('forgot-password')} className="text-xs text-blue-600 hover:text-blue-800 font-medium">Lupa Password?</button>
-                  </div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <Lock className="h-5 w-5 text-gray-400" />
@@ -267,6 +299,28 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
                       className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <input
+                      id="remember-me"
+                      name="remember-me"
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                    />
+                    <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                      Ingat Saya
+                    </label>
+                  </div>
+
+                  <div className="text-sm">
+                    <button type="button" onClick={() => setView('forgot-password')} className="font-medium text-blue-600 hover:text-blue-500">
+                      Lupa Password?
                     </button>
                   </div>
                 </div>
@@ -338,11 +392,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
                 </div>
                 <div>
                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">NIM / NIDN</label>
-                   <input name="nim" type="text" required onChange={handleChange} className="block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm" placeholder="672019xxx" />
+                   <input name="nim" type="text" required onChange={handleChange} className="block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm" placeholder="682026xxx" />
                 </div>
                 <div>
                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email UKSW</label>
-                   <input name="email" type="email" required onChange={handleChange} className="block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm" placeholder="nama@student.uksw.edu" />
+                   <input name="email" type="email" required onChange={handleChange} className="block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm" placeholder="nim@student.uksw.edu" />
                 </div>
                 <div>
                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username</label>
@@ -358,6 +412,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
                      <input name="confirmPassword" type="password" required onChange={handleChange} className="block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm" placeholder="••••••••" />
                    </div>
                 </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 !mt-2 px-1">
+                  Gunakan minimal 8 karakter dengan kombinasi huruf besar, huruf kecil, angka, dan simbol (@$!%*?&).
+                </p>
                 
                 <button
                   type="submit"
@@ -431,6 +488,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, showToast, isDarkMode, toggleDar
                       <input name="confirmPassword" type="password" required onChange={handleChange} className="block w-full pl-10 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm" placeholder="••••••••" />
                    </div>
                 </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 !mt-2 px-1">
+                  Gunakan minimal 8 karakter dengan kombinasi huruf besar, huruf kecil, angka, dan simbol (@$!%*?&).
+                </p>
 
                 <button
                   type="submit"

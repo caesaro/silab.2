@@ -1,10 +1,14 @@
 import express from 'express';
 import pg from 'pg';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import bcrypt from 'bcryptjs';
 import 'dotenv/config'; // Memuat variabel dari file .env
 import { spawn } from 'child_process';
 import multer from 'multer';
+import { body, validationResult } from 'express-validator';
+import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import path from 'path';
 import ExcelJS from 'exceljs';
@@ -13,8 +17,34 @@ const { Pool } = pg;
 const app = express();
 const port = 5000; // Menggunakan port 5000 agar tidak bentrok dengan React (3000)
 
-// Middleware
-app.use(cors()); // Mengizinkan frontend (port 3000) mengakses backend (port 5000)
+// --- Security Middlewares ---
+
+// 1. Set various HTTP headers for security
+app.use(helmet());
+
+// 2. Enable CORS with specific origin
+// Add more origins for development and production
+const allowedOrigins = [
+  'http://localhost:5173', 
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000',
+]; // Tambahkan URL frontend production Anda di sini
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, or same-origin requests)
+    // Also allow file:// for local development
+    if (!origin || allowedOrigins.indexOf(origin) !== -1 || origin.startsWith('file://')) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(null, true); // Allow all origins for development
+    }
+  }
+}));
+
+// 3. Body Parser
 app.use(express.json({ limit: '50mb' })); // Tingkatkan limit untuk upload gambar 360 (Base64)
 
 // Konfigurasi Upload (Simpan sementara di folder uploads/)
@@ -72,38 +102,67 @@ const createIndexes = async () => {
 // Create indexes on server start
 createIndexes();
 
-// --- MIDDLEWARE: Cek Status User (Auto Logout) ---
-app.use(async (req, res, next) => {
-  // Skip validasi untuk endpoint publik (Login/Register/Public Assets)
-  const publicPaths = ['/api/login', '/api/register', '/api/settings/maintenance'];
+// --- 4. Rate Limiting ---
+// Mencegah serangan brute-force dengan membatasi jumlah request dari satu IP
+const apiLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000, // 15 menit
+	max: 100, // Batasi setiap IP hingga 100 request per window
+	standardHeaders: true, 
+	legacyHeaders: false, 
+  message: { error: 'Terlalu banyak request, silakan coba lagi setelah 15 menit.' }
+});
+
+// Terapkan rate limiter ke semua rute API
+app.use('/api', apiLimiter);
+
+// --- 5. Role-Based Access Control (RBAC) Middleware ---
+const verifyRole = (allowedRoles) => (req, res, next) => {
+  if (!req.user || !allowedRoles.includes(req.user.role)) {
+    return res.status(403).json({ error: 'Akses ditolak. Anda tidak memiliki izin yang cukup.' });
+  }
+  next();
+};
+
+// --- MIDDLEWARE: Verifikasi Token JWT ---
+const verifyToken = (req, res, next) => {
+  // Path di sini tidak perlu '/api' karena middleware ini sudah di-mount pada '/api'.
+  // req.path akan menjadi '/login', bukan '/api/login'.
+  const publicPaths = ['/login', '/register', '/set-password', '/settings/maintenance', '/logout'];
   if (publicPaths.some(path => req.path.startsWith(path)) || req.path === '/') {
     return next();
   }
 
-  const userId = req.headers['x-user-id'];
-  
-  // Jika tidak ada ID (misal user belum login/tamu), biarkan lanjut (nanti dicek per-endpoint jika perlu)
-  if (!userId) return next();
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer <TOKEN>
 
-  try {
-    const result = await pool.query('SELECT status FROM users WHERE id = $1', [userId]);
-    
-    // 1. Jika user tidak ditemukan (sudah dihapus Admin)
-    if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Akun tidak ditemukan. Sesi berakhir.' });
-    }
-
-    // 2. Jika user statusnya tidak Aktif (misal Suspended)
-    if (result.rows[0].status !== 'Aktif') {
-      return res.status(401).json({ error: 'Akun dinonaktifkan. Sesi berakhir.' });
-    }
-
-    next();
-  } catch (err) {
-    console.error('Auth Middleware Error:', err);
-    next(); // Lanjut saja jika DB error, jangan blokir total
+  if (token == null) {
+    return res.status(401).json({ error: 'Akses ditolak. Token tidak disediakan.' });
   }
-});
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Token tidak valid atau kadaluarsa.' });
+    }
+
+    // **[MODIFIKASI]** Verifikasi token ke database
+    pool.query('SELECT * FROM user_tokens WHERE token = $1 AND expires_at > NOW()', [token])
+      .then(result => {
+        if (result.rows.length === 0) {
+          return res.status(401).json({ error: 'Sesi tidak valid atau telah logout.' });
+        }
+        // Tambahkan payload user dari token ke object request
+        req.user = user;
+        next();
+      })
+      .catch(dbErr => {
+        console.error('DB error during token verification:', dbErr);
+        return res.status(500).json({ error: 'Kesalahan server saat verifikasi sesi.' });
+      });
+  });
+};
+
+// Terapkan middleware verifikasi token ke semua rute API
+app.use('/api', verifyToken);
 
 // Test Endpoint
 app.get('/', (req, res) => {
@@ -111,7 +170,7 @@ app.get('/', (req, res) => {
 });
 
 // Endpoint untuk mengambil data users
-app.get('/api/users', async (req, res) => {
+app.get('/api/users', verifyRole(['Admin', 'Laboran']), async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM users ORDER BY created_at DESC');
     
@@ -136,7 +195,7 @@ app.get('/api/users', async (req, res) => {
 });
 
 // Endpoint Get Single User (Profile)
-app.get('/api/users/:id', async (req, res) => {
+app.get('/api/users/:id', verifyRole(['Admin', 'Laboran', 'User']), async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
@@ -198,7 +257,26 @@ app.post('/api/login', async (req, res) => {
       // Dianggap tidak lengkap jika No HP kosong
       const isProfileIncomplete = !user.telepon;
 
-      res.json({ success: true, id: user.id, role: user.role, name: user.nama, profileIncomplete: isProfileIncomplete });
+      // Buat JWT Token
+      const tokenPayload = { id: user.id, role: user.role };
+      const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '8h' }); // Token berlaku 8 jam
+      const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000); // 8 jam dari sekarang
+
+      // **[MODIFIKASI]** Simpan token ke database
+      await pool.query(
+        `INSERT INTO user_tokens (user_id, token, expires_at, ip_address, user_agent) 
+         VALUES ($1, $2, $3, $4, $5)`,
+        [user.id, token, expiresAt, req.ip, req.headers['user-agent']]
+      );
+
+      res.json({ 
+        success: true, 
+        token, // Kirim token ke frontend
+        id: user.id, 
+        role: user.role, 
+        name: user.nama, 
+        profileIncomplete: isProfileIncomplete 
+      });
     } else {
       res.status(401).json({ error: 'Password salah.' });
     }
@@ -206,6 +284,23 @@ app.post('/api/login', async (req, res) => {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
   }
+});
+
+// **[BARU]** Endpoint Logout
+app.post('/api/logout', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (token) {
+    try {
+      // Hapus token dari database
+      await pool.query('DELETE FROM user_tokens WHERE token = $1', [token]);
+    } catch (err) {
+      console.error('Logout error, failed to delete token:', err);
+      // Jangan kirim error ke user, logout tetap harus berhasil di client
+    }
+  }
+  res.json({ success: true, message: 'Logout berhasil.' });
 });
 
 // Endpoint Set Password Baru (Setelah Reset Admin)
@@ -227,7 +322,20 @@ app.post('/api/set-password', async (req, res) => {
 });
 
 // Endpoint Register (Buat Akun Baru)
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', 
+  // --- 6. Input Validation ---
+  body('email', 'Format email tidak valid').isEmail().normalizeEmail(),
+  body('password', 'Password minimal 8 karakter').isLength({ min: 8 }),
+  body('fullName', 'Nama lengkap tidak boleh kosong').notEmpty().trim().escape(),
+  body('username', 'Username tidak boleh kosong').notEmpty().trim().escape(),
+  async (req, res) => {
+  
+  // Cek hasil validasi
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: errors.array()[0].msg });
+  }
+    
   const { fullName, nim, email, password, username } = req.body;
 
   try {
@@ -268,7 +376,7 @@ app.post('/api/register', async (req, res) => {
 });
 
 // Endpoint Update Status User (ACC / Block User)
-app.put('/api/users/:id/status', async (req, res) => {
+app.put('/api/users/:id/status', verifyRole(['Admin']), async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
 
@@ -282,7 +390,7 @@ app.put('/api/users/:id/status', async (req, res) => {
 });
 
 // Endpoint Reset Password User (Admin Action -> Set NULL)
-app.put('/api/users/:id/reset-password', async (req, res) => {
+app.put('/api/users/:id/reset-password', verifyRole(['Admin']), async (req, res) => {
   const { id } = req.params;
   try {
     // Set password menjadi NULL
@@ -295,7 +403,7 @@ app.put('/api/users/:id/reset-password', async (req, res) => {
 });
 
 // Create User (Admin) - Set password to NULL so user must create new password on first login
-app.post('/api/users', async (req, res) => {
+app.post('/api/users', verifyRole(['Admin']), async (req, res) => {
   const { name, email, username, role, identifier, status, phone } = req.body;
   try {
     const check = await pool.query('SELECT * FROM users WHERE email = $1 OR username = $2', [email, username]);
@@ -316,7 +424,7 @@ app.post('/api/users', async (req, res) => {
 });
 
 // Update User
-app.put('/api/users/:id', async (req, res) => {
+app.put('/api/users/:id', verifyRole(['Admin', 'User']), async (req, res) => {
   const { name, email, username, identifier, phone, avatar, role } = req.body;
   try {
     let query = "UPDATE users SET nama=$1, email=$2, username=$3, identifier=$4, telepon=$5";
@@ -324,7 +432,8 @@ app.put('/api/users/:id', async (req, res) => {
     let paramIndex = 6;
 
     // Update Role jika dikirim (Hanya Admin yang bisa kirim ini dari frontend)
-    if (role) {
+    // Dan pastikan hanya admin yang bisa mengubah role
+    if (role && req.user.role === 'Admin') {
       query += `, role=$${paramIndex}`;
       params.push(role);
       paramIndex++;
@@ -350,7 +459,7 @@ app.put('/api/users/:id', async (req, res) => {
 });
 
 // Delete User
-app.delete('/api/users/:id', async (req, res) => {
+app.delete('/api/users/:id', verifyRole(['Admin']), async (req, res) => {
   try {
     await pool.query('DELETE FROM users WHERE id=$1', [req.params.id]);
     res.json({ success: true });
@@ -1213,7 +1322,7 @@ app.post('/api/bookings', async (req, res) => {
         const userRole = userRes.rows[0]?.role;
         
         // Jika Admin/Laboran -> 'Disetujui', User Biasa -> 'Pending'
-        // Gunakan 'Pending' (Title Case) agar cocok dengan Enum di Frontend
+        // Gunakan 'Pending' (Title Case) agar cocok dengan tipe ENUM di DB
         const initialStatus = (userRole === 'Admin' || userRole === 'Laboran') ? 'Disetujui' : 'Pending';
 
         // Insert Header Booking
@@ -1248,14 +1357,16 @@ app.post('/api/bookings', async (req, res) => {
 app.put('/api/bookings/:id/status', async (req, res) => {
     const { status, techSupportPic, techSupportNeeds, rejectionReason } = req.body;
     try {
+        // Frontend mengirim 'APPROVED' atau 'REJECTED', kita konversi ke nilai ENUM di DB
         if (status === 'APPROVED') {
              // Update status beserta data technical support
              await pool.query('UPDATE bookings SET status=$1, tech_support_pic=$2, tech_support_needs=$3, rejection_reason=NULL WHERE id=$4', 
-                [status, techSupportPic, techSupportNeeds, req.params.id]);
+                ['Disetujui', techSupportPic, techSupportNeeds, req.params.id]);
         } else if (status === 'REJECTED') {
              await pool.query('UPDATE bookings SET status=$1, rejection_reason=$2 WHERE id=$3', 
-                [status, rejectionReason, req.params.id]);
+                ['Ditolak', rejectionReason, req.params.id]);
         } else {
+             // Untuk status lain seperti 'Dibatalkan' jika ada
              await pool.query('UPDATE bookings SET status=$1 WHERE id=$2', [status, req.params.id]);
         }
 
@@ -1269,7 +1380,7 @@ app.put('/api/bookings/:id/status', async (req, res) => {
             let message = '';
             let type = 'info';
 
-            if (status === 'APPROVED') {
+            if (status === 'APPROVED') { // Notifikasi tetap berdasarkan input dari frontend
                 title = 'Peminjaman Disetujui';
                 message = `Pengajuan "${keperluan}" telah disetujui.`;
                 type = 'success';
@@ -1560,8 +1671,9 @@ app.get('/api/search', async (req, res) => {
 
 // --- NOTIFICATIONS ---
 app.get('/api/notifications', async (req, res) => {
-    const userId = req.headers['x-user-id'];
-    if (!userId) return res.json([]);
+    // Ambil user ID dari token yang sudah diverifikasi oleh middleware
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'User ID tidak ditemukan dari token.' });
 
     try {
         // Cek role user untuk menentukan akses notifikasi
