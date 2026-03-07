@@ -219,8 +219,17 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
       });
       setIsGapiInitialized(true);
     } catch (error: any) {
-      console.error("Gagal inisialisasi GAPI:", error);
-      showToast(`Gagal memuat Google API: ${error?.message || JSON.stringify(error)}`, "error");
+      console.error("Gagal inisialisasi GAPI:", error.result || error);
+      let friendlyMessage = "Gagal memuat Google API. Cek konsol untuk detail.";
+      
+      // Cek struktur error dari GAPI
+      const gapiError = error.result?.error;
+      if (gapiError && gapiError.status === 'PERMISSION_DENIED' && gapiError.message.includes('API has not been used')) {
+          friendlyMessage = "Google API tidak aktif. Hubungi admin untuk mengaktifkan Google Drive & Calendar API di Google Cloud Console.";
+      } else if (gapiError) {
+          friendlyMessage = `Gagal memuat Google API: ${gapiError.message}`;
+      }
+      showToast(friendlyMessage, "error");
     }
   };
 
@@ -389,8 +398,8 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
               // Format UNTIL to YYYYMMDDTHHMMSSZ (UTC)
               const untilDate = new Date(eventForm.recurrenceEnd);
               untilDate.setHours(23, 59, 59);
-              const untilStr = untilDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-              rrule += `;UNTIL=`;
+              const untilStr = untilDate.toISOString().replace(/[-:.]/g, '').substring(0, 15) + 'Z';
+              rrule += `;UNTIL=${untilStr}`;
           }
           eventResource.recurrence = [rrule];
       }
@@ -1060,11 +1069,11 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
 
                  <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pengulangan (Repeat)</label>
-                    <div className="flex gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <select 
                             value={eventForm.recurrence}
                             onChange={e => setEventForm({...eventForm, recurrence: e.target.value})}
-                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
                         >
                             <option value="NONE">Tidak Berulang</option>
                             <option value="DAILY">Harian (Daily)</option>
@@ -1072,13 +1081,16 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
                             <option value="MONTHLY">Bulanan (Monthly)</option>
                         </select>
                         {eventForm.recurrence !== 'NONE' && (
-                            <input 
-                                type="date" 
-                                title="Berakhir Pada (Opsional)"
-                                value={eventForm.recurrenceEnd} 
-                                onChange={e => setEventForm({...eventForm, recurrenceEnd: e.target.value})}
-                                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                            />
+                            <div className="animate-fade-in">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Berakhir Pada (Opsional)</label>
+                                <input 
+                                    type="date" 
+                                    value={eventForm.recurrenceEnd} 
+                                    onChange={e => setEventForm({...eventForm, recurrenceEnd: e.target.value})}
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">Kosongkan jika ingin berulang selamanya.</p>
+                            </div>
                         )}
                     </div>
                  </div>
@@ -1268,4 +1280,3 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
 };
 
 export default JadwalRuang;
-

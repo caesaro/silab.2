@@ -29,6 +29,49 @@ const pool = new Pool({
   port: process.env.DB_PORT || 5432,
 });
 
+// --- DATABASE INDEXES (Optimizations) ---
+const createIndexes = async () => {
+  const indexes = [
+    // Users table indexes
+    'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
+    'CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)',
+    'CREATE INDEX IF NOT EXISTS idx_users_status ON users(status)',
+    
+    // Bookings table indexes
+    'CREATE INDEX IF NOT EXISTS idx_bookings_room_id ON bookings(room_id)',
+    'CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status)',
+    
+    // Booking schedules indexes
+    'CREATE INDEX IF NOT EXISTS idx_booking_schedules_booking_id ON booking_schedules(booking_id)',
+    'CREATE INDEX IF NOT EXISTS idx_booking_schedules_date ON booking_schedules(schedule_date)',
+    
+    // Inventory indexes
+    'CREATE INDEX IF NOT EXISTS idx_inventory_category ON inventory(kategori)',
+    'CREATE INDEX IF NOT EXISTS idx_inventory_available ON inventory(is_available)',
+    'CREATE INDEX IF NOT EXISTS idx_inventory_location ON inventory(lokasi)',
+    
+    // Item movements indexes
+    'CREATE INDEX IF NOT EXISTS idx_item_movements_inventory_id ON item_movements(inventory_id)',
+    'CREATE INDEX IF NOT EXISTS idx_item_movements_date ON item_movements(movement_date)',
+    
+    // Rooms index
+    'CREATE INDEX IF NOT EXISTS idx_rooms_name ON rooms(name)',
+  ];
+
+  try {
+    for (const indexQuery of indexes) {
+      await pool.query(indexQuery);
+    }
+    console.log('Database indexes created successfully');
+  } catch (err) {
+    console.error('Error creating indexes:', err);
+  }
+};
+
+// Create indexes on server start
+createIndexes();
+
 // --- MIDDLEWARE: Cek Status User (Auto Logout) ---
 app.use(async (req, res, next) => {
   // Skip validasi untuk endpoint publik (Login/Register/Public Assets)

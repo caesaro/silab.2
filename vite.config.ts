@@ -11,8 +11,8 @@ export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
       server: {
-        port: 5173, // Sesuaikan dengan port frontend yang biasa Anda gunakan
-        host: true, // Mengekspos ke jaringan lokal (misal: akses dari HP)
+        port: 5173, // Sesuaikan dengan port frontend yang biasa digunakan
+        host: true, // Mengekspos ke jaringan lokal
         proxy: {
           // Semua request ke /api akan diteruskan ke backend di port 5000
           // Contoh: /api/login -> http://localhost:5000/api/login
@@ -29,6 +29,28 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
-      }
+      },
+      // Build optimizations
+      build: {
+        target: 'esnext',
+        minify: 'esbuild',
+        esbuildOptions: {
+          drop: mode === 'production' ? ['console', 'debugger'] : [],
+        },
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              // Split vendor libraries into separate chunks
+              'vendor-react': ['react', 'react-dom'],
+              'vendor-ui': ['lucide-react', 'recharts'],
+            },
+          },
+        },
+        chunkSizeWarningLimit: 1000,
+      },
+      // Optimize dependencies
+      optimizeDeps: {
+        include: ['react', 'react-dom', 'lucide-react', 'recharts'],
+      },
     };
 });
