@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Equipment } from '../types';
-import { Search, Plus, Filter, Edit, Trash2, X, Check, AlertCircle, Box, ChevronLeft, ChevronRight, FileSpreadsheet, Download, QrCode, Printer, FileText, ChevronDown, Camera } from 'lucide-react';
+import { Search, Plus, Filter, Edit, Trash2, X, Check, AlertCircle, Box, ChevronLeft, ChevronRight, FileSpreadsheet, Download, QrCode, Printer, FileText, ChevronDown, Camera, Settings } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import QRCode from "react-qr-code";
-import nocLogo from "../src/assets/noc.png";
 import { api } from '../services/api';
 import QRScannerModal from '../components/QRScannerModal';
 import ConfirmModal from '../components/ConfirmModal';
+
+const LabelComponent = ({ item }: { item: Equipment }) => (
+    <div className="p-1 flex flex-col items-center justify-center text-center break-words w-full h-full">
+        <QRCode value={item.id} size={48} level="M" style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
+        <p className="mt-1 font-bold text-[8pt] tracking-tighter font-mono break-all">{item.id}</p>
+        <p className="text-[7pt] leading-tight line-clamp-2">{item.name}</p>
+    </div>
+);
 
 const Inventory: React.FC = () => {
   const [items, setItems] = useState<Equipment[]>([]);
@@ -15,6 +22,9 @@ const Inventory: React.FC = () => {
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [itemsPerPage, setItemsPerPage] = useState<number>(5);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [paperSize, setPaperSize] = useState<'A4' | 'F4'>('A4');
   const [isExportOpen, setIsExportOpen] = useState(false);
 
   // Modal State for Form
@@ -72,6 +82,20 @@ const Inventory: React.FC = () => {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredItems.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+        setSelectedItems(currentItems.map(i => i.id));
+    } else {
+        setSelectedItems(prev => prev.filter(id => !currentItems.some(item => item.id === id)));
+    }
+  };
+
+  const handleSelectItem = (id: string, checked: boolean) => {
+      setSelectedItems(prev => 
+          checked ? [...prev, id] : prev.filter(itemId => itemId !== id)
+      );
+  };
 
   const handleOpenModal = (item?: Equipment) => {
     if (item) {
@@ -319,6 +343,33 @@ const Inventory: React.FC = () => {
     }
   };
 
+  const handlePrintMulti = () => {
+    const content = document.getElementById('multi-label-print-area')?.innerHTML;
+    if (content) {
+        const printWindow = window.open('', '', 'height=800,width=800');
+        if (printWindow) {
+            printWindow.document.write('<html><head><title>Cetak Label</title>');
+            printWindow.document.write('<style>@page { size: ' + paperSize + '; margin: 0.5cm; } .sticker-sheet-content { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 0; } .sticker-label { page-break-inside: avoid; box-sizing: border-box; border: 1px dashed #ccc; width: 50mm; height: 30mm; } </style>');
+            printWindow.document.write('</head><body><div class="sticker-sheet-content">');
+            printWindow.document.write(content);
+            printWindow.document.write('</div></body></html>');
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+        }
+    }
+  };
+
+  const handlePrintSingle = () => {
+    const content = document.getElementById('single-label-print-area')?.innerHTML;
+    if (content) {
+        const printWindow = window.open('', '', 'height=400,width=400');
+        printWindow?.document.write(`<html><head><title>Cetak Label</title><style>body { margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; }</style></head><body>${content}</body></html>`);
+        printWindow?.document.close();
+        setTimeout(() => { printWindow?.print(); printWindow?.close(); }, 250);
+    }
+  };
+
   const handleShowQR = (item: Equipment) => {
     setQrItem(item);
   };
@@ -370,22 +421,6 @@ const Inventory: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Print Report Header */}
-      <div className="hidden print:block mb-8 border-b-2 border-black pb-4">
-        <div className="flex items-center justify-between mb-4">
-           <div className="flex items-center space-x-4">
-               <img src={nocLogo} alt="Logo FTI" className="w-24 h-24 object-contain" />
-               <div>
-                   <h1 className="text-2xl font-bold uppercase">Fakultas Teknologi Informasi</h1>
-                   <h2 className="text-xl">Universitas Kristen Satya Wacana</h2>
-                   <p className="text-sm">Jl. Dr. O. Notohamidjojo No.1 - 10, Blotongan, Kec. Sidorejo, Kota Salatiga, Jawa Tengah 50715</p>
-               </div>
-           </div>
-           <div className="text-right">
-               <h3 className="text-xl font-bold">LAPORAN INVENTARIS</h3>
-               <p className="text-sm">Dicetak: {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-           </div>
-        </div>
-      </div>
 
        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
         <div>
@@ -393,9 +428,6 @@ const Inventory: React.FC = () => {
           <p className="text-gray-500 dark:text-gray-400 text-sm">Kelola daftar aset dan barang FTI</p>
         </div>
         <div className="flex gap-2">
-            <button onClick={() => window.print()} className="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm font-medium flex items-center shadow-sm transition-all hover:scale-105">
-                <Printer className="w-4 h-4 mr-2" /> Print
-            </button>
             <div className="relative">
                 <button onClick={() => setIsExportOpen(!isExportOpen)} className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium flex items-center shadow-sm transition-all hover:scale-105">
                     <Download className="w-4 h-4 mr-2" /> Export <ChevronDown className="w-4 h-4 ml-1" />
@@ -414,6 +446,14 @@ const Inventory: React.FC = () => {
                     </div>
                 )}
             </div>
+            <button 
+                onClick={() => setIsPrintModalOpen(true)} 
+                disabled={selectedItems.length === 0}
+                className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium flex items-center shadow-sm transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Pilih barang untuk mencetak label"
+            >
+                <Printer className="w-4 h-4 mr-2" /> Cetak Label ({selectedItems.length})
+            </button>
             <button onClick={() => setIsScannerOpen(true)} className="px-3 py-2 bg-gray-800 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-900 dark:hover:bg-gray-600 text-sm font-medium flex items-center shadow-sm transition-all hover:scale-105">
                 <Camera className="w-4 h-4 mr-2" /> Scan QR
             </button>
@@ -487,6 +527,20 @@ const Inventory: React.FC = () => {
                 <table className="w-full text-sm text-left">
                     <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 font-medium border-b border-gray-200 dark:border-gray-700 print:bg-gray-200 print:text-black">
                         <tr>
+                            <th className="px-2 py-4 print:hidden">
+                                <input 
+                                    type="checkbox"
+                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    onChange={handleSelectAll}
+                                    checked={currentItems.length > 0 && currentItems.every(i => selectedItems.includes(i.id))}
+                                    ref={input => {
+                                        if (input) {
+                                            const someSelected = currentItems.some(i => selectedItems.includes(i.id));
+                                            input.indeterminate = someSelected && !currentItems.every(i => selectedItems.includes(i.id));
+                                        }
+                                    }}
+                                />
+                            </th>
                             <th className="px-6 py-4">Kode FTI</th>
                             <th className="px-6 py-4">Kode UKSW</th>
                             <th className="px-6 py-4">Serial Number</th>
@@ -501,6 +555,14 @@ const Inventory: React.FC = () => {
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700 print:divide-gray-400">
                         {currentItems.length > 0 ? currentItems.map(item => (
                             <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                <td className="px-2 py-4 print:hidden">
+                                    <input 
+                                        type="checkbox"
+                                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        checked={selectedItems.includes(item.id)}
+                                        onChange={(e) => handleSelectItem(item.id, e.target.checked)}
+                                    />
+                                </td>
                                 <td className="px-6 py-4 font-mono text-xs font-bold text-blue-600 dark:text-blue-400">{item.id}</td>
                                 <td className="px-6 py-4 font-mono text-xs text-gray-500">{item.ukswCode}</td>
                                 <td className="px-6 py-4 font-mono text-xs text-gray-500">{item.serialNumber || '-'}</td>
@@ -527,7 +589,7 @@ const Inventory: React.FC = () => {
                             </tr>
                         )) : (
                            <tr>
-                              <td colSpan={9} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                              <td colSpan={10} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                                  <div className="flex flex-col items-center justify-center">
                                     <Box className="w-12 h-12 text-gray-300 mb-3" />
                                     <p>Tidak ada barang yang ditemukan.</p>
@@ -755,11 +817,45 @@ const Inventory: React.FC = () => {
         isLoading={isDeleting}
       />
 
+      {isPrintModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 no-print">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 flex-shrink-0">
+                    <h3 className="font-bold text-gray-900 dark:text-white">Cetak Label ({selectedItems.length} Barang)</h3>
+                    <div className="flex items-center gap-4">
+                        <div>
+                            <label className="text-sm font-medium mr-2 dark:text-gray-300">Ukuran Kertas:</label>
+                            <select value={paperSize} onChange={e => setPaperSize(e.target.value as any)} className="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm">
+                                <option value="A4">A4</option>
+                                <option value="F4">F4</option>
+                            </select>
+                        </div>
+                        <button onClick={handlePrintMulti} className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex items-center">
+                            <Printer className="w-4 h-4 mr-2" /> Cetak
+                        </button>
+                        <button onClick={() => setIsPrintModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+                <div id="print-preview-area" className="flex-1 overflow-auto p-6 bg-gray-200 dark:bg-gray-900">
+                    <div id="multi-label-print-area" className="bg-white shadow-lg mx-auto p-[5mm] box-border flex flex-wrap content-start gap-0" style={paperSize === 'A4' ? {width: '210mm', minHeight: '297mm'} : {width: '215mm', minHeight: '330mm'}}>
+                        {items.filter(i => selectedItems.includes(i.id)).map(item => (
+                            <div key={item.id} className="sticker-label" style={{width: '50mm', height: '30mm', padding: '2mm', boxSizing: 'border-box', border: '1px dashed #ccc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'}}>
+                                <LabelComponent item={item} />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
+
       {viewDetailItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
               <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
-                 <h3 className="font-bold text-gray-900 dark:text-white flex items-center">
+                 <h3 className="font-bold text-gray-900 dark:text-white flex items-center text-base">
                     <Box className="w-5 h-5 mr-2 text-blue-600" />
                     Detail Barang
                  </h3>
@@ -827,28 +923,26 @@ const Inventory: React.FC = () => {
 
       {qrItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
+           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-xs overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
               <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
                  <h3 className="font-bold text-gray-900 dark:text-white flex items-center">
                     <QrCode className="w-5 h-5 mr-2 text-blue-600" />
-                    QR Code Barang
+                    Label Barang
                  </h3>
                  <button onClick={() => setQrItem(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
                     <X className="w-5 h-5" />
                  </button>
               </div>
-              <div className="p-8 flex flex-col items-center justify-center bg-white">
-                  <div className="border-4 border-gray-900 p-2 rounded-lg">
-                    <QRCode 
-                        value={qrItem.id}
-                        size={200}
-                    />
+              <div id="single-label-print-area" className="bg-white">
+                  <div className="p-6 flex flex-col items-center justify-center">
+                      <QRCode value={qrItem.id} size={150} level="M" />
+                      <p className="mt-4 font-bold text-lg text-gray-900 font-mono tracking-wide">{qrItem.id}</p>
+                      <p className="text-sm text-gray-600 text-center">{qrItem.name}</p>
                   </div>
-                  <p className="mt-4 font-bold text-lg text-gray-900">{qrItem.id}</p>
-                  <p className="text-sm text-gray-500 text-center">{qrItem.name}</p>
-                  
-                  <button onClick={() => window.print()} className="mt-6 flex items-center text-sm text-blue-600 hover:underline print:hidden">
-                      <Printer className="w-4 h-4 mr-1" /> Cetak Label
+              </div>
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex justify-end">
+                  <button onClick={handlePrintSingle} className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex items-center shadow-md">
+                      <Printer className="w-4 h-4 mr-2" /> Cetak Label
                   </button>
               </div>
            </div>
