@@ -2,8 +2,8 @@
 // Used across multiple pages for Calendar integration
 
 export const GOOGLE_API_CONFIG = {
-  CLIENT_ID: '828476305239-7hilvfjvadt8ndn9br7n1upmdso38ou8.apps.googleusercontent.com',
-  API_KEY: 'AIzaSyDMKoa430rirp8g8bBU3Xt-IE5EKZjiZWQ',
+  CLIENT_ID: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+  API_KEY: import.meta.env.VITE_GOOGLE_API_KEY || '',
   // Only include Calendar API - Drive API is not used
   DISCOVERY_DOCS: [
     'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'

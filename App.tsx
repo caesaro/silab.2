@@ -192,6 +192,15 @@ const App: React.FC = () => {
     } catch (e) { console.error("Gagal mark all read", e); }
   };
 
+  const clearAllNotifications = async () => {
+    try {
+      // Optimistic update
+      setNotifications([]);
+      await api('/api/notifications', { method: 'DELETE' });
+      showToast('Semua notifikasi berhasil dihapus.', 'success');
+    } catch (e) { console.error("Gagal hapus notifikasi", e); }
+  };
+
   // Helper: Show Toast
   const showToast = (message: string | React.ReactNode, type: 'success' | 'error' | 'info' | 'warning' = 'info', sticky: boolean = false) => {
     const newToast: any = {
@@ -434,6 +443,7 @@ case 'specs-management':
             notifications={notifications}
             onMarkAsRead={markNotificationAsRead}
             onMarkAllAsRead={markAllNotificationsAsRead}
+            onClearAllNotifications={clearAllNotifications}
             onNavigate={(page) => setCurrentPage(page)}
           />
 

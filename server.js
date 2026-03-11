@@ -1,4 +1,4 @@
-﻿import express from 'express';
+﻿﻿import express from 'express';
 import pg from 'pg';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -2071,6 +2071,50 @@ app.put('/api/notifications/:id/read', async (req, res) => {
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: 'Update failed' });
+    }
+});
+
+// Endpoint Mark All as Read
+app.put('/api/notifications/read-all', async (req, res) => {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    
+    try {
+        const userRes = await pool.query('SELECT role FROM users WHERE id = $1', [userId]);
+        const role = userRes.rows[0]?.role;
+
+        let query = 'UPDATE notifications SET is_read = TRUE WHERE user_id = $1';
+        const params = [userId];
+
+        if (role === 'Admin') {
+             query = 'UPDATE notifications SET is_read = TRUE WHERE user_id = $1 OR user_id IS NULL';
+        }
+
+        await pool.query(query, params);
+        res.json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Update failed' });
+    }
+});
+
+// Endpoint Delete All Notifications
+app.delete('/api/notifications', async (req, res) => {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    try {
+        const userRes = await pool.query('SELECT role FROM users WHERE id = $1', [userId]);
+        const role = userRes.rows[0]?.role;
+
+        // Hapus notifikasi milik user. Jika Admin, hapus juga notifikasi sistem (NULL)
+        let query = 'DELETE FROM notifications WHERE user_id = $1' + (role === 'Admin' ? ' OR user_id IS NULL' : '');
+        
+        await pool.query(query, [userId]);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Delete notifications error:', err);
+        res.status(500).json({ error: 'Gagal menghapus notifikasi.' });
     }
 });
 

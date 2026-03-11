@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Moon, Sun, Bell, Search, LogOut, User, ChevronDown, Check, Box, MapPin, CheckCheck } from 'lucide-react';
+import { Menu, Moon, Sun, Bell, Search, LogOut, User, ChevronDown, Check, Box, MapPin, CheckCheck, Loader2, Trash2 } from 'lucide-react';
 import { Role, Notification } from '../types';
 import { api } from '../services/api';
 
@@ -14,6 +14,7 @@ interface TopBarProps {
   notifications: Notification[];
   onMarkAsRead: (id: string) => void;
   onMarkAllAsRead: () => void;
+  onClearAllNotifications: () => void;
   onNavigate: (page: string) => void;
 }
 
@@ -36,12 +37,13 @@ const iconMap: Record<string, React.ElementType> = {
 };
 
 const TopBar: React.FC<TopBarProps> = ({ 
-  onToggleSidebar, isDarkMode, toggleDarkMode, currentRole, userName, onOpenAi, onLogout, notifications, onMarkAsRead, onMarkAllAsRead, onNavigate
+  onToggleSidebar, isDarkMode, toggleDarkMode, currentRole, userName, onOpenAi, onLogout, notifications, onMarkAsRead, onMarkAllAsRead, onClearAllNotifications, onNavigate
 }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread'>('all');
+  const [visibleNotifCount, setVisibleNotifCount] = useState(10);
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
   // 3. Gunakan tipe data yang eksplisit
@@ -88,6 +90,24 @@ const TopBar: React.FC<TopBarProps> = ({
     if (notifFilter === 'unread') return !n.isRead;
     return true;
   });
+
+  // Reset infinite scroll saat filter berubah atau dropdown dibuka
+  useEffect(() => {
+    if (isNotifOpen) {
+      setVisibleNotifCount(10);
+    }
+  }, [isNotifOpen, notifFilter]);
+
+  // Handler untuk Infinite Scroll
+  const handleNotifScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    // Jika scroll sudah mendekati bawah (threshold 10px)
+    if (scrollHeight - scrollTop <= clientHeight + 10) {
+      if (visibleNotifCount < filteredNotifications.length) {
+        setVisibleNotifCount(prev => prev + 5);
+      }
+    }
+  };
 
   return (
     <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 h-16 flex items-center justify-between px-4 sm:px-6 sticky top-0 z-30 print:hidden">
@@ -176,11 +196,18 @@ const TopBar: React.FC<TopBarProps> = ({
                         <p className="text-sm font-bold text-gray-900 dark:text-white">Notifikasi</p>
                         {unreadCount > 0 && <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">{unreadCount}</span>}
                       </div>
-                      {unreadCount > 0 && (
-                        <button onClick={onMarkAllAsRead} className="text-xs flex items-center text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors" title="Tandai semua sudah dibaca">
-                          <CheckCheck className="w-3.5 h-3.5 mr-1" /> Mark all read
-                        </button>
-                      )}
+                      <div className="flex items-center space-x-2">
+                        {unreadCount > 0 && (
+                          <button onClick={onMarkAllAsRead} className="text-xs flex items-center text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors" title="Tandai semua sudah dibaca">
+                            <CheckCheck className="w-3.5 h-3.5 mr-1" /> Read All
+                          </button>
+                        )}
+                        {notifications.length > 0 && (
+                          <button onClick={onClearAllNotifications} className="text-xs flex items-center text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-colors" title="Hapus semua notifikasi">
+                            <Trash2 className="w-3.5 h-3.5 mr-1" /> Clear
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="flex space-x-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-lg">
                       <button onClick={() => setNotifFilter('all')} className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-all ${notifFilter === 'all' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-200'}`}>
@@ -191,11 +218,11 @@ const TopBar: React.FC<TopBarProps> = ({
                       </button>
                     </div>
                   </div>
-                  <div className="max-h-64 overflow-y-auto">
+                  <div className="max-h-64 overflow-y-auto" onScroll={handleNotifScroll}>
                     {filteredNotifications.length === 0 ? (
                       <p className="text-center py-8 text-gray-500 text-sm">Tidak ada notifikasi {notifFilter === 'unread' ? 'baru' : ''}.</p>
                     ) : (
-                      filteredNotifications.map(notif => (
+                      filteredNotifications.slice(0, visibleNotifCount).map(notif => (
                         <div key={notif.id} className={`px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-0 ${!notif.isRead ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
                            <div className="flex justify-between items-start">
                              <div className="flex-1">
@@ -211,6 +238,11 @@ const TopBar: React.FC<TopBarProps> = ({
                            </div>
                         </div>
                       ))
+                    )}
+                    {visibleNotifCount < filteredNotifications.length && (
+                      <div className="py-3 text-center flex justify-center items-center text-gray-400 border-t border-gray-100 dark:border-gray-700">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      </div>
                     )}
                   </div>
                 </div>
