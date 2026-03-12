@@ -535,12 +535,18 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
         fetchRooms();
         setViewMode('list');
       } else {
-        const err = await response.json();
-        alert(`Gagal menyimpan data: ${err.error || 'Terjadi kesalahan di server'}`);
+        let errorMessage = 'Terjadi kesalahan di server';
+        try {
+            const err = await response.json();
+            errorMessage = err.error || errorMessage;
+        } catch {
+            errorMessage = `Status: ${response.status} ${response.statusText}`;
+        }
+        alert(`Gagal menyimpan data: ${errorMessage}`);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Save Room Error:", e);
-      alert("Gagal menyimpan data. Silakan cek koneksi atau hubungi admin.");
+      alert(`Gagal menyimpan data. Detail: ${e.message || "Cek koneksi internet"}`);
     } finally {
       setIsSavingRoom(false);
     }

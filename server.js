@@ -1291,7 +1291,7 @@ app.post('/api/inventory', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'DB Error' });
+    res.status(500).json({ error: err.message || 'Gagal menyimpan data ruangan' });
   }
 });
 
@@ -1526,7 +1526,7 @@ app.put('/api/rooms/:id', async (req, res) => {
       res.json({ success: true });
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: 'DB Error' });
+      res.status(500).json({ error: err.message || 'Gagal memperbarui data ruangan' });
     }
 });
 
