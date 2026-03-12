@@ -37,6 +37,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({ addNotification, showToas
   const [staffList, setStaffList] = useState<LabStaff[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'All' | BookingStatus>('All');
+  const [filterDate, setFilterDate] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<BookingWithTech | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
@@ -426,7 +427,8 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({ addNotification, showToas
     const matchesSearch = b.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       b.purpose.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'All' || b.status === filterStatus;
-    return matchesSearch && matchesStatus;
+    const matchesDate = !filterDate || b.date === filterDate;
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   const pendingCount = bookings.filter(b => b.status === BookingStatus.PENDING).length;
@@ -461,6 +463,13 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({ addNotification, showToas
             />
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
+            <input
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
+              title="Filter Tanggal"
+            />
             <Filter className="w-4 h-4 text-gray-400" />
             <select
               value={filterStatus}
@@ -882,6 +891,16 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({ addNotification, showToas
                     Setuju Peminjaman
                   </button>
                 </>
+              )}
+
+              {selectedBooking.status === BookingStatus.REJECTED && (
+                <button
+                  onClick={() => { setSelectedBooking(null); handleDeleteClick(selectedBooking); }}
+                  className="px-4 py-2 text-sm bg-red-600 text-white hover:bg-red-700 border border-red-600 rounded-lg flex items-center shadow-sm transition-colors"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Hapus Data
+                </button>
               )}
 
               {selectedBooking.status !== BookingStatus.PENDING && (

@@ -1800,13 +1800,8 @@ app.post('/api/bookings', async (req, res) => {
         
         const bookingId = `BOOK-${Date.now()}`;
         
-        // 2. Cek Role User untuk Auto-Approve
-        const userRes = await client.query('SELECT role FROM users WHERE id = $1', [userId]);
-        const userRole = userRes.rows[0]?.role;
-        
-        // Jika Admin/Laboran -> 'Disetujui', User Biasa -> 'Pending'
-        // Gunakan 'Pending' (Title Case) agar cocok dengan tipe ENUM di DB
-        const initialStatus = (userRole === 'Admin' || userRole === 'Laboran') ? 'Disetujui' : 'Pending';
+        // 2. Set Status Default ke Pending untuk semua role (termasuk Admin/Laboran)
+        const initialStatus = 'Pending';
 
         // Insert Header Booking
         await client.query(

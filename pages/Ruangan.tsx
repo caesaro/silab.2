@@ -139,6 +139,9 @@ const getConditionColor = (condition?: string) => {
 const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
   // Helper: Cek admin case-insensitive
   const isAdmin = role.toString().toUpperCase() === Role.ADMIN.toString().toUpperCase();
+  const isLaboran = role.toString().toUpperCase() === Role.LABORAN.toString().toUpperCase();
+  const canManage = isAdmin || isLaboran;
+
   const [rooms, setRooms] = useState<Room[]>([]);
   const [availableFacilities, setAvailableFacilities] = useState<string[]>([]);
   const [newFacilityInput, setNewFacilityInput] = useState('');
@@ -450,8 +453,8 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
   // CRUD Handlers
   const handleAddNew = () => {
     // Restrict Access
-    if (!isAdmin) {
-        alert("Akses Ditolak. Hanya Admin yang bisa menambah ruangan.");
+    if (!canManage) {
+        alert("Akses Ditolak. Hanya Admin dan Laboran yang bisa menambah ruangan.");
         return;
     }
 
@@ -682,9 +685,9 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
                             <p className="text-gray-500 dark:text-gray-400 flex items-center mb-4"><Users className="w-4 h-4 mr-2"/> Kapasitas: {selectedRoom.capacity} Orang | PIC: {selectedRoom.pic}</p>
                           </div>
                           <div className="flex gap-2 mt-4 md:mt-0">
-                             {(isAdmin) && (
+                             {(canManage) && (
                                 <button className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-sm font-medium flex items-center">
-                                    <Calendar className="w-4 h-4 mr-2"/> Atur Jadwal (Admin)
+                                    <Calendar className="w-4 h-4 mr-2"/> Atur Jadwal
                                 </button>
                              )}
                              <button 
@@ -716,7 +719,7 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
                                       <h3 className="text-xl font-semibold text-gray-800 dark:text-white flex items-center">
                                           <Monitor className="w-5 h-5 mr-2 text-blue-500"/> Spesifikasi Komputer
                                       </h3>
-                                      {(isAdmin || role === Role.LABORAN) && (
+                                      {(canManage) && (
                                           <button 
                                               onClick={() => setViewMode('computers')}
                                               className="text-sm text-blue-600 hover:underline font-medium"
@@ -798,7 +801,7 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
                                       <h3 className="text-xl font-semibold text-gray-800 dark:text-white flex items-center">
                                           <Package className="w-5 h-5 mr-2 text-purple-500"/> Software Instalasi
                                       </h3>
-                                      {(isAdmin || role === Role.LABORAN) && (
+                                      {(canManage) && (
                                           <button 
                                               onClick={() => setEditingSoftware({ name: '', version: '', licenseType: 'Free', category: '', notes: '' })}
                                               className="text-sm text-blue-600 hover:underline font-medium"
@@ -825,7 +828,7 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
                                                               </span>
                                                           )}
                                                       </div>
-                                                      {(isAdmin || role === Role.LABORAN) && (
+                                                      {(canManage) && (
                                                           <div className="flex space-x-1">
                                                               <button onClick={() => setEditingSoftware(sw)} className="text-blue-600 hover:text-blue-800 p-1"><Edit2 className="w-3 h-3"/></button>
                                                               <button onClick={() => handleDeleteSoftware(sw.id)} className="text-red-600 hover:text-red-800 p-1"><Trash2 className="w-3 h-3"/></button>
@@ -1108,7 +1111,7 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
                 <ArrowUpDown className="w-4 h-4 absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"/>
             </div>
 
-            {(isAdmin) && (
+            {(canManage) && (
                 <button onClick={handleAddNew} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center shadow-sm">
                     <Plus className="w-4 h-4 mr-2" /> Tambah
                 </button>
@@ -1168,7 +1171,7 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
 
                 <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100 dark:border-gray-700">
                    <div className="flex space-x-2 w-full">
-                      {(isAdmin) && (
+                      {(canManage) && (
                            <div className="flex space-x-2" onClick={e => e.stopPropagation()}>
                              <button onClick={() => handleEdit(room)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg dark:hover:bg-blue-900/20" title="Edit">
                                 <Edit2 className="w-4 h-4" />

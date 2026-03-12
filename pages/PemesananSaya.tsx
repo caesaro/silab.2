@@ -51,10 +51,27 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
     }
   };
 
-  const handleCancelBooking = (id: string) => {
+  const handleCancelBooking = async (id: string) => {
     if (confirm("Apakah Anda yakin ingin membatalkan permohonan peminjaman ini?")) {
-      setMyBookings(prev => prev.filter(b => b.id !== id));
-      showToast("Permohonan peminjaman berhasil dibatalkan.", "info");
+      try {
+        await api(`/api/bookings/${id}`, { method: 'DELETE' });
+        setMyBookings(prev => prev.filter(b => b.id !== id));
+        showToast("Permohonan peminjaman berhasil dibatalkan.", "info");
+      } catch (e) {
+        showToast("Gagal membatalkan permohonan.", "error");
+      }
+    }
+  };
+
+  const handleDeleteBooking = async (id: string) => {
+    if (confirm("Hapus riwayat peminjaman ini?")) {
+      try {
+        await api(`/api/bookings/${id}`, { method: 'DELETE' });
+        setMyBookings(prev => prev.filter(b => b.id !== id));
+        showToast("Riwayat berhasil dihapus.", "success");
+      } catch (e) {
+        showToast("Gagal menghapus riwayat.", "error");
+      }
     }
   };
 
@@ -228,6 +245,13 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
                               className="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center ml-auto"
                            >
                               <Download className="w-3.5 h-3.5 mr-1.5" /> Download Bukti
+                           </button>
+                        ) : booking.status === BookingStatus.REJECTED ? (
+                           <button 
+                              onClick={() => handleDeleteBooking(booking.id)}
+                              className="text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center ml-auto"
+                           >
+                              <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Hapus
                            </button>
                         ) : (
                            <span className="text-gray-400 text-xs italic">Tidak dapat diubah</span>
