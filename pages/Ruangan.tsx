@@ -510,8 +510,10 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
     setIsSavingRoom(true);
 
     // Bersihkan fasilitas dari string kosong sebelum kirim
+    const { pic_id, ...cleanData } = submittedData as any;
+
     const payload = {
-        ...submittedData,
+        ...cleanData,
     };
 
     try {
@@ -537,7 +539,8 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
         alert(`Gagal menyimpan data: ${err.error || 'Terjadi kesalahan di server'}`);
       }
     } catch (e) {
-      alert("Gagal menyimpan data");
+      console.error("Save Room Error:", e);
+      alert("Gagal menyimpan data. Silakan cek koneksi atau hubungi admin.");
     } finally {
       setIsSavingRoom(false);
     }

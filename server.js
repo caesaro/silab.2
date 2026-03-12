@@ -509,12 +509,19 @@ app.post('/api/auth/google', async (req, res) => {
     );
 
     // 4. Validasi Domain (Support multiple domains, separated by comma)
-    if (config.domain) {
-      const allowedDomains = config.domain.split(',').map(d => d.trim());
-      const isAllowed = allowedDomains.some(domain => email.endsWith(`@${domain}`));
-      
-      if (!isAllowed) {
-        return res.status(403).json({ error: `Akses ditolak. Email harus menggunakan domain: ${allowedDomains.join(', ')}` });
+    // Jika domain dikosongkan di config, skip validasi (untuk development/testing)
+    if (config.domain && config.domain.trim() !== '') {
+      const allowedDomains = config.domain.split(',').map(d => d.trim()).filter(d => d !== '');
+      if (allowedDomains.length > 0) {
+        const isAllowed = allowedDomains.some(domain => email.endsWith(`@${domain}`));
+        
+        if (!isAllowed) {
+          console.log(`SSO Domain validation failed for email: ${email}. Allowed domains: ${allowedDomains.join(', ')}`);
+          return res.status(403).json({ 
+            error: `Akses ditolak. Email harus menggunakan domain: ${allowedDomains.join(', ')}`,
+            details: `Email ${email} tidak memiliki domain yang diizinkan.`
+          });
+        }
       }
     }
 
@@ -564,7 +571,15 @@ app.post('/api/auth/google', async (req, res) => {
     res.json({ success: true, token, id: user.id, role: user.role, name: user.nama, expiresAt: expiresAt.toISOString() });
   } catch (err) {
     console.error('SSO Login Error:', err);
-    res.status(500).json({ error: 'Terjadi kesalahan saat login dengan Google.' });
+    console.error('Error details:', {
+      message: err.message,
+      stack: err.stack,
+      config: config ? { enabled: config.enabled, clientId: config.client_id ? `${config.client_id.substring(0, 10)}...` : 'not set', domain: config.domain } : 'no config'
+    });
+    res.status(500).json({ 
+      error: 'Terjadi kesalahan saat login dengan Google.',
+      details: err.message 
+    });
   }
 });
 

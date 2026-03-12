@@ -116,7 +116,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
           setSsoConfig({
             enabled: ssoData.enabled ?? true,
             clientId: ssoData.clientId || '',
-            domain: ssoData.domain || 'uksw.edu,student.uksw.edu,students.uksw.edu'
+            domain: ssoData.domain ?? ''
           });
         }
       } catch (e) {
@@ -663,6 +663,17 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
                 <div>
                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Google Client ID</label>
                    <input type="text" required={ssoConfig.enabled} value={ssoConfig.clientId} onChange={e => setSsoConfig({...ssoConfig, clientId: e.target.value})} className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 font-mono" />
+                </div>
+                <div>
+                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Allowed Domains (Pisahkan dengan koma)</label>
+                   <input 
+                     type="text" 
+                     value={ssoConfig.domain} 
+                     onChange={e => setSsoConfig({...ssoConfig, domain: e.target.value})} 
+                     placeholder="Contoh: uksw.edu, gmail.com (Biarkan kosong untuk izinkan semua)"
+                     className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 font-mono" 
+                   />
+                   <p className="text-xs text-gray-500 mt-1">Biarkan kosong jika ingin mengizinkan login dari semua domain email Google.</p>
                 </div>
              </div>
              <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">

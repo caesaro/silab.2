@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Room } from '../types';
-import { Loader2, Upload, Check } from 'lucide-react';
+import { Loader2, Upload, Check, ChevronDown, Search } from 'lucide-react';
 
 interface RoomFormProps {
   initialData: Partial<Room>;
@@ -17,6 +17,8 @@ const RoomForm: React.FC<RoomFormProps> = ({ initialData, isEditing, onSave, onC
   const [isImageProcessing, setIsImageProcessing] = useState(false);
   const [newFacilityInput, setNewFacilityInput] = useState('');
   const [currentFacilities, setCurrentFacilities] = useState(availableFacilities);
+  const [isPicDropdownOpen, setIsPicDropdownOpen] = useState(false);
+  const [picSearchTerm, setPicSearchTerm] = useState('');
 
   useEffect(() => {
     setFormData(initialData);
@@ -114,23 +116,74 @@ const RoomForm: React.FC<RoomFormProps> = ({ initialData, isEditing, onSave, onC
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">PIC (Penanggung Jawab)</label>
-            <select 
-              value={(formData as any).pic_id || staffList.find(s => s.name === formData.pic)?.id || ''} 
-              onChange={e => {
-                const selectedStaff = staffList.find(s => s.id === e.target.value);
-                setFormData({ 
-                  ...formData, 
-                  pic: selectedStaff ? selectedStaff.name : '',
-                  pic_id: e.target.value 
-                } as any);
-              }} 
-              className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">-- Tidak Ada PIC --</option>
-              {staffList.map(tech => (
-                <option key={tech.id} value={tech.id}>{tech.name} ({tech.jabatan || 'Staff'})</option>
-              ))}
-            </select>
+            <div className="relative">
+              <div 
+                className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 cursor-pointer flex justify-between items-center"
+                onClick={() => setIsPicDropdownOpen(!isPicDropdownOpen)}
+              >
+                <span className={`${!(formData as any).pic_id && !formData.pic ? 'text-gray-500' : ''}`}>
+                  {(formData as any).pic_id 
+                    ? staffList.find(s => s.id === (formData as any).pic_id)?.name 
+                    : formData.pic || '-- Pilih PIC --'}
+                </span>
+                <ChevronDown className="w-4 h-4 text-gray-500" />
+              </div>
+
+              {isPicDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setIsPicDropdownOpen(false)}></div>
+                  <div className="absolute z-20 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-60 overflow-hidden flex flex-col">
+                    <div className="p-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                      <div className="relative">
+                        <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Cari staff..."
+                          className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white focus:outline-none focus:border-blue-500"
+                          value={picSearchTerm}
+                          onChange={(e) => setPicSearchTerm(e.target.value)}
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </div>
+                    <div className="overflow-y-auto flex-1">
+                      <div 
+                        className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-gray-500 text-sm"
+                        onClick={() => {
+                          setFormData({ ...formData, pic: '', pic_id: '' } as any);
+                          setIsPicDropdownOpen(false);
+                          setPicSearchTerm('');
+                        }}
+                      >
+                        -- Tidak Ada PIC --
+                      </div>
+                      {staffList.filter(s => s.name.toLowerCase().includes(picSearchTerm.toLowerCase())).map((staff) => (
+                        <div
+                          key={staff.id}
+                          className={`px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer text-sm flex justify-between items-center ${
+                            (formData as any).pic_id === staff.id ? 'bg-blue-50 dark:bg-gray-700/50 text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-700 dark:text-gray-200'
+                          }`}
+                          onClick={() => {
+                            setFormData({ ...formData, pic: staff.name, pic_id: staff.id } as any);
+                            setIsPicDropdownOpen(false);
+                            setPicSearchTerm('');
+                          }}
+                        >
+                          <span>{staff.name}</span>
+                          <span className="text-xs text-gray-500 ml-2">{staff.jabatan || 'Staff'}</span>
+                        </div>
+                      ))}
+                      {staffList.filter(s => s.name.toLowerCase().includes(picSearchTerm.toLowerCase())).length === 0 && (
+                        <div className="px-4 py-3 text-center text-gray-500 text-sm">
+                          Staff tidak ditemukan
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Google Calendar ID</label>

@@ -403,7 +403,10 @@ const Login: React.FC<LoginProps> = ({
                // Pass both role and userName to handleLogin to fix race condition
                onLogin(data.role as Role, data.name);
             } else {
-               showToast(data.error || "Gagal login dengan Google.", "error");
+               // Show more detailed error message if available
+               const errorMessage = data.details ? `${data.error} - ${data.details}` : data.error;
+               showToast(errorMessage || "Gagal login dengan Google.", "error");
+               console.error("Google SSO Error:", data);
             }
           } catch (err) {
             console.error("Google Backend Error:", err);
