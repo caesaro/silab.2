@@ -78,7 +78,7 @@ const Tentang: React.FC = () => {
         <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-4">
           <div className="flex items-center space-x-3">
             <Users className="w-6 h-6 text-white" />
-            <h2 className="text-xl font-bold text-white">Tentang Laboran FTI UKSW</h2>
+            <h2 className="text-xl font-bold text-white">Tentang Laboran FTI UKSW (Sarpras)</h2>
           </div>
         </div>
         <div className="p-6">
@@ -86,12 +86,12 @@ const Tentang: React.FC = () => {
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Tim Laboran FTI UKSW</h3>
               <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-4">
-                <span className="font-bold">Laboran FTI UKSW</span> adalah tim teknis yang bertanggung jawab 
-                atas pengelolaan dan pemeliharaan seluruh fasilitas laboratorium di Fakultas Teknologi Informasi 
+                <span className="font-bold">Laboran FTI UKSW</span> adalah tim teknisi dan admin yang bertanggung jawab 
+                atas pengelolaan, pemeliharaan, dan administrasi fasilitas laboratorium di Fakultas Teknologi Informasi
                 Universitas Kristen Satya Wacana.
               </p>
               <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-4">
-                Tim kami terdiri dari profesional yang berdedikasi untuk memastikan semua peralatan laboratorium 
+                Tim kami terdiri dari mahasiswa part-time yang berdedikasi untuk memastikan semua peralatan laboratorium 
                 berfungsi dengan baik, menyediakan dukungan teknis untuk kegiatan akademik, dan membantu 
                 mahasiswa serta dosen dalam memanfaatkan fasilitas laboratorium secara optimal.
               </p>
@@ -160,7 +160,7 @@ const Tentang: React.FC = () => {
         </div>
         <div className="p-6">
           <p className="text-gray-600 dark:text-gray-300 mb-6">
-            CORE.FTI dikembangkan oleh tim laboran mahasiswa yang sedang melakukan proyek lintas teknologi. 
+            CORE.FTI dikembangkan oleh tim laboran mahasiswa yang sedang melakukan proyek untuk internal Sarpras. 
             Kami berkomitmen untuk terus mengembangkan dan menyempurnakan sistem ini demi kenyamanan 
             seluruh civitas akademika FTI UKSW.
           </p>
@@ -258,65 +258,9 @@ const Tentang: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            {/* Developer 3 */}
-            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6 border border-gray-200 dark:border-gray-600">
-              <div className="flex items-start space-x-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-rose-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
-                  DA
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-bold text-gray-900 dark:text-white">Blackbox AI & Gemini AI</h4>
-                  <p className="text-sm text-pink-600 dark:text-pink-400 font-medium">Project Manager</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Large Language Model AI</p>
-                </div>
-              </div>
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
-                  Manager utama pengembangan proyek.
-                </p>
-                <div className="flex space-x-3">
-                  <a 
-                    href="https://dribbble.com" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center space-x-1 text-sm text-gray-600 dark:text-gray-400 hover:text-pink-600 dark:hover:text-pink-400 transition-colors"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    <span>Dribbble</span>
-                  </a>
-                  <a 
-                    href="https://linkedin.com" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center space-x-1 text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                  >
-                    <Linkedin className="w-4 h-4" />
-                    <span>LinkedIn</span>
-                  </a>
-                  <a 
-                    href="mailto:dewi.aprilia@uksw.edu"
-                    className="flex items-center space-x-1 text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                  >
-                    <Mail className="w-4 h-4" />
-                    <span>Email</span>
-                  </a>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <div className="text-center py-6 border-t border-gray-200 dark:border-gray-700">
-        <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center justify-center">
-          Dibuat dengan <Heart className="w-4 h-4 mx-1 text-red-500 fill-current" /> oleh Tim Pengembang CORE.FTI
-        </p>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-          © {new Date().getFullYear()} CORE.FTI - Campus Operational Resource Environment. All rights reserved.
-        </p>
-      </div>
     </div>
   );
 };

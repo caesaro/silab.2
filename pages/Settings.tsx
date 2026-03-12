@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Database, Server, Globe, Save, RefreshCw, Eye, EyeOff, CheckCircle, AlertCircle, ShieldAlert, Power, Megaphone, Download, Upload, FileText, FileWarning, ChevronDown, ChevronUp, X, Check, Filter, Trash2, AlertTriangle, Info, CheckSquare, Square, Activity, Users, Package, Calendar, HardDrive, Clock, ExternalLink, Settings as SettingsIcon } from 'lucide-react';
+import { Database, Server, Globe, Save, RefreshCw, Eye, EyeOff, CheckCircle, AlertCircle, ShieldAlert, Power, Megaphone, Download, Upload, FileText, FileWarning, ChevronDown, ChevronUp, X, Check, Filter, Trash2, AlertTriangle, Info, CheckSquare, Square, Activity, Users, Package, Calendar, HardDrive, Clock, ExternalLink, Settings as SettingsIcon, LogIn } from 'lucide-react';
 import { api } from '../services/api';
 
 interface SettingsProps {
@@ -45,7 +45,6 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
   const [activeTab, setActiveTab] = useState<'admin' | 'sso' | 'sso-users' | 'system' | 'error-log'>('admin');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showClientSecret, setShowClientSecret] = useState(false);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [announcement, setAnnouncement] = useState({
     active: false,
@@ -56,7 +55,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // SSO Users State
-  const [ssoUsers, setSsoUsers] = useState<{id: string; email: string; name: string; status: string}[]>([]);
+  const [ssoUsers, setSsoUsers] = useState<{id: string; email: string; name: string; status: string; createdAt: string; updatedAt: string}[]>([]);
   const [isLoadingSsoUsers, setIsLoadingSsoUsers] = useState(false);
   const [showSsoUserModal, setShowSsoUserModal] = useState(false);
   const [editingSsoUser, setEditingSsoUser] = useState<{id: string; email: string; name: string; status: string} | null>(null);
@@ -92,9 +91,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
   const [ssoConfig, setSsoConfig] = useState({
     enabled: true,
     clientId: '782934-google-client-id-sample.apps.googleusercontent.com',
-    clientSecret: 'GOCSPX-sample-secret-key',
-    redirectUri: 'https://core.fti.uksw.edu/auth/google/callback',
-    domain: 'student.uksw.edu',
+    domain: 'uksw.edu,student.uksw.edu,students.uksw.edu',
   });
 
   // Fetch System Settings
@@ -119,9 +116,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
           setSsoConfig({
             enabled: ssoData.enabled ?? true,
             clientId: ssoData.clientId || '',
-            clientSecret: ssoData.clientSecret || '',
-            redirectUri: ssoData.redirectUri || 'https://core.fti.uksw.edu/auth/google/callback',
-            domain: ssoData.domain || 'student.uksw.edu'
+            domain: ssoData.domain || 'uksw.edu,student.uksw.edu,students.uksw.edu'
           });
         }
       } catch (e) {
@@ -167,6 +162,21 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
     };
 
     fetchServerStats();
+  }, [activeTab]);
+
+  // Fetch SSO Users
+  useEffect(() => {
+    if (activeTab === 'sso-users') {
+      const fetchSsoUsers = async () => {
+        setIsLoadingSsoUsers(true);
+        try {
+          const res = await api('/api/sso-users');
+          if (res.ok) setSsoUsers(await res.json());
+        } catch (e) { console.error(e); }
+        setIsLoadingSsoUsers(false);
+      };
+      fetchSsoUsers();
+    }
   }, [activeTab]);
 
   // Fetch Error Logs with new API
@@ -299,8 +309,6 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
         data: {
           enabled: ssoConfig.enabled,
           clientId: ssoConfig.clientId,
-          clientSecret: ssoConfig.clientSecret,
-          redirectUri: ssoConfig.redirectUri,
           domain: ssoConfig.domain
         }
       });
@@ -423,6 +431,17 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
         >
           <Globe className="w-4 h-4 mr-2" />
           Google SSO
+        </button>
+        <button
+          onClick={() => setActiveTab('sso-users')}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center ${
+            activeTab === 'sso-users'
+              ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-white shadow-sm'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          <Users className="w-4 h-4 mr-2" />
+          User Log
         </button>
         <button
           onClick={() => setActiveTab('system')}
@@ -645,19 +664,6 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Google Client ID</label>
                    <input type="text" required={ssoConfig.enabled} value={ssoConfig.clientId} onChange={e => setSsoConfig({...ssoConfig, clientId: e.target.value})} className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 font-mono" />
                 </div>
-                <div>
-                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Google Client Secret</label>
-                   <div className="relative">
-                      <input type={showClientSecret ? "text" : "password"} required={ssoConfig.enabled} value={ssoConfig.clientSecret} onChange={e => setSsoConfig({...ssoConfig, clientSecret: e.target.value})} className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 font-mono pr-10" />
-                      <button type="button" onClick={() => setShowClientSecret(!showClientSecret)} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                         {showClientSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                   </div>
-                </div>
-                <div>
-                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Authorized Redirect URI</label>
-                   <input type="text" value={ssoConfig.redirectUri} readOnly className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg text-gray-500 dark:text-gray-300 font-mono cursor-not-allowed" />
-                </div>
              </div>
              <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
                 <button type="submit" disabled={isLoading} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center">
@@ -666,6 +672,57 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
                 </button>
              </div>
           </form>
+        </div>
+      )}
+
+      {/* SSO Users / Activity Log Tab */}
+      {activeTab === 'sso-users' && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden animate-fade-in-up">
+           <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+             <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
+                   <LogIn className="w-5 h-5 mr-2 text-blue-500" /> Log Aktivitas SSO
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Daftar pengguna yang login menggunakan Google Workspace.</p>
+             </div>
+             <button onClick={() => { setIsLoadingSsoUsers(true); setTimeout(() => { setIsLoadingSsoUsers(false); }, 500); }} className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                <RefreshCw className={`w-4 h-4 ${isLoadingSsoUsers ? 'animate-spin' : ''}`} />
+             </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 font-medium">
+                <tr>
+                  <th className="px-6 py-4">Nama Pengguna</th>
+                  <th className="px-6 py-4">Email Google</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Terakhir Login</th>
+                  <th className="px-6 py-4">Pertama Bergabung</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {ssoUsers.length > 0 ? ssoUsers.map(user => (
+                  <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                      {user.name}
+                    </td>
+                    <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
+                      {user.email}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${user.status === 'Aktif' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800'}`}>
+                        {user.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-gray-600 dark:text-gray-400">{new Date(user.updatedAt).toLocaleString('id-ID')}</td>
+                    <td className="px-6 py-4 text-gray-500 dark:text-gray-500 text-xs">{new Date(user.createdAt).toLocaleDateString('id-ID')}</td>
+                  </tr>
+                )) : (
+                  <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">Belum ada aktivitas login SSO.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -1016,4 +1073,3 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
 };
 
 export default Settings;
-

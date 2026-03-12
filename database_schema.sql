@@ -413,16 +413,14 @@ CREATE TABLE sso_config (
     id SERIAL PRIMARY KEY,
     enabled BOOLEAN DEFAULT TRUE,
     client_id VARCHAR(255),
-    client_secret VARCHAR(255), -- Should be encrypted in production
-    redirect_uri VARCHAR(255),
     domain VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Insert default SSO config
-INSERT INTO sso_config (enabled, client_id, client_secret, redirect_uri, domain) 
-VALUES (TRUE, '782934-google-client-id-sample.apps.googleusercontent.com', 'GOCSPX-sample-secret-key', 'https://silab.fti.uksw.edu/auth/google/callback', 'student.uksw.edu');
+INSERT INTO sso_config (enabled, client_id, domain) 
+VALUES (TRUE, '828476305239-7hilvfjvadt8ndn9br7n1upmdso38ou8.apps.googleusercontent.com', 'uksw.edu,student.uksw.edu,students.uksw.edu');
 
 -- 16. Tabel SSO Users (Pengguna Google SSO yang Diizinkan)
 -- Menyimpan data pengguna yang dapat login menggunakan Google Workspace

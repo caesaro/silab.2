@@ -16,6 +16,13 @@ import { Role } from "../types";
 import fti from "../src/assets/Gedung.jpg";
 import nocLogo from "../src/assets/NOC.svg";
 import { api } from "../services/api";
+import { CLIENT_ID } from "../src/config/google";
+
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 
 interface LoginProps {
   onLogin: (role: Role) => void;
@@ -42,6 +49,7 @@ const Login: React.FC<LoginProps> = ({
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [ssoEnabled, setSsoEnabled] = useState(true);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -94,6 +102,22 @@ const Login: React.FC<LoginProps> = ({
     fetchSsoConfig();
   }, []);
 
+  // Load Google Script
+  useEffect(() => {
+    if (ssoEnabled && typeof window.google === 'undefined') {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+  }, [ssoEnabled]);
+
+  // Function to get Device ID
+  const getDeviceId = () => {
+    return localStorage.getItem("deviceId") || `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -126,12 +150,8 @@ const Login: React.FC<LoginProps> = ({
 
     try {
       // Get stored deviceId or generate new one
-      let deviceId = localStorage.getItem("deviceId");
-      if (!deviceId) {
-        // Generate a simple device ID based on browser fingerprint
-        deviceId = `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        localStorage.setItem("deviceId", deviceId);
-      }
+      let deviceId = getDeviceId();
+      if (!localStorage.getItem("deviceId")) localStorage.setItem("deviceId", deviceId);
 
       // Menggunakan wrapper 'api' (Header & URL otomatis dihandle)
       const response = await api("/api/login", {
@@ -345,6 +365,57 @@ const Login: React.FC<LoginProps> = ({
     }
   };
 
+  const handleGoogleLogin = () => {
+    if (!window.google) {
+      showToast("Google Services belum siap. Coba refresh halaman.", "warning");
+      return;
+    }
+
+    setIsGoogleLoading(true);
+
+    const client = window.google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+      callback: async (tokenResponse: any) => {
+        if (tokenResponse && tokenResponse.access_token) {
+          try {
+            // Send Access Token to Backend
+            const deviceId = getDeviceId();
+            if (!localStorage.getItem("deviceId")) localStorage.setItem("deviceId", deviceId);
+
+            const res = await api('/api/auth/google', {
+              method: 'POST',
+              data: { 
+                accessToken: tokenResponse.access_token,
+                deviceId: deviceId
+              }
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+               localStorage.setItem("authToken", data.token);
+               localStorage.setItem("userId", data.id);
+               localStorage.setItem("userName", data.name);
+               if (!localStorage.getItem("deviceId")) localStorage.setItem("deviceId", deviceId);
+               
+               showToast(`Login berhasil sebagai ${data.name}`, "success");
+               onLogin(data.role as Role);
+            } else {
+               showToast(data.error || "Gagal login dengan Google.", "error");
+            }
+          } catch (err) {
+            console.error("Google Backend Error:", err);
+            showToast("Gagal memproses login Google di server.", "error");
+          }
+        }
+        setIsGoogleLoading(false);
+      },
+    });
+
+    client.requestAccessToken();
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col lg:flex-row font-sans relative">
       {/* Dark Mode Toggle */}
@@ -519,8 +590,9 @@ const Login: React.FC<LoginProps> = ({
 
                     <div className="mt-6">
                       <button
-                        onClick={() => onLogin(Role.USER)}
-                        className="w-full flex items-center justify-center px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm bg-white dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                        type="button"
+                        onClick={handleGoogleLogin}
+                        className="w-full flex items-center justify-center px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm bg-white dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-70"
                       >
                         <svg
                           className="h-5 w-5 mr-3"
@@ -544,7 +616,7 @@ const Login: React.FC<LoginProps> = ({
                             fill="#EA4335"
                           />
                         </svg>
-                        Google Workspace
+                        {isGoogleLoading ? 'Menghubungkan...' : 'Google Workspace'}
                       </button>
                     </div>
                   </>

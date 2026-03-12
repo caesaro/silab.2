@@ -18,6 +18,9 @@ const { Pool } = pg;
 const app = express();
 const port = 5000; // Menggunakan port 5000 agar tidak bentrok dengan React (3000)
 
+// Trust Proxy: Agar Express bisa membaca IP asli user dari Nginx (X-Forwarded-For)
+app.set('trust proxy', 1);
+
 // --- Security Middlewares ---
 
 // 1. Set various HTTP headers for security
@@ -34,6 +37,7 @@ const allowedOrigins = [
   'http://192.168.68.197:5173',
   'https://localhost:5173',
   'https://localhost:3000',
+  'https://core.fti.uksw.edu',
 ]; // Tambahkan URL frontend production Anda di sini
 
 app.use(cors({
@@ -209,7 +213,8 @@ app.get('/', (req, res) => {
 // Endpoint untuk mengambil data users
 app.get('/api/users', verifyRole(['Admin', 'Laboran']), async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM users ORDER BY created_at DESC');
+    // Sort by last_login agar user yang baru aktif (Internal/SSO) muncul paling atas
+    const result = await pool.query('SELECT * FROM users ORDER BY last_login DESC NULLS LAST, created_at DESC');
     
     // Mapping data dari format Database ke format Frontend
     const users = result.rows.map(row => ({
@@ -428,6 +433,122 @@ app.post('/api/login', async (req, res) => {
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Terjadi kesalahan pada server.' });
+  }
+});
+
+// **[BARU]** Endpoint Google SSO Login (Updated for Production Security)
+app.post('/api/auth/google', async (req, res) => {
+  const { accessToken, deviceId } = req.body;
+
+  if (!accessToken) {
+    return res.status(400).json({ error: 'Access Token diperlukan.' });
+  }
+
+  try {
+    // 1. Ambil konfigurasi SSO
+    const configRes = await pool.query('SELECT * FROM sso_config LIMIT 1');
+    const config = configRes.rows[0];
+
+    if (!config || !config.enabled) {
+      return res.status(403).json({ error: 'SSO Login dinonaktifkan oleh administrator.' });
+    }
+
+    // 2. [SECURITY CHECK] Verifikasi Token & Client ID via TokenInfo
+    // Ini penting untuk production agar token dari aplikasi lain tidak bisa dipakai login kesini
+    const tokenInfoRes = await fetch(`https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${accessToken}`);
+    
+    if (!tokenInfoRes.ok) {
+      return res.status(401).json({ error: 'Token Google tidak valid atau kadaluarsa.' });
+    }
+
+    const tokenInfo = await tokenInfoRes.json();
+
+    // Pastikan token ini diterbitkan KHUSUS untuk Client ID aplikasi kita
+    if (tokenInfo.aud !== config.client_id) {
+      console.error(`SSO Security Alert: Token audience mismatch. Expected ${config.client_id}, got ${tokenInfo.aud}`);
+      return res.status(403).json({ error: 'Validasi keamanan gagal. Token tidak dikenali.' });
+    }
+
+    // 3. Ambil Info Detail User (Nama, Foto) via UserInfo
+    const googleRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    if (!googleRes.ok) {
+      return res.status(401).json({ error: 'Token Google tidak valid.' });
+    }
+
+    const googleUser = await googleRes.json();
+    const { email, name, sub: googleId, picture } = googleUser;
+
+    // **[BARU]** Sinkronisasi ke tabel sso_users (agar muncul di Manajemen User > Tab SSO)
+    // Menggunakan ON CONFLICT (email) agar data terupdate jika user sudah ada
+    const ssoId = `SSO-${Date.now()}`;
+    await pool.query(
+      `INSERT INTO sso_users (id, email, name, status, updated_at)
+       VALUES ($1, $2, $3, 'Aktif', NOW())
+       ON CONFLICT (email) DO UPDATE SET
+       name = EXCLUDED.name, updated_at = NOW()`,
+      [ssoId, email, name]
+    );
+
+    // 4. Validasi Domain (Support multiple domains, separated by comma)
+    if (config.domain) {
+      const allowedDomains = config.domain.split(',').map(d => d.trim());
+      const isAllowed = allowedDomains.some(domain => email.endsWith(`@${domain}`));
+      
+      if (!isAllowed) {
+        return res.status(403).json({ error: `Akses ditolak. Email harus menggunakan domain: ${allowedDomains.join(', ')}` });
+      }
+    }
+
+    // 5. Cek apakah user sudah ada di database
+    const userCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    let user = userCheck.rows[0];
+
+    if (!user) {
+      // --- AUTO REGISTER USER BARU ---
+      const newId = `USER-${Date.now()}`;
+      const username = email.split('@')[0]; // Gunakan bagian depan email sebagai username
+      
+      // Insert User Baru (Role: User, Status: Aktif)
+      const insertQuery = `
+        INSERT INTO users (id, nama, email, username, password, role, identifier, status, created_at)
+        VALUES ($1, $2, $3, $4, NULL, 'User', $5, 'Aktif', NOW())
+        RETURNING *
+      `;
+      // Identifier default menggunakan bagian depan email jika tidak ada info lain
+      const newUserRes = await pool.query(insertQuery, [newId, name, email, username, username]);
+      user = newUserRes.rows[0];
+
+      // Buat Notifikasi untuk Admin (Info user baru via SSO)
+      const notifId = `NOTIF-${Date.now()}`;
+      await pool.query(
+        "INSERT INTO notifications (id, user_id, title, message, type) VALUES ($1, NULL, $2, $3, 'info')",
+        [notifId, 'User Baru via SSO', `User ${name} (${email}) telah mendaftar otomatis via Google SSO.`]
+      );
+    } else {
+      // Jika user ada tapi status Non-Aktif
+      if (user.status !== 'Aktif') {
+        return res.status(403).json({ error: 'Akun Anda dinonaktifkan. Hubungi Admin.' });
+      }
+      // Update last login
+      await pool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
+    }
+
+    // 6. Generate Token JWT (Sama seperti login biasa)
+    const tokenPayload = { 
+      id: user.id, 
+      role: user.role,
+      jti: crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex')
+    };
+    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '8h' });
+    const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000);
+
+    res.json({ success: true, token, id: user.id, role: user.role, name: user.nama, expiresAt: expiresAt.toISOString() });
+  } catch (err) {
+    console.error('SSO Login Error:', err);
+    res.status(500).json({ error: 'Terjadi kesalahan saat login dengan Google.' });
   }
 });
 
@@ -2629,14 +2750,12 @@ app.get('/api/settings/sso-config', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM sso_config LIMIT 1');
     if (result.rows.length === 0) {
-      return res.json({ enabled: false, clientId: '', clientSecret: '', redirectUri: '', domain: '' });
+      return res.json({ enabled: false, clientId: '', domain: '' });
     }
     const config = result.rows[0];
     res.json({
       enabled: config.enabled,
       clientId: config.client_id,
-      clientSecret: config.client_secret,
-      redirectUri: config.redirect_uri,
       domain: config.domain
     });
   } catch (err) {
@@ -2647,7 +2766,7 @@ app.get('/api/settings/sso-config', async (req, res) => {
 
 // Save SSO Config
 app.post('/api/settings/sso-config', async (req, res) => {
-  const { enabled, clientId, clientSecret, redirectUri, domain } = req.body;
+  const { enabled, clientId, domain } = req.body;
   try {
     // Check if config exists
     const existing = await pool.query('SELECT id FROM sso_config LIMIT 1');
@@ -2655,14 +2774,14 @@ app.post('/api/settings/sso-config', async (req, res) => {
     if (existing.rows.length > 0) {
       // Update existing
       await pool.query(
-        'UPDATE sso_config SET enabled = $1, client_id = $2, client_secret = $3, redirect_uri = $4, domain = $5, updated_at = CURRENT_TIMESTAMP WHERE id = $6',
-        [enabled, clientId, clientSecret, redirectUri, domain, existing.rows[0].id]
+        'UPDATE sso_config SET enabled = $1, client_id = $2, domain = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4',
+        [enabled, clientId, domain, existing.rows[0].id]
       );
     } else {
       // Insert new
       await pool.query(
-        'INSERT INTO sso_config (enabled, client_id, client_secret, redirect_uri, domain) VALUES ($1, $2, $3, $4, $5)',
-        [enabled, clientId, clientSecret, redirectUri, domain]
+        'INSERT INTO sso_config (enabled, client_id, domain) VALUES ($1, $2, $3)',
+        [enabled, clientId, domain]
       );
     }
     
@@ -2676,9 +2795,10 @@ app.post('/api/settings/sso-config', async (req, res) => {
 // --- SSO USERS API (Pengguna SSO yang Diizinkan) ---
 
 // Get All SSO Users
-app.get('/api/sso-users', async (req, res) => {
+app.get('/api/sso-users', verifyRole(['Admin']), async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM sso_users ORDER BY created_at DESC');
+    // Sort by updated_at (Waktu Login Terakhir)
+    const result = await pool.query('SELECT * FROM sso_users ORDER BY updated_at DESC');
     const users = result.rows.map(row => ({
       id: row.id,
       email: row.email,
