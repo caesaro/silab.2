@@ -427,7 +427,9 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({ addNotification, showToas
     const matchesSearch = b.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       b.purpose.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'All' || b.status === filterStatus;
-    const matchesDate = !filterDate || b.date === filterDate;
+    
+    // Cek tanggal di semua jadwal (schedules)
+    const matchesDate = !filterDate || (b.schedules && b.schedules.some((s: any) => new Date(s.date).toLocaleDateString('en-CA') === filterDate)) || b.date === filterDate;
     return matchesSearch && matchesStatus && matchesDate;
   });
 
@@ -533,10 +535,16 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({ addNotification, showToas
                     <div className="font-medium text-gray-900 dark:text-white mb-1 flex items-center">
                       <MapPin className="w-3 h-3 mr-1 text-gray-400" /> {getRoomName(booking.roomId)}
                     </div>
-                    <div className="flex flex-col space-y-0.5 text-xs text-gray-500">
-                      <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {booking.date}</span>
-                      <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {booking.startTime} - {booking.endTime}</span>
-                    </div>
+                    {booking.schedules && booking.schedules.length > 1 ? (
+                       <div className="flex items-center text-xs text-blue-600 dark:text-blue-400 font-medium mt-1">
+                          <Calendar className="w-3 h-3 mr-1" /> {booking.schedules.length} Jadwal (Lihat Detail)
+                       </div>
+                    ) : (
+                        <div className="flex flex-col space-y-0.5 text-xs text-gray-500">
+                          <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> {booking.date}</span>
+                          <span className="flex items-center"><Clock className="w-3 h-3 mr-1" /> {booking.startTime} - {booking.endTime}</span>
+                        </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-gray-800 dark:text-gray-200 max-w-xs">
                     <p className="line-clamp-2" title={booking.purpose}>{booking.purpose}</p>
@@ -659,18 +667,24 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({ addNotification, showToas
                       <p className="text-sm font-medium text-gray-900 dark:text-white">{getRoomName(selectedBooking.roomId)}</p>
                     </div>
                   </div>
-                  <div className="flex items-start">
-                    <Calendar className="w-5 h-5 text-gray-400 mr-3 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedBooking.date}</p>
+                  
+                  {/* Tampilkan List Jadwal di Modal Detail */}
+                  <div className="space-y-2">
+                    <h5 className="text-xs font-bold text-gray-500 uppercase flex items-center"><Calendar className="w-4 h-4 mr-1"/> Jadwal Pemakaian</h5>
+                    <div className="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
+                        {selectedBooking.schedules && selectedBooking.schedules.length > 0 ? (
+                            selectedBooking.schedules.map((sch: any, idx: number) => (
+                                <div key={idx} className="px-3 py-2 text-sm flex justify-between border-b border-gray-100 dark:border-gray-600 last:border-0 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                    <span className="text-gray-800 dark:text-gray-200">{new Date(sch.date).toLocaleDateString('id-ID', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})}</span>
+                                    <span className="font-mono text-xs text-gray-500 dark:text-gray-400 ml-2">{sch.startTime?.slice(0,5)} - {sch.endTime?.slice(0,5)}</span>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="px-3 py-2 text-sm text-gray-500">{selectedBooking.date} {selectedBooking.startTime} - {selectedBooking.endTime}</div>
+                        )}
                     </div>
                   </div>
-                  <div className="flex items-start">
-                    <Clock className="w-5 h-5 text-gray-400 mr-3 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedBooking.startTime} - {selectedBooking.endTime}</p>
-                    </div>
-                  </div>
+
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Keperluan:</p>
                     <p className="text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-700 p-2 rounded border border-gray-100 dark:border-gray-600">

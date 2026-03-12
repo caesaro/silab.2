@@ -1742,14 +1742,12 @@ app.get('/api/bookings', async (req, res) => {
         const result = await pool.query(`
             SELECT b.*, u.nama as user_name, r.name as room_name, 
                    (SELECT string_agg(s.nama, ', ') FROM staff s WHERE s.id = ANY(b.tech_support_pic)) as tech_pic_name,
-                   bs.schedule_date, bs.start_time, bs.end_time,
                    (SELECT json_agg(json_build_object('date', bs2.schedule_date, 'startTime', bs2.start_time, 'endTime', bs2.end_time) ORDER BY bs2.schedule_date)
                     FROM booking_schedules bs2 
                     WHERE bs2.booking_id = b.id) as all_schedules
             FROM bookings b
             JOIN users u ON b.user_id = u.id
             JOIN rooms r ON b.room_id = r.id
-            LEFT JOIN booking_schedules bs ON b.id = bs.booking_id
             ORDER BY b.created_at DESC
         `);
         
@@ -1761,9 +1759,10 @@ app.get('/api/bookings', async (req, res) => {
             responsiblePerson: row.penanggung_jawab,
             contactPerson: row.contact_person,
             purpose: row.keperluan,
-            date: row.schedule_date ? new Date(row.schedule_date).toLocaleDateString('en-CA') : '',
-            startTime: row.start_time ? row.start_time.substring(0, 5) : '',
-            endTime: row.end_time ? row.end_time.substring(0, 5) : '',
+            // Ambil jadwal pertama sebagai default display
+            date: (row.all_schedules && row.all_schedules.length > 0) ? new Date(row.all_schedules[0].date).toLocaleDateString('en-CA') : '',
+            startTime: (row.all_schedules && row.all_schedules.length > 0) ? row.all_schedules[0].startTime.substring(0, 5) : '',
+            endTime: (row.all_schedules && row.all_schedules.length > 0) ? row.all_schedules[0].endTime.substring(0, 5) : '',
             schedules: row.all_schedules || [], // All schedules as array
             status: row.status,
             proposalFile: row.file_proposal ? `data:application/pdf;base64,${row.file_proposal.toString('base64')}` : null,

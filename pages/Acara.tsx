@@ -141,8 +141,12 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
                 </h3>
                 <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                     <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-2 text-gray-400" />
-                        <span>{event.date}, {event.startTime} - {event.endTime}</span>
+                        <Clock className="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" />
+                        {event.schedules && event.schedules.length > 1 ? (
+                           <span>{event.schedules.length} Jadwal (Lihat Detail)</span>
+                        ) : (
+                           <span>{event.date}, {event.startTime} - {event.endTime}</span>
+                        )}
                     </div>
                     <div className="flex items-center">
                         <MapPin className="w-4 h-4 mr-2 text-gray-400" />
@@ -183,12 +187,33 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
                         <div>
                             <h4 className="text-sm font-semibold text-gray-500 uppercase mb-2">Informasi Utama</h4>
                             <p className="font-bold text-lg text-gray-900 dark:text-white mb-1">{selectedEvent.purpose}</p>
-                            <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center mt-2">
-                                <Calendar className="w-4 h-4 mr-2" /> {selectedEvent.date}
-                            </p>
-                            <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center mt-1">
-                                <Clock className="w-4 h-4 mr-2" /> {selectedEvent.startTime} - {selectedEvent.endTime}
-                            </p>
+                            
+                            <div className="mt-3 space-y-2">
+                                {selectedEvent.schedules && selectedEvent.schedules.length > 0 ? (
+                                    selectedEvent.schedules.map((sch: any, idx: number) => (
+                                        <div key={idx} className="flex flex-col sm:flex-row sm:items-center text-sm text-gray-600 dark:text-gray-300">
+                                            <div className="flex items-center min-w-[150px]">
+                                                <Calendar className="w-4 h-4 mr-2 text-gray-400" />
+                                                <span>{new Date(sch.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                                            </div>
+                                            <div className="flex items-center mt-1 sm:mt-0 sm:ml-4">
+                                                <Clock className="w-4 h-4 mr-2 text-gray-400" />
+                                                <span>{sch.startTime?.slice(0,5)} - {sch.endTime?.slice(0,5)} WIB</span>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <>
+                                        <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center mt-2">
+                                            <Calendar className="w-4 h-4 mr-2" /> {selectedEvent.date}
+                                        </p>
+                                        <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center mt-1">
+                                            <Clock className="w-4 h-4 mr-2" /> {selectedEvent.startTime} - {selectedEvent.endTime}
+                                        </p>
+                                    </>
+                                )}
+                            </div>
+
                             <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center mt-1">
                                 <MapPin className="w-4 h-4 mr-2" /> {getRoomName(selectedEvent.roomId)}
                             </p>
@@ -292,10 +317,30 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
                                             <div className="bg-blue-50 dark:bg-blue-900/30 p-2 rounded-lg mr-3">
                                                 <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                                             </div>
-                                            <div>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Waktu Pelaksanaan</p>
-                                                <p className="text-sm font-bold text-gray-900 dark:text-white">{selectedEvent.date}</p>
-                                                <p className="text-sm text-gray-700 dark:text-gray-300">{selectedEvent.startTime} - {selectedEvent.endTime}</p>
+                                            <div className="w-full">
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1">Waktu Pelaksanaan</p>
+                                                {selectedEvent.schedules && selectedEvent.schedules.length > 0 ? (
+                                                    <div className="space-y-2">
+                                                        {selectedEvent.schedules.slice(0, 5).map((sch: any, idx: number) => (
+                                                            <div key={idx} className="border-b border-gray-100 dark:border-gray-800 last:border-0 pb-1 last:pb-0">
+                                                                <p className="text-sm font-bold text-gray-900 dark:text-white">
+                                                                    {new Date(sch.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })}
+                                                                </p>
+                                                                <p className="text-sm text-gray-700 dark:text-gray-300">
+                                                                    {sch.startTime?.slice(0,5)} - {sch.endTime?.slice(0,5)} WIB
+                                                                </p>
+                                                            </div>
+                                                        ))}
+                                                        {selectedEvent.schedules.length > 5 && (
+                                                            <p className="text-xs text-gray-500 italic">...dan {selectedEvent.schedules.length - 5} jadwal lainnya</p>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <p className="text-sm font-bold text-gray-900 dark:text-white">{selectedEvent.date}</p>
+                                                        <p className="text-sm text-gray-700 dark:text-gray-300">{selectedEvent.startTime} - {selectedEvent.endTime}</p>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     )}
