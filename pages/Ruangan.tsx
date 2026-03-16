@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Room, Role, BookingStatus, Booking, RoomComputer, Software } from '../types';
-import { Search, MapPin, Users, Wifi, Edit2, Trash2, Calendar, Eye, Check, Plus, Upload, Loader2, ArrowUpDown, ExternalLink, FileText, User, LogIn, RefreshCw, Clock, ChevronRight, X, Monitor, Cpu, HardDrive, Keyboard, Mouse, Download, FileSpreadsheet, ChevronLeft, Package } from 'lucide-react';
+import { Search, MapPin, Users, Wifi, Edit2, Trash2, Calendar, Eye, Check, Plus, Upload, Loader2, ArrowUpDown, ExternalLink, FileText, User, LogIn, RefreshCw, Clock, ChevronRight, ChevronDown, X, Monitor, Cpu, HardDrive, Keyboard, Mouse, Download, FileSpreadsheet, ChevronLeft, Package, Filter } from 'lucide-react';
 import { api } from '../services/api';
 import SoftwareForm from '../components/SoftwareForm';
 import RoomForm from '../components/RoomForm';
@@ -42,20 +42,53 @@ interface LabStaff {
 }
 
 // Sub-component for 360 Thumbnail in List View
-const Room360Thumbnail: React.FC<{ room: Room }> = ({ room }) => {
+const Room360Thumbnail: React.FC<{ room: Room }> = React.memo(({ room }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
     const thumbnailRef = useRef<HTMLDivElement>(null);
     const viewerRef = useRef<any>(null);
+    const [isVisible, setIsVisible] = useState(false);
+    const [shouldLoadWebGL, setShouldLoadWebGL] = useState(false);
+
+    // Menggunakan Intersection Observer untuk mendeteksi apakah elemen ada di dalam layar
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                setIsVisible(entry.isIntersecting);
+            },
+            // Kurangi margin agar tidak memuat terlalu banyak instance WebGL saat scroll cepat
+            { rootMargin: '300px' } 
+        );
+
+        if (containerRef.current) {
+            observer.observe(containerRef.current);
+        }
+
+        return () => {
+            if (containerRef.current) {
+                observer.unobserve(containerRef.current);
+            }
+        };
+    }, []);
+
+    // Debounce: Tunggu 300ms sebelum me-load WebGL
+    // Mencegah lag parah saat user men-scroll halaman dari atas ke bawah dengan sangat cepat
+    useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (isVisible) {
+            timer = setTimeout(() => setShouldLoadWebGL(true), 300);
+        } else {
+            setShouldLoadWebGL(false);
+        }
+        return () => clearTimeout(timer);
+    }, [isVisible]);
 
     useEffect(() => {
-        if (thumbnailRef.current && window.pannellum) {
+        // Hanya render (load) Pannellum jika shouldLoadWebGL === true
+        if (shouldLoadWebGL && thumbnailRef.current && window.pannellum) {
             const uniqueId = `pannellum-thumb-${room.id}`;
             thumbnailRef.current.id = uniqueId;
 
             try {
-                if (viewerRef.current) {
-                    try { viewerRef.current.destroy(); } catch(e) {}
-                }
-
                 viewerRef.current = window.pannellum.viewer(uniqueId, {
                     type: 'equirectangular',
                     panorama: room.image,
@@ -71,6 +104,15 @@ const Room360Thumbnail: React.FC<{ room: Room }> = ({ room }) => {
             } catch (error) {
                 console.error("Pannellum error:", error);
             }
+        } else {
+            // Unload viewer dan hapus instance WebGL ketika elemen keluar dari layar
+            if (viewerRef.current) {
+                try { viewerRef.current.destroy(); } catch(e) {}
+                viewerRef.current = null;
+            }
+            if (thumbnailRef.current) {
+                thumbnailRef.current.innerHTML = '';
+            }
         }
         
         return () => {
@@ -83,7 +125,7 @@ const Room360Thumbnail: React.FC<{ room: Room }> = ({ room }) => {
                 viewerRef.current = null;
             }
         };
-    }, [room.id, room.image]);
+    }, [room.id, room.image, shouldLoadWebGL]);
 
     const handleMouseEnter = () => {
         if (viewerRef.current) {
@@ -99,19 +141,31 @@ const Room360Thumbnail: React.FC<{ room: Room }> = ({ room }) => {
 
     return (
         <div 
-            className="w-full h-full relative group cursor-pointer" 
+            ref={containerRef}
+            className="w-full h-full relative group cursor-pointer overflow-hidden bg-gray-200" 
             onClick={(e) => e.stopPropagation()}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
         >
-            <div ref={thumbnailRef} className="w-full h-full bg-gray-200" />
+            {/* Gambar statis sebagai placeholder (Cache Visual) */}
+            <div 
+                className="absolute inset-0 w-full h-full"
+                style={{
+                    backgroundImage: `url(${room.image})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                }}
+            />
             
-            <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop items-center z--blur-sm flex20 pointer-events-none">
+            {/* Kontainer Pannellum */}
+            <div ref={thumbnailRef} className="absolute inset-0 w-full h-full z-10" />
+            
+            <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm flex items-center z-20 pointer-events-none">
                   <MapPin className="w-3 h-3 mr-1"/> {room.floor || 'Lantai 4'}
             </div>
         </div>
     );
-};
+});
 
 const getCategoryColor = (category?: string) => {
   switch (category) {
@@ -147,6 +201,7 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
   const [newFacilityInput, setNewFacilityInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'capacity'>('name');
+  const [filterCategory, setFilterCategory] = useState<string>('All');
   
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'detail' | 'booking' | 'form' | 'computers'>('list');
@@ -161,6 +216,9 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const [labStaff, setLabStaff] = useState<LabStaff[]>([]);
+
+  // Expand/Collapse state untuk lantai
+  const [collapsedFloors, setCollapsedFloors] = useState<Record<string, boolean>>({});
 
   // Pannellum Ref
   const panoramaRef = useRef<HTMLDivElement>(null);
@@ -192,16 +250,47 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
   // Filter Active Technicians for PIC Dropdown
   const activeTechnicians = labStaff; // API /api/staff already filters Active
 
+  const toggleFloor = (floor: string) => {
+    setCollapsedFloors(prev => ({
+      ...prev,
+      [floor]: !prev[floor]
+    }));
+  };
+
+  // Ekstrak daftar kategori unik dari data ruangan
+  const categories = Array.from(new Set(rooms.map(room => room.category || 'Umum'))).sort();
+
   // Filter & Sort Logic
   const filteredRooms = rooms
-    .filter(room => 
-      room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (room.description || '').toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    .filter(room => {
+      const matchesSearch = room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (room.description || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = filterCategory === 'All' || (room.category || 'Umum') === filterCategory;
+      return matchesSearch && matchesCategory;
+    })
     .sort((a, b) => {
       if (sortBy === 'name') return a.name.localeCompare(b.name);
       return b.capacity - a.capacity;
     });
+
+  // Mengelompokkan daftar ruangan yang sudah difilter berdasarkan Lantai
+  const groupedRooms = React.useMemo(() => {
+    const groups: Record<string, Room[]> = {};
+    filteredRooms.forEach(room => {
+      // Kelompokkan berdasarkan lantai, beri default jika kosong
+      const floor = room.floor || 'Lantai 4';
+      if (!groups[floor]) {
+        groups[floor] = [];
+      }
+      groups[floor].push(room);
+    });
+
+    // Urutkan nama lantai secara abjad (Lantai 1, Lantai 2, dst)
+    return Object.keys(groups).sort().map(floor => ({
+      floor,
+      rooms: groups[floor]
+    }));
+  }, [filteredRooms]);
 
   // Initialize Pannellum when viewing details
   useEffect(() => {
@@ -1103,6 +1192,20 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
             
             <div className="relative">
                 <select 
+                   value={filterCategory} 
+                   onChange={(e) => setFilterCategory(e.target.value)}
+                   className="pl-3 pr-8 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 dark:text-white appearance-none cursor-pointer"
+                >
+                   <option value="All">Semua Kategori</option>
+                   {categories.map(cat => (
+                     <option key={cat} value={cat}>{cat}</option>
+                   ))}
+                </select>
+                <Filter className="w-4 h-4 absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"/>
+            </div>
+
+            <div className="relative">
+                <select 
                    value={sortBy} 
                    onChange={(e) => setSortBy(e.target.value as 'name' | 'capacity')}
                    className="pl-3 pr-8 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 dark:text-white appearance-none cursor-pointer"
@@ -1122,9 +1225,29 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
       </div>
 
       {filteredRooms.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredRooms.map((room) => (
-            <div key={room.id} onClick={() => { setSelectedRoom(room); setViewMode('detail'); }} className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all flex flex-col group cursor-pointer">
+        <div className="space-y-10">
+          {groupedRooms.map((group) => (
+            <div key={group.floor} className="space-y-4">
+              {/* Header Lantai dengan Garis Pemisah (Divider) */}
+              <div 
+                className="flex items-center cursor-pointer group select-none" 
+                onClick={() => toggleFloor(group.floor)}
+              >
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 mr-3 transition-colors group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50">
+                  {collapsedFloors[group.floor] ? <ChevronRight className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                </div>
+                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{group.floor}</h2>
+                <div className="ml-4 flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+                <span className="ml-4 text-xs font-medium text-gray-500 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-1 rounded-full">
+                  {group.rooms.length} Ruangan
+                </span>
+              </div>
+              
+              {/* Grid Ruangan untuk Lantai Ini */}
+              {!collapsedFloors[group.floor] && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {group.rooms.map((room) => (
+                  <div key={room.id} onClick={() => { setSelectedRoom(room); setViewMode('detail'); }} className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all flex flex-col group cursor-pointer">
               <div className="h-48 overflow-hidden relative bg-gray-200">
                  {/* 360 Thumbnail Component */}
                  <Room360Thumbnail room={room} />
@@ -1191,6 +1314,10 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
                    </div>
                 </div>
               </div>
+            </div>
+                ))}
+              </div>
+              )}
             </div>
           ))}
         </div>
