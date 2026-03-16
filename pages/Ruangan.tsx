@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Room, Role, BookingStatus, Booking, RoomComputer, Software } from '../types';
-import { Search, MapPin, Users, Wifi, Edit2, Trash2, Calendar, Eye, Check, Plus, Upload, Loader2, ArrowUpDown, ExternalLink, FileText, User, LogIn, RefreshCw, Clock, ChevronRight, ChevronDown, X, Monitor, Cpu, HardDrive, Keyboard, Mouse, Download, FileSpreadsheet, ChevronLeft, Package, Filter } from 'lucide-react';
+import { Search, MapPin, Users, Wifi, Edit2, Trash2, Calendar, Eye, Check, Plus, Upload, Loader2, ArrowUpDown, ExternalLink, FileText, User, LogIn, RefreshCw, Clock, ChevronRight, ChevronDown, X, Monitor, Cpu, HardDrive, Keyboard, Mouse, Download, FileSpreadsheet, ChevronLeft, Package, Filter, Info } from 'lucide-react';
 import { api } from '../services/api';
 import SoftwareForm from '../components/SoftwareForm';
 import RoomForm from '../components/RoomForm';
@@ -48,6 +48,7 @@ const Room360Thumbnail: React.FC<{ room: Room }> = React.memo(({ room }) => {
     const viewerRef = useRef<any>(null);
     const [isVisible, setIsVisible] = useState(false);
     const [shouldLoadWebGL, setShouldLoadWebGL] = useState(false);
+    const [showActivity, setShowActivity] = useState(false);
 
     // Menggunakan Intersection Observer untuk mendeteksi apakah elemen ada di dalam layar
     useEffect(() => {
@@ -163,6 +164,37 @@ const Room360Thumbnail: React.FC<{ room: Room }> = React.memo(({ room }) => {
             <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm flex items-center z-20 pointer-events-none">
                   <MapPin className="w-3 h-3 mr-1"/> {room.floor || 'Lantai 4'}
             </div>
+            
+            <div 
+              onClick={(e) => {
+                if ((room as any).currentStatus === 'Digunakan') {
+                  e.stopPropagation();
+                  setShowActivity(!showActivity);
+                }
+              }}
+              className={`absolute top-2 left-2 text-white text-xs font-medium px-2 py-1 rounded backdrop-blur-sm flex items-center z-30 ${(room as any).currentStatus === 'Digunakan' ? 'bg-red-500/90 cursor-pointer pointer-events-auto shadow-sm hover:bg-red-600 transition-colors' : 'bg-green-500/80 pointer-events-none'}`}
+            >
+                  {(room as any).currentStatus || 'Tersedia'}
+                  {(room as any).currentStatus === 'Digunakan' && <Info className="w-3 h-3 ml-1.5 opacity-80" />}
+            </div>
+
+            {/* Popover/Tooltip Kegiatan */}
+            {showActivity && (room as any).currentStatus === 'Digunakan' && (
+              <div 
+                className="absolute top-10 left-2 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs p-3 rounded-lg shadow-xl z-40 w-56 border border-gray-200 dark:border-gray-700 animate-fade-in-up"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-1.5 mb-2">
+                  <span className="font-bold text-gray-900 dark:text-white uppercase tracking-wider text-[10px]">Sedang Berlangsung</span>
+                  <X className="w-3.5 h-3.5 cursor-pointer hover:text-red-500 transition-colors" onClick={() => setShowActivity(false)} />
+                </div>
+                <p className="font-medium text-blue-600 dark:text-blue-400 mb-1.5 leading-snug">{(room as any).currentActivity || 'Kegiatan tidak diketahui'}</p>
+                <p className="text-gray-500 flex items-center bg-gray-50 dark:bg-gray-700/50 p-1.5 rounded">
+                  <Clock className="w-3 h-3 mr-1" />
+                  Sampai: <span className="font-bold ml-1">{(room as any).currentActivityEnd ? ((room as any).currentActivityEnd as string).substring(0, 5) : 'Selesai'}</span> WIB
+                </p>
+              </div>
+            )}
         </div>
     );
 });
@@ -202,6 +234,7 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'capacity'>('name');
   const [filterCategory, setFilterCategory] = useState<string>('All');
+  const [filterStatus, setFilterStatus] = useState<'All' | 'Tersedia' | 'Digunakan'>('All');
   
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'detail' | 'booking' | 'form' | 'computers'>('list');
@@ -269,7 +302,7 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
   const toggleFloor = (floor: string) => {
     setCollapsedFloors(prev => ({
       ...prev,
-      [floor]: !prev[floor]
+      [floor]: prev[floor] === false
     }));
   };
 
@@ -282,7 +315,8 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
       const matchesSearch = room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             (room.description || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = filterCategory === 'All' || (room.category || 'Umum') === filterCategory;
-      return matchesSearch && matchesCategory;
+      const matchesStatus = filterStatus === 'All' || (room as any).currentStatus === filterStatus;
+      return matchesSearch && matchesCategory && matchesStatus;
     })
     .sort((a, b) => {
       if (sortBy === 'name') return a.name.localeCompare(b.name);
@@ -329,11 +363,18 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
     }
   }, [viewMode, selectedRoom]);
 
-  // Initialize Google API
+  // Fetch Initial Data & Setup Auto-Refresh
   useEffect(() => {
     fetchRooms();
     fetchStaff();
     fetchAllSoftware();
+
+    // Auto-refresh data ruangan setiap 1 menit (60000 ms) untuk memperbarui status Tersedia/Digunakan
+    const intervalId = setInterval(() => {
+      fetchRooms();
+    }, 60000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   const fetchRooms = async () => {
@@ -354,6 +395,15 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
             }
         });
         setAvailableFacilities(Array.from(allFacs).sort());
+
+            // Jika sedang membuka detail ruangan, update state selectedRoom agar status ketersediaannya ikut akurat
+            setSelectedRoom(prev => {
+                if (prev) {
+                    const updatedRoom = data.find(r => r.id === prev.id);
+                    return updatedRoom || prev;
+                }
+                return prev;
+            });
       }
     } catch (e) { console.error(e); }
   };
@@ -791,8 +841,12 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
                                 <span className="flex items-center"><MapPin className="w-4 h-4 mr-1"/> {selectedRoom.floor || 'Lantai 4'}</span>
                                 <span className="text-gray-300 dark:text-gray-600 hidden sm:inline">|</span>
                                 <span className="flex items-center"><Users className="w-4 h-4 mr-1"/> Kapasitas: {selectedRoom.capacity} Orang</span>
-                                <span className="text-gray-300 dark:text-gray-600 hidden sm:inline">|</span>
-                                <span className="flex items-center"><Monitor className="w-4 h-4 mr-1"/> {selectedRoom.computerCount || 0} Unit PC</span>
+                                {(selectedRoom.computerCount && selectedRoom.computerCount > 0) ? (
+                                    <>
+                                        <span className="text-gray-300 dark:text-gray-600 hidden sm:inline">|</span>
+                                        <span className="flex items-center"><Monitor className="w-4 h-4 mr-1"/> {selectedRoom.computerCount} Unit PC</span>
+                                    </>
+                                ) : null}
                                 <span className="text-gray-300 dark:text-gray-600 hidden sm:inline">|</span>
                                 <span>PIC: {selectedRoom.pic}</span>
                             </p>
@@ -1214,6 +1268,19 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
             
             <div className="relative">
                 <select 
+                   value={filterStatus} 
+                   onChange={(e) => setFilterStatus(e.target.value as any)}
+                   className="pl-3 pr-8 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 dark:text-white appearance-none cursor-pointer"
+                >
+                   <option value="All">Semua Status</option>
+                   <option value="Tersedia">Tersedia</option>
+                   <option value="Digunakan">Digunakan</option>
+                </select>
+                <Filter className="w-4 h-4 absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"/>
+            </div>
+
+            <div className="relative">
+                <select 
                    value={filterCategory} 
                    onChange={(e) => setFilterCategory(e.target.value)}
                    className="pl-3 pr-8 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 dark:text-white appearance-none cursor-pointer"
@@ -1249,14 +1316,14 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
       {filteredRooms.length > 0 ? (
         <div className="space-y-10">
           {groupedRooms.map((group) => (
-            <div key={group.floor} className="space-y-4">
+            <div key={group.floor}>
               {/* Header Lantai dengan Garis Pemisah (Divider) */}
               <div 
                 className="flex items-center cursor-pointer group select-none" 
                 onClick={() => toggleFloor(group.floor)}
               >
                 <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 mr-3 transition-colors group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50">
-                  {collapsedFloors[group.floor] ? <ChevronRight className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                  <ChevronRight className={`w-5 h-5 transition-transform duration-300 ${collapsedFloors[group.floor] !== false ? '' : 'rotate-90'}`} />
                 </div>
                 <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{group.floor}</h2>
                 <div className="ml-4 flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
@@ -1266,8 +1333,8 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
               </div>
               
               {/* Grid Ruangan untuk Lantai Ini */}
-              {!collapsedFloors[group.floor] && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {collapsedFloors[group.floor] === false && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4 pb-2 animate-fade-in-up">
                 {group.rooms.map((room) => (
                   <div key={room.id} onClick={() => { setSelectedRoom(room); setViewMode('detail'); }} className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all flex flex-col group cursor-pointer">
               <div className="h-48 overflow-hidden relative bg-gray-200">
@@ -1284,9 +1351,11 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
                         <span className="text-xs font-semibold px-2 py-1 bg-blue-100 text-blue-700 rounded dark:bg-blue-900/30 dark:text-blue-300">
                            Kap: {room.capacity}
                         </span>
-                        <span className="text-xs font-semibold px-2 py-1 bg-purple-100 text-purple-700 rounded dark:bg-purple-900/30 dark:text-purple-300">
-                           {room.computerCount || 0} PC
-                        </span>
+                        {(room.computerCount && room.computerCount > 0) ? (
+                            <span className="text-xs font-semibold px-2 py-1 bg-purple-100 text-purple-700 rounded dark:bg-purple-900/30 dark:text-purple-300">
+                               {room.computerCount} PC
+                            </span>
+                        ) : null}
                     </div>
                     {room.googleCalendarUrl && (
                       <span title="Kalender Tersinkronisasi">
@@ -1343,7 +1412,7 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
               </div>
             </div>
                 ))}
-              </div>
+                </div>
               )}
             </div>
           ))}

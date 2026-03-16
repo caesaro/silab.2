@@ -878,8 +878,8 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700 print:divide-gray-400">
                         {currentItems.length > 0 ? currentItems.map(item => (
-                            <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                <td className="px-2 py-4 print:hidden">
+                            <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer" onClick={() => setViewDetailItem(item)}>
+                                <td className="px-2 py-4 print:hidden" onClick={(e) => e.stopPropagation()}>
                                     <input 
                                         type="checkbox"
                                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
@@ -903,7 +903,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                                         {item.isAvailable ? 'Tersedia' : 'Dipinjam'}
                                     </span>
                                 </td>
-                                <td className="px-6 py-4 text-right print:hidden">
+                                <td className="px-6 py-4 text-right print:hidden" onClick={(e) => e.stopPropagation()}>
                                     <div className="flex justify-end space-x-2">
                                         <button onClick={() => handleShowQR(item)} className="p-1.5 text-gray-600 hover:bg-gray-100 rounded dark:text-gray-400 dark:hover:bg-gray-700" title="Lihat QR Code"><QrCode className="w-4 h-4"/></button>
                                         <button onClick={() => handleOpenModal(item)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded dark:hover:bg-blue-900/30"><Edit className="w-4 h-4"/></button>

@@ -1458,7 +1458,24 @@ app.get('/api/rooms', async (req, res) => {
     // Join dengan staff untuk dapat nama PIC
     const result = await pool.query(`
         SELECT r.*, s.nama as pic_name,
-               (SELECT COUNT(*) FROM room_computers rc WHERE rc.room_id = r.id) as computer_count
+                   (SELECT COUNT(*) FROM room_computers rc WHERE rc.room_id = r.id) as computer_count,
+                   (SELECT b.keperluan FROM bookings b 
+                     JOIN booking_schedules bs ON b.id = bs.booking_id 
+                     WHERE b.room_id = r.id AND b.status = 'Disetujui' 
+                     AND bs.schedule_date = CURRENT_DATE 
+                     AND CURRENT_TIME BETWEEN bs.start_time AND bs.end_time LIMIT 1) as current_activity,
+                   (SELECT bs.end_time FROM bookings b 
+                     JOIN booking_schedules bs ON b.id = bs.booking_id 
+                     WHERE b.room_id = r.id AND b.status = 'Disetujui' 
+                     AND bs.schedule_date = CURRENT_DATE 
+                     AND CURRENT_TIME BETWEEN bs.start_time AND bs.end_time LIMIT 1) as current_activity_end,
+                   CASE WHEN EXISTS (
+                     SELECT 1 FROM bookings b 
+                     JOIN booking_schedules bs ON b.id = bs.booking_id 
+                     WHERE b.room_id = r.id AND b.status = 'Disetujui' 
+                     AND bs.schedule_date = CURRENT_DATE 
+                     AND CURRENT_TIME BETWEEN bs.start_time AND bs.end_time
+                   ) THEN 'Digunakan' ELSE 'Tersedia' END as current_status
         FROM rooms r 
         LEFT JOIN staff s ON r.pic_id = s.id 
         ORDER BY r.name ASC
@@ -1475,7 +1492,10 @@ app.get('/api/rooms', async (req, res) => {
       facilities: row.fasilitas || [],
       googleCalendarUrl: row.google_calendar_url,
       floor: row.lantai || 'FTI Lt. 4',
-      computerCount: parseInt(row.computer_count || '0')
+      computerCount: parseInt(row.computer_count || '0'),
+      currentStatus: row.current_status,
+      currentActivity: row.current_activity,
+      currentActivityEnd: row.current_activity_end
     }));
     res.json(rooms);
   } catch (err) {
@@ -2152,7 +2172,7 @@ app.get('/api/search', async (req, res) => {
        CASE WHEN EXISTS (
          SELECT 1 FROM bookings b 
          JOIN booking_schedules bs ON b.id = bs.booking_id 
-         WHERE b.room_id = r.id AND b.status = 'APPROVED' 
+         WHERE b.room_id = r.id AND b.status = 'Disetujui' 
          AND bs.schedule_date = CURRENT_DATE 
          AND CURRENT_TIME BETWEEN bs.start_time AND bs.end_time
        ) THEN 'Sedang Dipakai' ELSE 'Tersedia' END as status

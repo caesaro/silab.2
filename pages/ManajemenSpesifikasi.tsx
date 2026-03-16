@@ -391,7 +391,9 @@ const ManajemenSpesifikasi: React.FC<ManajemenSpesifikasiProps> = ({ role, isDar
               <div className="mt-4 flex items-center justify-between text-sm">
                 <div className="flex gap-2">
                   <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded dark:bg-blue-900/30 dark:text-blue-300">Kapasitas: {room.capacity}</span>
-                  <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded dark:bg-purple-900/30 dark:text-purple-300">{(room as any).computerCount || 0} Unit PC</span>
+                  {((room as any).computerCount && (room as any).computerCount > 0) ? (
+                    <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded dark:bg-purple-900/30 dark:text-purple-300">{(room as any).computerCount} Unit PC</span>
+                  ) : null}
                 </div>
                 <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />
               </div>
