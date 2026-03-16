@@ -81,6 +81,7 @@ CREATE TABLE rooms (
     image_data BYTEA,
     fasilitas TEXT[],
     google_calendar_url TEXT,
+    lantai VARCHAR(50) DEFAULT 'FTI Lt. 4',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_room_staff FOREIGN KEY (pic_id) REFERENCES staff(id) ON DELETE SET NULL
@@ -131,6 +132,7 @@ CREATE TABLE inventory (
     is_available BOOLEAN DEFAULT TRUE,
     serial_number VARCHAR(100),
     lokasi VARCHAR(100), -- Lokasi/Rak/Ruangan barang saat ini
+    vendor VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

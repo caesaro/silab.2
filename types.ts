@@ -41,14 +41,15 @@ export interface Booking {
 }
 
 export interface Equipment {
-  id: string; // Kode FTI (Primary Key)
-  ukswCode: string; // Kode UKSW
+  id: string;
+  ukswCode: string;
   name: string;
-  category: string; // New field
+  category: string;
   condition: 'Baik' | 'Rusak Ringan' | 'Rusak Berat';
   isAvailable: boolean;
   serialNumber?: string;
-  location?: string; // Lokasi/Rak/Ruangan barang saat ini
+  location?: string;
+  vendor?: string;
 }
 
 export interface Loan {

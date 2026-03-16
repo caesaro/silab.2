@@ -1,4 +1,4 @@
-﻿﻿﻿﻿import express from 'express';
+﻿﻿﻿﻿﻿﻿import express from 'express';
 import pg from 'pg';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -1273,7 +1273,8 @@ app.get('/api/inventory', async (req, res) => {
       condition: row.kondisi,
       isAvailable: row.is_available,
       serialNumber: row.serial_number,
-      location: row.lokasi
+      location: row.lokasi,
+      vendor: row.vendor
     }));
     res.json(items);
   } catch (err) {
@@ -1283,11 +1284,11 @@ app.get('/api/inventory', async (req, res) => {
 });
 
 app.post('/api/inventory', async (req, res) => {
-  const { id, ukswCode, name, category, condition, isAvailable, serialNumber, location } = req.body;
+  const { id, ukswCode, name, category, condition, isAvailable, serialNumber, location, vendor } = req.body;
   try {
     await pool.query(
-      'INSERT INTO inventory (id, uksw_code, nama, kategori, kondisi, is_available, serial_number, lokasi) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-      [id, ukswCode, name, category, condition, isAvailable, serialNumber, location || '']
+      'INSERT INTO inventory (id, uksw_code, nama, kategori, kondisi, is_available, serial_number, lokasi, vendor) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+      [id, ukswCode, name, category, condition, isAvailable, serialNumber, location || '', vendor || '']
     );
     res.json({ success: true });
   } catch (err) {
@@ -1297,11 +1298,11 @@ app.post('/api/inventory', async (req, res) => {
 });
 
 app.put('/api/inventory/:id', async (req, res) => {
-  const { ukswCode, name, category, condition, isAvailable, serialNumber, location } = req.body;
+  const { ukswCode, name, category, condition, isAvailable, serialNumber, location, vendor } = req.body;
   try {
     await pool.query(
-      'UPDATE inventory SET uksw_code=$1, nama=$2, kategori=$3, kondisi=$4, is_available=$5, serial_number=$6, lokasi=$7 WHERE id=$8',
-      [ukswCode, name, category, condition, isAvailable, serialNumber, location || '', req.params.id]
+      'UPDATE inventory SET uksw_code=$1, nama=$2, kategori=$3, kondisi=$4, is_available=$5, serial_number=$6, lokasi=$7, vendor=$8 WHERE id=$9',
+      [ukswCode, name, category, condition, isAvailable, serialNumber, location || '', vendor || '', req.params.id]
     );
     res.json({ success: true });
   } catch (err) {
@@ -1471,7 +1472,8 @@ app.get('/api/rooms', async (req, res) => {
       pic_id: row.pic_id,
       image: row.image_data ? `data:image/jpeg;base64,${row.image_data.toString('base64')}` : null,
       facilities: row.fasilitas || [],
-      googleCalendarUrl: row.google_calendar_url
+      googleCalendarUrl: row.google_calendar_url,
+      floor: row.lantai || 'FTI Lt. 4'
     }));
     res.json(rooms);
   } catch (err) {
@@ -1481,7 +1483,7 @@ app.get('/api/rooms', async (req, res) => {
 });
 
 app.post('/api/rooms', async (req, res) => {
-  const { id, name, category, description, capacity, pic, image, facilities, googleCalendarUrl } = req.body;
+  const { id, name, category, description, capacity, pic, image, facilities, googleCalendarUrl, floor } = req.body;
   try {
     // Cari ID Staff berdasarkan nama (karena frontend mengirim nama)
     let picId = null;
@@ -1496,8 +1498,8 @@ app.post('/api/rooms', async (req, res) => {
     }
 
     await pool.query(
-      'INSERT INTO rooms (id, name, category, deskripsi, kapasitas, pic_id, image_data, fasilitas, google_calendar_url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
-      [id, name, category, description, capacity, picId, imageBuffer, facilities || [], googleCalendarUrl]
+      'INSERT INTO rooms (id, name, category, deskripsi, kapasitas, pic_id, image_data, fasilitas, google_calendar_url, lantai) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+      [id, name, category, description, capacity, picId, imageBuffer, facilities || [], googleCalendarUrl, floor || 'FTI Lt. 4']
     );
     res.json({ success: true });
   } catch (err) {
@@ -1507,7 +1509,7 @@ app.post('/api/rooms', async (req, res) => {
 });
 
 app.put('/api/rooms/:id', async (req, res) => {
-    const { name, category, description, capacity, pic, image, facilities, googleCalendarUrl } = req.body;
+    const { name, category, description, capacity, pic, image, facilities, googleCalendarUrl, floor } = req.body;
     try {
       let picId = null;
       const staffRes = await pool.query("SELECT id FROM staff WHERE nama = $1", [pic]);
@@ -1521,8 +1523,8 @@ app.put('/api/rooms/:id', async (req, res) => {
       }
 
       await pool.query(
-        'UPDATE rooms SET name=$1, category=$2, deskripsi=$3, kapasitas=$4, pic_id=$5, image_data=$6, fasilitas=$7, google_calendar_url=$8 WHERE id=$9',
-        [name, category, description, capacity, picId, imageBuffer, facilities || [], googleCalendarUrl, req.params.id]
+        'UPDATE rooms SET name=$1, category=$2, deskripsi=$3, kapasitas=$4, pic_id=$5, image_data=$6, fasilitas=$7, google_calendar_url=$8, lantai=$9 WHERE id=$10',
+        [name, category, description, capacity, picId, imageBuffer, facilities || [], googleCalendarUrl, floor, req.params.id]
       );
       res.json({ success: true });
     } catch (err) {

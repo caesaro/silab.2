@@ -40,7 +40,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Equipment | null>(null);
   const [formData, setFormData] = useState<Partial<Equipment>>({
-    id: '', ukswCode: '', name: '', category: '', condition: 'Baik', isAvailable: true, serialNumber: '', location: ''
+    id: '', ukswCode: '', name: '', category: '', condition: 'Baik', isAvailable: true, serialNumber: '', location: '', vendor: ''
   });
 
   // Modal State for Delete Confirmation (using reusable ConfirmModal)
@@ -151,7 +151,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
       setAddMode('manual');
     } else {
       setEditingItem(null);
-      setFormData({ id: '', ukswCode: '', name: '', category: '', condition: 'Baik', isAvailable: true, serialNumber: '', location: '' });
+      setFormData({ id: '', ukswCode: '', name: '', category: '', condition: 'Baik', isAvailable: true, serialNumber: '', location: '', vendor: '' });
       setAddMode('manual');
     }
     setIsModalOpen(true);
@@ -209,7 +209,8 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
       { header: 'category', key: 'category', width: 15 },
       { header: 'condition', key: 'condition', width: 15 },
       { header: 'serialNumber', key: 'serialNumber', width: 20 },
-      { header: 'location', key: 'location', width: 25 }
+      { header: 'location', key: 'location', width: 25 },
+      { header: 'vendor', key: 'vendor', width: 25 }
     ];
 
     worksheet.addRow({
@@ -219,7 +220,8 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
       category: "Elektronik",
       condition: "Baik",
       serialNumber: "SN12345678",
-      location: "Rak 1"
+      location: "Rak 1",
+      vendor: "PT. Teknologi Maju"
     });
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -244,6 +246,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
       { header: 'Kondisi', key: 'condition', width: 15 },
       { header: 'Serial Number', key: 'serialNumber', width: 20 },
       { header: 'Lokasi', key: 'location', width: 25 },
+      { header: 'Vendor', key: 'vendor', width: 25 },
       { header: 'Status', key: 'status', width: 15 },
     ];
 
@@ -256,6 +259,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
         condition: item.condition,
         serialNumber: item.serialNumber,
         location: item.location || '',
+        vendor: item.vendor || '',
         status: item.isAvailable ? 'Tersedia' : 'Dipinjam'
       });
     });
@@ -272,9 +276,9 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
   };
 
   const handleExportCSV = () => {
-    const headers = ["Kode FTI", "Kode UKSW", "Nama Barang", "Kategori", "Kondisi", "Serial Number", "Lokasi", "Status"];
+    const headers = ["Kode FTI", "Kode UKSW", "Nama Barang", "Kategori", "Kondisi", "Serial Number", "Lokasi", "Vendor", "Status"];
     const rows = sortedItems.map(item => [
-      item.id, item.ukswCode, item.name, item.category, item.condition, item.serialNumber || '-', item.location || '-', item.isAvailable ? 'Tersedia' : 'Dipinjam'
+      item.id, item.ukswCode, item.name, item.category, item.condition, item.serialNumber || '-', item.location || '-', item.vendor || '-', item.isAvailable ? 'Tersedia' : 'Dipinjam'
     ]);
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(e => e.map(c => `"${c}"`).join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -333,7 +337,8 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                           condition: rowData.condition ? String(rowData.condition).trim() as any : 'Baik',
                           isAvailable: true,
                           serialNumber: rowData.serialNumber ? String(rowData.serialNumber).trim() : '',
-                          location: rowData.location ? String(rowData.location).trim() : ''
+                          location: rowData.location ? String(rowData.location).trim() : '',
+                          vendor: rowData.vendor ? String(rowData.vendor).trim() : ''
                       } as Equipment);
                   }
               }
@@ -1018,7 +1023,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                             type="text" 
                             value={formData.serialNumber || ''} 
                             onChange={e => setFormData({...formData, serialNumber: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 font-mono"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 font-mono uppercase"
                             placeholder="SN-XXXXX"
                         />
                     </div>
@@ -1047,15 +1052,27 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                     </select>
                  </div>
 
-                 <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lokasi / Rak</label>
-                    <input 
-                        type="text" 
-                        value={formData.location || ''} 
-                        onChange={e => setFormData({...formData, location: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                        placeholder="Contoh: Rak 1, Ruang 301, Laboratorium"
-                    />
+                 <div className="grid grid-cols-2 gap-4">
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lokasi / Rak</label>
+                        <input 
+                            type="text" 
+                            value={formData.location || ''} 
+                            onChange={e => setFormData({...formData, location: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
+                            placeholder="Contoh: Rak 1, Ruang 301"
+                        />
+                     </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vendor / Toko</label>
+                        <input 
+                            type="text" 
+                            value={formData.vendor || ''} 
+                            onChange={e => setFormData({...formData, vendor: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
+                            placeholder="Contoh: CV. Komputer Maju"
+                        />
+                     </div>
                  </div>
 
                  <div className="flex items-center space-x-2 pt-2">
@@ -1088,7 +1105,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                             <AlertCircle className="w-4 h-4 mr-2" /> Petunjuk Import
                         </h4>
                         <p className="text-xs text-blue-700 dark:text-blue-400 mb-3">
-                            Gunakan file Excel (.xlsx) dengan header: <code>id, ukswCode, name, category, condition, serialNumber, location</code>.
+                            Gunakan file Excel (.xlsx) dengan header: <code>id, ukswCode, name, category, condition, serialNumber, location, vendor</code>.
                             Pastikan <strong>id</strong> (Kode FTI) unik dan belum ada di database.
                         </p>
                         <button 
@@ -1242,6 +1259,10 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                       <div className="flex justify-between border-b border-gray-100 dark:border-gray-700 pb-2">
                           <span className="text-gray-500 dark:text-gray-400">Lokasi</span>
                           <span className="font-medium text-gray-900 dark:text-white">{viewDetailItem.location || '-'}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-gray-100 dark:border-gray-700 pb-2">
+                          <span className="text-gray-500 dark:text-gray-400">Vendor</span>
+                          <span className="font-medium text-gray-900 dark:text-white">{viewDetailItem.vendor || '-'}</span>
                       </div>
                       <div className="flex justify-between border-b border-gray-100 dark:border-gray-700 pb-2">
                           <span className="text-gray-500 dark:text-gray-400">Kondisi</span>

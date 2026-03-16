@@ -107,7 +107,7 @@ const Room360Thumbnail: React.FC<{ room: Room }> = ({ room }) => {
             <div ref={thumbnailRef} className="w-full h-full bg-gray-200" />
             
             <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop items-center z--blur-sm flex20 pointer-events-none">
-                  <MapPin className="w-3 h-3 mr-1"/> FTI Lt. 4
+                  <MapPin className="w-3 h-3 mr-1"/> {(room as any).floor || 'FTI Lt. 4'}
             </div>
         </div>
     );
