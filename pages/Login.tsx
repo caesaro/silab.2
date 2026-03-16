@@ -480,7 +480,7 @@ const Login: React.FC<LoginProps> = ({
                   Selamat Datang
                 </h2>
                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                  Masuk untuk mengakses layanan laboratorium
+                  Masuk untuk mengakses layanan Sarpras FTI
                 </p>
               </div>
 

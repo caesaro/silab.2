@@ -838,7 +838,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                             <th className="px-2 py-4 print:hidden">
                                 <input 
                                     type="checkbox"
-                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    className="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800"
                                     onChange={handleSelectAll}
                                     checked={currentItems.length > 0 && currentItems.every(i => selectedItems.includes(i.id))}
                                     ref={input => {
@@ -882,7 +882,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                                 <td className="px-2 py-4 print:hidden" onClick={(e) => e.stopPropagation()}>
                                     <input 
                                         type="checkbox"
-                                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        className="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800"
                                         checked={selectedItems.includes(item.id)}
                                         onChange={(e) => handleSelectItem(item.id, e.target.checked)}
                                     />
@@ -1081,10 +1081,10 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                         id="isAvailable"
                         checked={formData.isAvailable}
                         onChange={e => setFormData({...formData, isAvailable: e.target.checked})}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        className="w-4 h-4 text-blue-600 border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800"
                     />
                     <label htmlFor="isAvailable" className="text-sm font-medium text-gray-700 dark:text-gray-300 select-none cursor-pointer">
-                        Barang tersedia untuk dipinjam?
+                        Status Tersedia (Dapat Dipinjam)
                     </label>
                  </div>
 

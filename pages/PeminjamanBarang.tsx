@@ -15,6 +15,8 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
   const [activeStaff, setActiveStaff] = useState<{id: string, nama: string}[]>([]);
   const [filter, setFilter] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -264,6 +266,31 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
       
       await fetchData();
       showToast(`${loans.length} barang berhasil dikembalikan dan perpindahan tercatat.`, "success");
+      
+      // Update state selectedGroup agar UI Modal Detail langsung berubah statusnya
+      if (selectedGroup) {
+        const returnedIds = loans.map(l => l.id);
+        setSelectedGroup(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            loans: prev.loans.map(l => 
+              returnedIds.includes(l.id)
+                ? {
+                    ...l,
+                    status: 'Dikembalikan',
+                    actualReturnDate: returnDate,
+                    actualReturnTime: returnTime,
+                    returnOfficer: returnOfficer,
+                    returnLocation: returnLocation,
+                    condition: condition
+                  }
+                : l
+            )
+          };
+        });
+      }
+
       setReturnConfirmation(null);
     } catch (e: any) { 
       showToast(`Gagal memproses pengembalian: ${e.message || e}`, "error"); 
@@ -359,7 +386,17 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
     const matchesSearch = loan.borrowerName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           loan.equipmentName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filter === 'All' || loan.status === filter;
-    return matchesSearch && matchesFilter;
+    
+    let matchesDate = true;
+    if (startDate && endDate) {
+      matchesDate = loan.borrowDate >= startDate && loan.borrowDate <= endDate;
+    } else if (startDate) {
+      matchesDate = loan.borrowDate >= startDate;
+    } else if (endDate) {
+      matchesDate = loan.borrowDate <= endDate;
+    }
+
+    return matchesSearch && matchesFilter && matchesDate;
   });
 
   const groupedLoans = filteredLoans.reduce((groups, loan) => {
@@ -401,17 +438,34 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
             />
           </div>
           
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Filter className="w-4 h-4 text-gray-400" />
-            <select 
-              className="bg-transparent text-sm border-none focus:ring-0 text-gray-600 dark:text-gray-300 cursor-pointer outline-none"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            >
-              <option className="bg-white dark:bg-gray-800" value="All">Semua Status</option>
-              <option className="bg-white dark:bg-gray-800" value="Dipinjam">Dipinjam</option>
-              <option className="bg-white dark:bg-gray-800" value="Dikembalikan">Dikembalikan</option>
-            </select>
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
+            <div className="flex items-center gap-2">
+              <input 
+                type="date" 
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+              <span className="text-gray-500 dark:text-gray-400">-</span>
+              <input 
+                type="date" 
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-gray-400" />
+              <select 
+                className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+              >
+                <option value="All">Semua Status</option>
+                <option value="Dipinjam">Dipinjam</option>
+                <option value="Dikembalikan">Dikembalikan</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -730,9 +784,14 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
               {selectedGroup.loans.filter(l => l.status === 'Dipinjam').length > 1 && (
                 <button 
                   onClick={() => initiateReturn(selectedGroup.loans.filter(l => l.status === 'Dipinjam'))}
-                  className="mb-3 w-full py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center shadow-sm"
+                  disabled={isReturning}
+                  className="mb-3 w-full py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Check className="w-4 h-4 mr-2" /> Kembalikan Semua ({selectedGroup.loans.filter(l => l.status === 'Dipinjam').length} Barang)
+                  {isReturning && returnConfirmation?.loans.length > 1 ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Memproses...</>
+                  ) : (
+                    <><Check className="w-4 h-4 mr-2" /> Kembalikan Semua ({selectedGroup.loans.filter(l => l.status === 'Dipinjam').length} Barang)</>
+                  )}
                 </button>
               )}
 
@@ -746,9 +805,14 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
                       {loan.status === 'Dipinjam' ? (
                         <button 
                           onClick={() => initiateReturn([loan])}
-                          className="px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap shadow-sm ml-2"
+                          disabled={isReturning}
+                          className="px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap shadow-sm ml-2 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <Check className="w-3 h-3 inline mr-1" /> Kembalikan
+                          {isReturning && returnConfirmation?.loans.some(l => l.id === loan.id) ? (
+                            <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Memproses</>
+                          ) : (
+                            <><Check className="w-3 h-3 mr-1" /> Kembalikan</>
+                          )}
                         </button>
                       ) : (
                         <div className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 font-semibold rounded-lg">
@@ -774,7 +838,17 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
                       </div>
                     )}
                     {loan.actualReturnDate && (
-                      <p className="text-xs text-gray-500 mt-2">{loan.actualReturnDate} {loan.actualReturnTime}</p>
+                      <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+                        <p className="text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500 mb-1">Info Pengembalian:</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-300 flex items-center">
+                          <Calendar className="w-3 h-3 mr-1 text-gray-400" /> {loan.actualReturnDate} {loan.actualReturnTime}
+                        </p>
+                        {loan.returnOfficer && (
+                          <p className="text-xs text-gray-600 dark:text-gray-300 flex items-center mt-1">
+                            <User className="w-3 h-3 mr-1 text-gray-400" /> Penerima: {loan.returnOfficer}
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
                 ))}

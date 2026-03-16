@@ -1,8 +1,11 @@
 // Page: ItemMovements (Perpindahan Barang)
 import React, { useState, useEffect } from 'react';
 import { Role, ItemMovement, Equipment } from '../types';
-import { Search, Filter, Plus, X, ArrowRightLeft, Box, Calendar, MapPin, FileText, Eye, Save, RotateCcw } from 'lucide-react';
+import { Search, Filter, Plus, X, ArrowRightLeft, Box, Calendar, MapPin, FileText, Eye, Save, RotateCcw, ArrowUpRight, ArrowDownLeft, Hand, ChevronLeft, ChevronRight, QrCode } from 'lucide-react';
 import { api } from '../services/api';
+import { TableSkeleton } from '../components/Skeleton';
+import ConfirmModal from '../components/ConfirmModal';
+import QRScannerModal from '../components/QRScannerModal';
 
 interface ItemMovementsProps {
   role: Role;
@@ -16,6 +19,16 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
   const [filterType, setFilterType] = useState<'All' | 'Peminjaman' | 'Manual' | 'Pengembalian'>('All');
   const [filterInventory, setFilterInventory] = useState<string>('All');
   
+  const [viewMode, setViewMode] = useState<'latest' | 'history'>('latest');
+
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUndoModalOpen, setIsUndoModalOpen] = useState(false);
+  const [undoTargetId, setUndoTargetId] = useState<string | null>(null);
+  const [isUndoing, setIsUndoing] = useState(false);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     inventoryId: '',
@@ -32,11 +45,14 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
 
   const [selectedMovement, setSelectedMovement] = useState<ItemMovement | null>(null);
 
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
+    setIsLoading(true);
     try {
       const [movRes, eqRes] = await Promise.all([
         api('/api/item-movements'),
@@ -45,6 +61,7 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
       if (movRes.ok) setMovements(await movRes.json());
       if (eqRes.ok) setEquipment(await eqRes.json());
     } catch (e) { console.error(e); }
+    finally { setIsLoading(false); }
   };
 
   // Group movements by inventory ID and get only the latest movement per item
@@ -69,7 +86,12 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
     return Object.values(grouped);
   }, [movements]);
 
-  const filteredMovements = latestMovementsByItem.filter(m => {
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterType, filterInventory, itemsPerPage, viewMode]);
+
+  const baseMovements = viewMode === 'latest' ? latestMovementsByItem : movements;
+  const filteredMovements = baseMovements.filter(m => {
     const matchesSearch = (m.inventoryName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          m.fromPerson?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          m.toPerson?.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -77,6 +99,12 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
     const matchesInventory = filterInventory === 'All' || m.inventoryId === filterInventory;
     return matchesSearch && matchesType && matchesInventory;
   });
+
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredMovements.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredMovements.length / itemsPerPage);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,20 +158,39 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
     });
   };
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'Peminjaman': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
-      case 'Manual': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
-      case 'Pengembalian': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-      default: return 'bg-gray-100 text-gray-800';
+  const renderTypeBadge = (type: string) => {
+    let color = 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+    let Icon = ArrowRightLeft;
+
+    if (type === 'Peminjaman') {
+      color = 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
+      Icon = ArrowUpRight;
+    } else if (type === 'Pengembalian') {
+      color = 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+      Icon = ArrowDownLeft;
+    } else if (type === 'Manual') {
+      color = 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
+      Icon = Hand;
     }
+
+    return (
+      <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${color}`}>
+        <Icon className="w-3 h-3 mr-1" />
+        {type}
+      </span>
+    );
   };
 
-  const handleUndo = async (id: string) => {
-    if (!confirm("Batalkan perpindahan ini? Lokasi barang akan dikembalikan ke posisi sebelumnya.")) return;
+  const handleUndoClick = (id: string) => {
+    setUndoTargetId(id);
+    setIsUndoModalOpen(true);
+  };
 
+  const confirmUndo = async () => {
+    if (!undoTargetId) return;
+    setIsUndoing(true);
     try {
-      const res = await api(`/api/item-movements/${id}/undo`, { method: 'POST' });
+      const res = await api(`/api/item-movements/${undoTargetId}/undo`, { method: 'POST' });
       if (res.ok) {
         showToast("Perpindahan berhasil dibatalkan.", "success");
         fetchData();
@@ -153,6 +200,25 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
       }
     } catch (e) {
       showToast("Terjadi kesalahan server", "error");
+    } finally {
+      setIsUndoing(false);
+      setIsUndoModalOpen(false);
+      setUndoTargetId(null);
+    }
+  };
+
+  const handleScanSuccess = (decodedText: string) => {
+    const item = equipment.find(e => e.id === decodedText);
+    if (item) {
+      setFormData(prev => ({
+        ...prev,
+        inventoryId: item.id,
+        fromLocation: item.location || ''
+      }));
+      setIsScannerOpen(false);
+      showToast(`Barang ditemukan: ${item.name}`, "success");
+    } else {
+      showToast(`Barang dengan ID ${decodedText} tidak ditemukan.`, "error");
     }
   };
 
@@ -160,6 +226,13 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
     const item = equipment.find(e => e.id === id);
     return item ? item.name : id;
   };
+
+  // Datalist untuk autocomplete input nama
+  const uniquePeople = Array.from(new Set(movements.flatMap(m => [m.fromPerson, m.toPerson, m.movedBy]).filter(Boolean)));
+
+  if (isLoading) {
+    return <TableSkeleton />;
+  }
 
   return (
     <div className="space-y-6">
@@ -176,19 +249,43 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
         </button>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 flex flex-col lg:flex-row gap-4 justify-between items-center">
-        <div className="relative w-full lg:w-64">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <input 
-            type="text" 
-            placeholder="Cari barang atau orang..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm w-full dark:text-white focus:ring-2 focus:ring-blue-500"
-          />
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 flex flex-col xl:flex-row gap-4 justify-between items-center">
+        <div className="flex flex-col sm:flex-row gap-4 w-full xl:w-auto">
+          <div className="flex space-x-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg w-fit">
+            <button
+              onClick={() => setViewMode('latest')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                viewMode === 'latest'
+                  ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-white shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              Posisi Terakhir
+            </button>
+            <button
+              onClick={() => setViewMode('history')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                viewMode === 'history'
+                  ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-white shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              Riwayat Lengkap
+            </button>
+          </div>
+          <div className="relative w-full sm:w-64">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input 
+              type="text" 
+              placeholder="Cari barang atau orang..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm w-full dark:text-white focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
         </div>
         
-        <div className="flex flex-wrap gap-3 w-full lg:w-auto items-center justify-end">
+        <div className="flex flex-wrap gap-3 w-full xl:w-auto items-center justify-end">
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-gray-400" />
             <select 
@@ -232,16 +329,17 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredMovements.length > 0 ? filteredMovements.map((movement) => (
+              {currentItems.length > 0 ? currentItems.map((movement) => (
                 <tr key={movement.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                   <td className="px-6 py-4">
                     <div className="font-medium text-gray-900 dark:text-white">{movement.inventoryName || getEquipmentName(movement.inventoryId)}</div>
-                    <div className="text-xs text-gray-500">{movement.movementDate}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      {movement.movementDate}
+                      {movement.createdAt && ` • ${new Date(movement.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB`}
+                    </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${getTypeColor(movement.movementType)}`}>
-                      {movement.movementType}
-                    </span>
+                    {renderTypeBadge(movement.movementType)}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center text-gray-500 dark:text-gray-400 text-sm">
@@ -257,9 +355,9 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      {movement.movementType === 'Manual' && (
-                        <button 
-                          onClick={() => handleUndo(movement.id)}
+                      {movement.movementType === 'Manual' && viewMode === 'latest' && (
+                        <button
+                          onClick={() => handleUndoClick(movement.id)}
                           className="text-orange-600 hover:text-orange-800 text-xs font-medium flex items-center"
                           title="Batalkan Perpindahan Terakhir"
                         >
@@ -288,6 +386,44 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+            <span>Tampilkan</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => setItemsPerPage(Number(e.target.value))}
+              className="px-2 py-1 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+            </select>
+            <span>dari {filteredMovements.length} data</span>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 px-2">
+              Halaman {currentPage} dari {totalPages || 1}
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages || totalPages === 0}
+              className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
       </div>
 
       {isModalOpen && (
@@ -304,8 +440,23 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
+              <datalist id="people-list">
+                {uniquePeople.map(person => (
+                  <option key={person} value={person} />
+                ))}
+              </datalist>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pilih Barang</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Pilih Barang</label>
+                  <button 
+                    type="button" 
+                    onClick={() => setIsScannerOpen(true)}
+                    className="text-xs text-blue-600 hover:underline flex items-center font-medium"
+                  >
+                    <QrCode className="w-3 h-3 mr-1" /> Scan QR
+                  </button>
+                </div>
                 <select 
                   required
                   value={formData.inventoryId}
@@ -354,6 +505,7 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dari Siapa</label>
                   <input 
                     type="text"
+                    list="people-list"
                     value={formData.fromPerson}
                     onChange={(e) => setFormData({...formData, fromPerson: e.target.value})}
                     placeholder="Contoh: Laboran, Gudang"
@@ -364,6 +516,7 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Kepada Siapa</label>
                   <input 
                     type="text" required
+                    list="people-list"
                     value={formData.toPerson}
                     onChange={(e) => setFormData({...formData, toPerson: e.target.value})}
                     placeholder="Nama Penerima"
@@ -399,6 +552,7 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Petugas / Staff</label>
                 <input 
                   type="text" required
+                  list="people-list"
                   value={formData.movedBy}
                   onChange={(e) => setFormData({...formData, movedBy: e.target.value})}
                   placeholder="Nama Petugas"
@@ -445,9 +599,9 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
             <div className="p-6 space-y-4">
               <div className="text-center mb-4">
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">{selectedMovement.inventoryName || getEquipmentName(selectedMovement.inventoryId)}</h2>
-                <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium mt-2 ${getTypeColor(selectedMovement.movementType)}`}>
-                  {selectedMovement.movementType}
-                </span>
+                <div className="mt-2">
+                  {renderTypeBadge(selectedMovement.movementType)}
+                </div>
               </div>
               
               <div className="space-y-3 text-sm">
@@ -496,6 +650,28 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={isUndoModalOpen}
+        onClose={() => {
+          setIsUndoModalOpen(false);
+          setUndoTargetId(null);
+        }}
+        onConfirm={confirmUndo}
+        title="Batalkan Perpindahan"
+        message="Apakah Anda yakin ingin membatalkan perpindahan ini? Lokasi barang akan dikembalikan ke posisi sebelumnya."
+        confirmText="Ya, Batalkan"
+        cancelText="Tutup"
+        type="warning"
+        isLoading={isUndoing}
+      />
+
+      <QRScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScanSuccess={handleScanSuccess}
+        title="Scan QR Code Barang"
+      />
     </div>
   );
 };
