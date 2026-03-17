@@ -212,7 +212,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({ addNotification, showToas
   const fetchData = async () => {
     try {
       const [bkRes, rmRes, stRes] = await Promise.all([
-        api('/api/bookings'), api('/api/rooms'), api('/api/staff')
+        api('/api/bookings'), api('/api/rooms?exclude_image=true'), api('/api/staff')
       ]);
       if (bkRes.ok) setBookings(await bkRes.json());
       if (rmRes.ok) setRooms(await rmRes.json());

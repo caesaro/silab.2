@@ -172,7 +172,7 @@ const JadwalRuang: React.FC<ScheduleProps> = ({ role, showToast, isDarkMode }) =
   useEffect(() => {
     const fetchRooms = async () => {
       try {
-        const res = await api('/api/rooms');
+        const res = await api('/api/rooms?exclude_image=true');
         if (res.ok) {
           const data = await res.json();
           setRooms(data);

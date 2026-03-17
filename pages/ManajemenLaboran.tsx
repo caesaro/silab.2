@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Printer, Download, Edit, Trash2, X, Check, FileSpreadsheet, Users } from 'lucide-react';
+import { Search, Plus, Printer, Download, Edit, Trash2, X, Check, FileSpreadsheet, Users, Eye } from 'lucide-react';
 import nocLogo from "../src/assets/noc.png";
 import { api } from '../services/api';
+import { Room } from '../types';
 
 interface LabStaff {
   id: string;
@@ -13,7 +14,11 @@ interface LabStaff {
   status: 'Aktif' | 'Non-Aktif';
 }
 
-const LaboranManagement: React.FC = () => {
+interface LaboranManagementProps {
+  onNavigate?: (page: string) => void;
+}
+
+const LaboranManagement: React.FC<LaboranManagementProps> = ({ onNavigate }) => {
   const [staffList, setStaffList] = useState<LabStaff[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Aktif' | 'Non-Aktif'>('All');
@@ -21,13 +26,27 @@ const LaboranManagement: React.FC = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<LabStaff | null>(null);
+  const [viewingStaff, setViewingStaff] = useState<LabStaff | null>(null);
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [formData, setFormData] = useState<Partial<LabStaff>>({
     name: '', nim: '', email: '', phone: '', jabatan: 'Teknisi', status: 'Aktif'
   });
 
   useEffect(() => {
     fetchStaff();
+    fetchRooms();
   }, []);
+
+  const fetchRooms = async () => {
+    try {
+      const res = await api('/api/rooms?exclude_image=true');
+      if (res.ok) {
+        setRooms(await res.json());
+      }
+    } catch (error) {
+      console.error("Gagal mengambil data ruangan", error);
+    }
+  };
 
   const fetchStaff = async () => {
     try {
@@ -50,6 +69,16 @@ const LaboranManagement: React.FC = () => {
       console.error("Gagal mengambil data laboran", error);
     }
   };
+
+  // Mengecek apakah user baru saja kembali dari halaman detail ruangan
+  useEffect(() => {
+    const returnId = localStorage.getItem('returnToLaboranId');
+    if (returnId && staffList.length > 0) {
+      const staff = staffList.find(s => s.id === returnId);
+      if (staff) setViewingStaff(staff);
+      localStorage.removeItem('returnToLaboranId'); // Bersihkan riwayat
+    }
+  }, [staffList]);
 
   // Filter Data
   const filteredStaff = staffList.filter(staff => {
@@ -242,6 +271,9 @@ const LaboranManagement: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 print:hidden">
                            <div className="flex space-x-2">
+                              <button onClick={() => setViewingStaff(staff)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded dark:hover:bg-blue-900/30 transition-colors" title="Detail">
+                                 <Eye className="w-4 h-4" />
+                              </button>
                               <button onClick={() => handleOpenModal(staff)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded dark:hover:bg-blue-900/30 transition-colors" title="Edit">
                                  <Edit className="w-4 h-4" />
                               </button>
@@ -359,6 +391,83 @@ const LaboranManagement: React.FC = () => {
                     </button>
                  </div>
               </form>
+           </div>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {viewingStaff && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 print:hidden">
+           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
+                 <h3 className="font-bold text-gray-900 dark:text-white flex items-center">
+                    <Users className="w-5 h-5 mr-2 text-blue-600" />
+                    Detail Laboran
+                 </h3>
+                 <button onClick={() => setViewingStaff(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <X className="w-5 h-5" />
+                 </button>
+              </div>
+              <div className="p-6 space-y-4">
+                 <div className="text-center mb-4">
+                     <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-3">
+                         {viewingStaff.name.charAt(0)}
+                     </div>
+                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">{viewingStaff.name}</h2>
+                     <p className="text-sm text-gray-500 dark:text-gray-400">{viewingStaff.jabatan}</p>
+                 </div>
+                 
+                 <div className="space-y-3 text-sm">
+                     <div className="flex justify-between border-b border-gray-100 dark:border-gray-700 pb-2">
+                         <span className="text-gray-500 dark:text-gray-400">NIM / Identifier</span>
+                         <span className="font-mono font-medium text-gray-900 dark:text-white">{viewingStaff.nim}</span>
+                     </div>
+                     <div className="flex justify-between border-b border-gray-100 dark:border-gray-700 pb-2">
+                         <span className="text-gray-500 dark:text-gray-400">Email</span>
+                         <span className="font-medium text-gray-900 dark:text-white">{viewingStaff.email}</span>
+                     </div>
+                     <div className="flex justify-between border-b border-gray-100 dark:border-gray-700 pb-2">
+                         <span className="text-gray-500 dark:text-gray-400">No. Telepon</span>
+                         <span className="font-medium text-gray-900 dark:text-white">{viewingStaff.phone || '-'}</span>
+                     </div>
+                     <div className="flex justify-between border-b border-gray-100 dark:border-gray-700 pb-2">
+                         <span className="text-gray-500 dark:text-gray-400">Status</span>
+                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${viewingStaff.status === 'Aktif' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}`}>
+                             {viewingStaff.status}
+                         </span>
+                     </div>
+                 </div>
+
+                 <div className="mt-6">
+                     <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Penanggung Jawab (PIC) Ruangan:</h4>
+                     <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                         {rooms.filter(r => r.pic_id === viewingStaff.id).length > 0 ? (
+                             rooms.filter(r => r.pic_id === viewingStaff.id).map(room => (
+                                 <div 
+                                     key={room.id} 
+                                     onClick={() => {
+                                         localStorage.setItem('targetRoomId', room.id);
+                                         localStorage.setItem('returnToLaboranId', viewingStaff.id);
+                                         if (onNavigate) onNavigate('rooms');
+                                     }}
+                                     className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-3 py-2 rounded-lg text-sm border border-blue-100 dark:border-blue-800 flex justify-between items-center cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors group"
+                                     title="Klik untuk melihat detail ruangan"
+                                 >
+                                     <span className="font-medium group-hover:underline">{room.name}</span>
+                                     <span className="text-xs opacity-75">{room.category}</span>
+                                 </div>
+                             ))
+                         ) : (
+                             <p className="text-sm text-gray-500 italic bg-gray-50 dark:bg-gray-700/30 p-3 rounded-lg text-center border border-dashed border-gray-200 dark:border-gray-600">Belum ditugaskan sebagai PIC ruangan mana pun.</p>
+                         )}
+                     </div>
+                 </div>
+              </div>
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex justify-end">
+                  <button onClick={() => setViewingStaff(null)} className="px-4 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 transition-colors">
+                      Tutup
+                  </button>
+              </div>
            </div>
         </div>
       )}

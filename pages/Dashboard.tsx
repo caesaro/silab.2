@@ -103,7 +103,7 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
         const apiCalls = [
           api('/api/bookings'),
           api('/api/loans'),
-          api('/api/rooms'),
+          api('/api/rooms?exclude_image=true'),
           !isUser ? api('/api/users') : Promise.resolve(new Response(JSON.stringify([]))), // Hanya panggil jika bukan 'User'
           api('/api/inventory'),
           api('/api/settings/announcement')

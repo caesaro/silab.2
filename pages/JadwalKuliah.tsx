@@ -80,7 +80,7 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
 
   const fetchRooms = async () => {
     try {
-      const res = await api('/api/rooms');
+      const res = await api('/api/rooms?exclude_image=true');
       if (res.ok) {
         const data = await res.json();
         setRooms(data);
@@ -480,4 +480,3 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
 };
 
 export default JadwalKuliah;
-

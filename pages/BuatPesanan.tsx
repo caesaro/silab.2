@@ -17,7 +17,7 @@ const BuatPesanan: React.FC<BuatPesananProps> = ({ showToast, onNavigate }) => {
     const fetchRooms = async () => {
       setIsLoading(true);
       try {
-        const res = await api('/api/rooms');
+        const res = await api('/api/rooms?exclude_image=true');
         if (res.ok) setRooms(await res.json());
       } catch (e) {
         console.error(e);

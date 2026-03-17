@@ -40,7 +40,7 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
       try {
         const [bkRes, rmRes] = await Promise.all([
           api('/api/bookings'),
-          api('/api/rooms')
+          api('/api/rooms?exclude_image=true')
         ]);
         
         if (bkRes.ok) {

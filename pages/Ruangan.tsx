@@ -19,6 +19,7 @@ declare global {
 interface RoomsProps {
   role: Role;
   isDarkMode: boolean;
+  onNavigate?: (page: string) => void;
 }
 
 interface GoogleEvent {
@@ -222,7 +223,7 @@ const getConditionColor = (condition?: string) => {
   }
 };
 
-const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
+const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate }) => {
   // Helper: Cek admin case-insensitive
   const isAdmin = role.toString().toUpperCase() === Role.ADMIN.toString().toUpperCase();
   const isLaboran = role.toString().toUpperCase() === Role.LABORAN.toString().toUpperCase();
@@ -376,6 +377,19 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
 
     return () => clearInterval(intervalId);
   }, []);
+
+  // Mengecek apakah ada instruksi navigasi ke detail ruangan tertentu dari halaman lain
+  useEffect(() => {
+    const targetId = localStorage.getItem('targetRoomId');
+    if (targetId && rooms.length > 0) {
+      const targetRoom = rooms.find(r => r.id === targetId);
+      if (targetRoom) {
+        setSelectedRoom(targetRoom);
+        setViewMode('detail');
+      }
+      localStorage.removeItem('targetRoomId');
+    }
+  }, [rooms]);
 
   const fetchRooms = async () => {
     try {
@@ -798,6 +812,15 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
   const getDaysInMonth = () => Array.from({length: 30}, (_, i) => i + 1);
   const isBooked = (day: number) => day % 3 === 0; // Mock
 
+  const handleBackToList = () => {
+    const returnToLaboran = localStorage.getItem('returnToLaboranId');
+    if (returnToLaboran && onNavigate) {
+        onNavigate('laboran-management');
+    } else {
+        setViewMode('list');
+    }
+  };
+
   // --- RENDERERS ---
 
   if (viewMode === 'form') {
@@ -817,7 +840,7 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode }) => {
   if (viewMode === 'detail' && selectedRoom) {
       return (
           <div className="space-y-6">
-              <button onClick={() => setViewMode('list')} className="text-sm text-blue-500 hover:underline mb-4 flex items-center">
+              <button onClick={handleBackToList} className="text-sm text-blue-500 hover:underline mb-4 flex items-center">
                 <ChevronLeft className="w-4 h-4 mr-1" /> Kembali ke daftar
               </button>
               

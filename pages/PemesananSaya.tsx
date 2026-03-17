@@ -23,7 +23,7 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
         try {
             const [bkRes, rmRes] = await Promise.all([
                 api('/api/bookings'),
-                api('/api/rooms')
+                api('/api/rooms?exclude_image=true')
             ]);
             if (bkRes.ok) {
                 const allBookings: Booking[] = await bkRes.json();

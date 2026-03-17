@@ -85,7 +85,7 @@ const ManajemenSpesifikasi: React.FC<ManajemenSpesifikasiProps> = ({ role, isDar
 
   const fetchRooms = async () => {
     try {
-      const res = await api('/api/rooms');
+      const res = await api('/api/rooms?exclude_image=true');
       if (res.ok) setRooms(await res.json());
     } catch (e) { console.error(e); }
   };

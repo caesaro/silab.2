@@ -136,7 +136,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
         // Fetch various stats
         const [usersRes, roomsRes, inventoryRes, bookingsRes] = await Promise.all([
           api('/api/users'),
-          api('/api/rooms'),
+          api('/api/rooms?exclude_image=true'),
           api('/api/inventory'),
           api('/api/bookings')
         ]);

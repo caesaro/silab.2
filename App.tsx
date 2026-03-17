@@ -265,7 +265,7 @@ const App: React.FC = () => {
         case 'schedule':
           return <JadwalRuang role={currentRole} showToast={showToast} isDarkMode={isDarkMode} />;
         case 'rooms':
-          return <Ruangan role={currentRole} isDarkMode={isDarkMode} />;
+          return <Ruangan role={currentRole} isDarkMode={isDarkMode} onNavigate={setCurrentPage} />;
         case 'events':
           return <Acara showToast={showToast} isDarkMode={isDarkMode} />;
         case 'loans':
@@ -285,7 +285,7 @@ const App: React.FC = () => {
               allowedRoles={[Role.ADMIN]} 
               onNavigate={setCurrentPage}
             >
-              <ManajemenLaboran />
+              <ManajemenLaboran onNavigate={setCurrentPage} />
             </ProtectedRoute>
           );
         case 'pkl-management':

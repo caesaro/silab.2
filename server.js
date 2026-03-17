@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿import express from 'express';
+﻿﻿﻿﻿﻿﻿﻿﻿import express from 'express';
 import pg from 'pg';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -1455,9 +1455,11 @@ app.post('/api/item-movements/:id/undo', async (req, res) => {
 
 app.get('/api/rooms', async (req, res) => {
   try {
+    const excludeImage = req.query.exclude_image === 'true';
+    const imageColumn = excludeImage ? 'NULL' : 'r.image_data';
     // Join dengan staff untuk dapat nama PIC
     const result = await pool.query(`
-        SELECT r.*, s.nama as pic_name,
+        SELECT r.id, r.name, r.category, r.deskripsi, r.kapasitas, r.pic_id, r.fasilitas, r.google_calendar_url, r.lantai, ${imageColumn} as image_data, s.nama as pic_name,
                    (SELECT COUNT(*) FROM room_computers rc WHERE rc.room_id = r.id) as computer_count,
                    (SELECT b.keperluan FROM bookings b 
                      JOIN booking_schedules bs ON b.id = bs.booking_id 
