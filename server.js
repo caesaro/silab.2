@@ -138,6 +138,8 @@ const createIndexes = async () => {
     
     // Rooms index
     'CREATE INDEX IF NOT EXISTS idx_rooms_name ON rooms(name)',
+    // Add thumbnail column
+    'ALTER TABLE rooms ADD COLUMN IF NOT EXISTS thumbnail_data BYTEA',
   ];
 
   try {
@@ -1541,7 +1543,7 @@ app.get('/api/room/:id', async (req, res) => {
 });
 
 app.post('/api/rooms', async (req, res) => {
-  const { id, name, category, description, capacity, pic, image, facilities, googleCalendarUrl, floor } = req.body;
+  const { id, name, category, description, capacity, pic, image, thumbnail, facilities, googleCalendarUrl, floor } = req.body;
   try {
     // Cari ID Staff berdasarkan nama (karena frontend mengirim nama)
     let picId = null;
@@ -1555,9 +1557,15 @@ app.post('/api/rooms', async (req, res) => {
         imageBuffer = Buffer.from(base64Data, 'base64');
     }
 
+    let thumbBuffer = null;
+    if (thumbnail && thumbnail.startsWith('data:image')) {
+        const base64Data = thumbnail.split(',')[1];
+        thumbBuffer = Buffer.from(base64Data, 'base64');
+    }
+
     await pool.query(
-      'INSERT INTO rooms (id, name, category, deskripsi, kapasitas, pic_id, image_data, fasilitas, google_calendar_url, lantai) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
-      [id, name, category, description, capacity, picId, imageBuffer, facilities || [], googleCalendarUrl, floor || 'FTI Lt. 4']
+      'INSERT INTO rooms (id, name, category, deskripsi, kapasitas, pic_id, image_data, thumbnail_data, fasilitas, google_calendar_url, lantai) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)',
+      [id, name, category, description, capacity, picId, imageBuffer, thumbBuffer, facilities || [], googleCalendarUrl, floor || 'FTI Lt. 4']
     );
     res.json({ success: true });
   } catch (err) {
@@ -1575,7 +1583,7 @@ app.post('/api/rooms/images', async (req, res) => {
 
   try {
     const result = await pool.query(
-      'SELECT id, image_data FROM rooms WHERE id = ANY($1::varchar[])',
+      'SELECT id, COALESCE(thumbnail_data, image_data) as image_data FROM rooms WHERE id = ANY($1::varchar[])',
       [roomIds]
     );
 
@@ -1591,23 +1599,40 @@ app.post('/api/rooms/images', async (req, res) => {
 });
 
 app.put('/api/rooms/:id', async (req, res) => {
-    const { name, category, description, capacity, pic, image, facilities, googleCalendarUrl, floor } = req.body;
+    const { name, category, description, capacity, pic, image, thumbnail, facilities, googleCalendarUrl, floor } = req.body;
     try {
       let picId = null;
       const staffRes = await pool.query("SELECT id FROM staff WHERE nama = $1", [pic]);
       if (staffRes.rows.length > 0) picId = staffRes.rows[0].id;
   
-      // Convert Base64 Image to Buffer
-      let imageBuffer = null;
-      if (image && image.startsWith('data:image')) {
-          const base64Data = image.split(',')[1];
-          imageBuffer = Buffer.from(base64Data, 'base64');
+      let updateQuery = 'UPDATE rooms SET name=$1, category=$2, deskripsi=$3, kapasitas=$4, pic_id=$5, fasilitas=$6, google_calendar_url=$7, lantai=$8';
+      let params = [name, category, description, capacity, picId, facilities || [], googleCalendarUrl, floor];
+      let paramIndex = 9;
+
+      if (image !== undefined) {
+          let imageBuffer = null;
+          if (image && image.startsWith('data:image')) {
+              imageBuffer = Buffer.from(image.split(',')[1], 'base64');
+          }
+          updateQuery += `, image_data=$${paramIndex}`;
+          params.push(imageBuffer);
+          paramIndex++;
       }
 
-      await pool.query(
-        'UPDATE rooms SET name=$1, category=$2, deskripsi=$3, kapasitas=$4, pic_id=$5, image_data=$6, fasilitas=$7, google_calendar_url=$8, lantai=$9 WHERE id=$10',
-        [name, category, description, capacity, picId, imageBuffer, facilities || [], googleCalendarUrl, floor, req.params.id]
-      );
+      if (thumbnail !== undefined) {
+          let thumbBuffer = null;
+          if (thumbnail && thumbnail.startsWith('data:image')) {
+              thumbBuffer = Buffer.from(thumbnail.split(',')[1], 'base64');
+          }
+          updateQuery += `, thumbnail_data=$${paramIndex}`;
+          params.push(thumbBuffer);
+          paramIndex++;
+      }
+
+      updateQuery += ` WHERE id=$${paramIndex}`;
+      params.push(req.params.id);
+
+      await pool.query(updateQuery, params);
       res.json({ success: true });
     } catch (err) {
       console.error(err);

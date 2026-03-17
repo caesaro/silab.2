@@ -30,8 +30,26 @@ const RoomForm: React.FC<RoomFormProps> = ({ initialData, isEditing, onSave, onC
       setIsImageProcessing(true);
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, image: reader.result as string }));
-        setIsImageProcessing(false);
+        const result = reader.result as string;
+        
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 400; // Resolusi thumbnail lebih rendah untuk performa
+          const scaleSize = MAX_WIDTH / img.width;
+          canvas.width = MAX_WIDTH;
+          canvas.height = img.height * scaleSize;
+          
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          }
+          const thumbnail = canvas.toDataURL('image/jpeg', 0.4); // Kualitas 40% sudah cukup untuk thumbnail
+          
+          setFormData(prev => ({ ...prev, image: result, thumbnail: thumbnail, imageChanged: true } as any));
+          setIsImageProcessing(false);
+        };
+        img.src = result;
       };
       reader.readAsDataURL(file);
     }
@@ -210,7 +228,7 @@ const RoomForm: React.FC<RoomFormProps> = ({ initialData, isEditing, onSave, onC
               {isImageProcessing ? (
                 <div className="flex flex-col items-center text-blue-600"><Loader2 className="w-8 h-8 animate-spin mb-2" /><span className="text-sm font-semibold">Memproses...</span></div>
               ) : formData.image ? (
-                <div className="flex flex-col items-center"><img src={formData.image} alt="Preview" className="h-32 object-cover rounded mb-3" /><button type="button" onClick={() => setFormData({ ...formData, image: '' })} className="text-red-500 text-sm hover:underline">Hapus Gambar</button></div>
+                <div className="flex flex-col items-center"><img src={formData.image} alt="Preview" className="h-32 object-cover rounded mb-3" /><button type="button" onClick={() => setFormData({ ...formData, image: '', thumbnail: '', imageChanged: true } as any)} className="text-red-500 text-sm hover:underline">Hapus Gambar</button></div>
               ) : (
                 <label className="cursor-pointer flex flex-col items-center"><Upload className="w-8 h-8 text-gray-400 mb-2" /><span className="text-sm text-gray-500">Klik untuk upload (JPG/PNG)</span><input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} /></label>
               )}

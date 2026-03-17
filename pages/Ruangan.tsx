@@ -160,12 +160,8 @@ const { rooms, fetchRooms: fetchRoomsApi } = useRooms({ autoFetch: false, exclud
   useEffect(() => {
     localStorage.setItem('collapsedFloors_state', JSON.stringify(collapsedFloors));
   }, [collapsedFloors]);
-
-  // State untuk memberikan animasi loading pada lantai tertentu saat uncollapse
-  const [loadingFloor, setLoadingFloor] = useState<string | null>(null);
-
-  // State untuk cache gambar 360
-  const [imageCache, setImageCache] = useState<Record<string, string>>({});
+  
+  const [highResCache, setHighResCache] = useState<Record<string, string>>({});
 
   // Pannellum Ref
   const panoramaRef = useRef<HTMLDivElement>(null);
@@ -200,33 +196,7 @@ const { rooms, fetchRooms: fetchRoomsApi } = useRooms({ autoFetch: false, exclud
     const isCurrentlyCollapsed = collapsedFloors[floor] !== false; // Default true jika undefined
     
     if (isCurrentlyCollapsed) {
-      // Saat buka (uncollapse): set loading dulu agar UI tidak freeze
-      setLoadingFloor(floor);
-
-      // Cari room di lantai ini yang gambarnya belum ada di cache
-      const roomsOnFloor = rooms.filter(r => (r.floor || 'Lantai 4') === floor);
-      const roomIdsToFetch = roomsOnFloor
-        .filter(r => !imageCache[r.id])
-        .map(r => r.id);
-
-      // Jika ada, fetch dari API
-      if (roomIdsToFetch.length > 0) {
-        try {
-          const res = await api('/api/rooms/images', { method: 'POST', data: { roomIds: roomIdsToFetch } });
-          if (res.ok) {
-            const imagesData: { id: string, image: string | null }[] = await res.json();
-            const newImageCacheEntries = imagesData.reduce((acc, item) => {
-              if (item.image) acc[item.id] = item.image;
-              return acc;
-            }, {} as Record<string, string>);
-            setImageCache(prev => ({ ...prev, ...newImageCacheEntries }));
-          }
-        } catch (error) {
-          showToast("Gagal memuat gambar ruangan.", "error");
-        }
-      }
       setCollapsedFloors(prev => ({ ...prev, [floor]: false }));
-      setLoadingFloor(null);
     } else {
       setCollapsedFloors(prev => ({ ...prev, [floor]: true }));
     }
@@ -276,20 +246,40 @@ const { rooms, fetchRooms: fetchRoomsApi } = useRooms({ autoFetch: false, exclud
   // Initialize Pannellum when viewing details
 useEffect(() => {
     if (viewMode === 'detail' && selectedRoom && panoramaRef.current) {
-      const imageUrl = imageCache[selectedRoom.id];
+      const roomId = selectedRoom.id;
 
-      if (imageUrl) {
-        setIsPanoramaLoading(true);
-        if (window.pannellum) {
+      const initViewer = (imgUrl: string) => {
+        if (panoramaRef.current && window.pannellum) {
           viewerRef.current = window.pannellum.viewer(panoramaRef.current, {
             type: 'equirectangular',
-            panorama: imageUrl,
+            panorama: imgUrl,
             autoLoad: true,
             autoRotate: -2,
             compass: true,
             listeners: { 'load': () => setIsPanoramaLoading(false) }
           });
         }
+      };
+
+      if (highResCache[roomId]) {
+        setIsPanoramaLoading(true);
+        initViewer(highResCache[roomId]);
+      } else {
+        setIsPanoramaLoading(true);
+        api(`/api/room/${roomId}`)
+          .then(res => res.ok ? res.json() : Promise.reject())
+          .then(data => {
+            if (data.image) {
+              setHighResCache(prev => ({ ...prev, [roomId]: data.image }));
+              initViewer(data.image);
+            } else {
+              setIsPanoramaLoading(false);
+            }
+          })
+          .catch(() => {
+            showToast("Gagal memuat gambar 360 resolusi tinggi.", "error");
+            setIsPanoramaLoading(false);
+          });
       }
 
       return () => {
@@ -299,7 +289,7 @@ useEffect(() => {
         }
       };
     }
-  }, [viewMode, selectedRoom, imageCache]);
+  }, [viewMode, selectedRoom]);
 
   // Fetch Initial Data & Setup Auto-Refresh
   useEffect(() => {
@@ -551,10 +541,25 @@ useEffect(() => {
     setViewMode('form');
   };
 
-  const handleEdit = (room: Room) => {
-    setFormData(room);
+  const handleEdit = async (room: Room) => {
+    setFormData({ ...room, image: highResCache[room.id] || '' });
     setIsEditing(true);
     setViewMode('form');
+
+    if (!highResCache[room.id]) {
+      try {
+        const res = await api(`/api/room/${room.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.image) {
+            setHighResCache(prev => ({ ...prev, [room.id]: data.image }));
+            setFormData(prev => ({ ...prev, image: data.image }));
+          }
+        }
+      } catch (error) {
+        // Silent - Abaikan jika gagal memuat gambar, agar tidak mengganggu proses edit data
+      }
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -600,11 +605,17 @@ useEffect(() => {
     setIsSavingRoom(true);
 
     // Bersihkan fasilitas dari string kosong sebelum kirim
-    const { pic_id, ...cleanData } = submittedData as any;
+    const { pic_id, imageChanged, ...cleanData } = submittedData as any;
 
     const payload = {
         ...cleanData,
     };
+
+    // Jangan kirim image & thumbnail jika tidak ada perubahan agar tidak menimpa di database
+    if (!imageChanged && isEditing) {
+      delete payload.image;
+      delete payload.thumbnail;
+    }
 
     try {
       let response;
@@ -815,13 +826,7 @@ useEffect(() => {
                   {/* 360 Viewer Container */}
                   <div className="relative h-96 w-full bg-black group">
                       <div ref={panoramaRef} className="w-full h-full"></div>
-                      {isPanoramaLoading && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm text-white z-20">
-                          <Loader2 className="w-10 h-10 animate-spin mb-3" />
-                          <p className="font-medium">Memuat Tampilan 360°...</p>
-                        </div>
-                      )}
-                      {!isPanoramaLoading && !imageCache[selectedRoom.id] && (
+                      {!isPanoramaLoading && !highResCache[selectedRoom.id] && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-800 text-gray-400 z-20">
                           <Info className="w-10 h-10 mb-3" />
                           <p className="font-medium">Gambar 360° tidak tersedia.</p>
@@ -1318,8 +1323,6 @@ useEffect(() => {
       <RoomList
         filteredRooms={filteredRooms}
         collapsedFloors={collapsedFloors}
-        imageCache={imageCache}
-        loadingFloor={loadingFloor}
         toggleFloor={toggleFloor}
         canManage={canManage}
         onRoomSelect={(room) => {
