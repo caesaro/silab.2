@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿import express from 'express';
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿import express from 'express';
 import pg from 'pg';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -1506,6 +1506,40 @@ app.get('/api/rooms', async (req, res) => {
   }
 });
 
+app.get('/api/room/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(`
+        SELECT r.id, r.name, r.category, r.deskripsi, r.kapasitas, r.pic_id, r.fasilitas, r.google_calendar_url, r.lantai, r.image_data, s.nama as pic_name,
+               (SELECT COUNT(*) FROM room_computers rc WHERE rc.room_id = r.id) as computer_count
+        FROM rooms r 
+        LEFT JOIN staff s ON r.pic_id = s.id 
+        WHERE r.id = $1
+    `, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+
+    const row = result.rows[0];
+    const room = {
+      id: row.id,
+      name: row.name,
+      category: row.category,
+      description: row.deskripsi,
+      capacity: row.kapasitas,
+      pic: row.pic_name || 'Unknown',
+      pic_id: row.pic_id,
+      image: row.image_data ? `data:image/jpeg;base64,${row.image_data.toString('base64')}` : null,
+      facilities: row.fasilitas || [],
+      googleCalendarUrl: row.google_calendar_url,
+      floor: row.lantai || 'FTI Lt. 4',
+      computerCount: parseInt(row.computer_count || '0'),
+    };
+    res.json(room);
+  } catch (err) { res.status(500).json({ error: 'DB Error' }); }
+});
+
 app.post('/api/rooms', async (req, res) => {
   const { id, name, category, description, capacity, pic, image, facilities, googleCalendarUrl, floor } = req.body;
   try {
@@ -1529,6 +1563,30 @@ app.post('/api/rooms', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'DB Error' });
+  }
+});
+
+app.post('/api/rooms/images', async (req, res) => {
+  const { roomIds } = req.body;
+
+  if (!Array.isArray(roomIds) || roomIds.length === 0) {
+    return res.status(400).json({ error: 'roomIds must be a non-empty array.' });
+  }
+
+  try {
+    const result = await pool.query(
+      'SELECT id, image_data FROM rooms WHERE id = ANY($1::varchar[])',
+      [roomIds]
+    );
+
+    const images = result.rows.map(row => ({
+      id: row.id,
+      image: row.image_data ? `data:image/jpeg;base64,${row.image_data.toString('base64')}` : null,
+    }));
+
+    res.json(images);
+  } catch (err) {
+    res.status(500).json({ error: 'DB Error while fetching images' });
   }
 });
 

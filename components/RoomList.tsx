@@ -1,5 +1,6 @@
 import React from 'react';
 import { Room } from '../types';
+import { Skeleton } from './Skeleton';
 import { MapPin, Users, Monitor, Check, Edit2, Trash2, ChevronRight } from 'lucide-react';
 
 interface FloorGroup {
@@ -10,6 +11,8 @@ interface FloorGroup {
 interface RoomListProps {
   filteredRooms: Room[];
   collapsedFloors: Record<string, boolean>;
+  loadingFloor: string | null;
+  imageCache: Record<string, string>;
   toggleFloor: (floor: string) => void;
   canManage: boolean;
   onRoomSelect: (room: Room) => void;
@@ -21,6 +24,8 @@ interface RoomListProps {
 const RoomList: React.FC<RoomListProps> = ({
   filteredRooms,
   collapsedFloors,
+  loadingFloor,
+  imageCache,
   toggleFloor,
   canManage,
   onRoomSelect,
@@ -78,7 +83,28 @@ const RoomList: React.FC<RoomListProps> = ({
           </div>
           
           {/* Room Grid */}
-          {collapsedFloors[group.floor] === false && (
+          {loadingFloor === group.floor ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4 pb-2 animate-fade-in-up">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col h-[400px]">
+                  <Skeleton className="h-48 w-full rounded-none" />
+                  <div className="p-5 flex-1 flex flex-col">
+                    <Skeleton className="h-6 w-3/4 mb-3" />
+                    <Skeleton className="h-4 w-1/4 mb-4" />
+                    <div className="flex gap-2 mb-4">
+                      <Skeleton className="h-6 w-16 rounded" />
+                      <Skeleton className="h-6 w-16 rounded" />
+                    </div>
+                    <Skeleton className="h-12 w-full mb-4" />
+                    <div className="mt-auto flex justify-end">
+                      <Skeleton className="h-9 w-28 rounded-lg" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            collapsedFloors[group.floor] === false && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4 pb-2 animate-fade-in-up">
               {group.rooms.map((room) => (
                 <div 
@@ -87,9 +113,13 @@ const RoomList: React.FC<RoomListProps> = ({
                   className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all flex flex-col group cursor-pointer"
                 >
                   <div className="h-48 overflow-hidden relative bg-gray-200">
-                    <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 animate-pulse flex items-center justify-center">
-                      <MapPin className="w-12 h-12 text-white/70 opacity-75" />
-                    </div>
+                    {imageCache[room.id] ? (
+                      <img src={imageCache[room.id]} alt={room.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 animate-pulse flex items-center justify-center">
+                        <MapPin className="w-12 h-12 text-white/70 opacity-75" />
+                      </div>
+                    )}
                   </div>
                   <div className="p-5 flex-1 flex flex-col">
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 group-hover:text-blue-600 transition-colors">
@@ -177,6 +207,7 @@ const RoomList: React.FC<RoomListProps> = ({
                 </div>
               ))}
             </div>
+            )
           )}
         </div>
       ))}
@@ -185,4 +216,3 @@ const RoomList: React.FC<RoomListProps> = ({
 };
 
 export default RoomList;
-

@@ -161,10 +161,17 @@ const { rooms, fetchRooms: fetchRoomsApi } = useRooms({ autoFetch: false, exclud
     localStorage.setItem('collapsedFloors_state', JSON.stringify(collapsedFloors));
   }, [collapsedFloors]);
 
+  // State untuk memberikan animasi loading pada lantai tertentu saat uncollapse
+  const [loadingFloor, setLoadingFloor] = useState<string | null>(null);
+
+  // State untuk cache gambar 360
+  const [imageCache, setImageCache] = useState<Record<string, string>>({});
+
   // Pannellum Ref
   const panoramaRef = useRef<HTMLDivElement>(null);
 
-  // Google API State
+  const viewerRef = useRef<any>(null); // Untuk menyimpan instance Pannellum
+  const [isPanoramaLoading, setIsPanoramaLoading] = useState(false);
   const [calendarEvents, setCalendarEvents] = useState<GoogleEvent[]>([]);
   const [isCalendarLoading, setIsCalendarLoading] = useState(false);
   const [isGapiReady, setIsGapiReady] = useState(false);
@@ -189,11 +196,40 @@ const { rooms, fetchRooms: fetchRoomsApi } = useRooms({ autoFetch: false, exclud
   // Filter Active Technicians for PIC Dropdown
   const activeTechnicians = labStaff; // API /api/staff already filters Active
 
-  const toggleFloor = (floor: string) => {
-    setCollapsedFloors(prev => ({
-      ...prev,
-      [floor]: prev[floor] === false
-    }));
+  const toggleFloor = async (floor: string) => {
+    const isCurrentlyCollapsed = collapsedFloors[floor] !== false; // Default true jika undefined
+    
+    if (isCurrentlyCollapsed) {
+      // Saat buka (uncollapse): set loading dulu agar UI tidak freeze
+      setLoadingFloor(floor);
+
+      // Cari room di lantai ini yang gambarnya belum ada di cache
+      const roomsOnFloor = rooms.filter(r => (r.floor || 'Lantai 4') === floor);
+      const roomIdsToFetch = roomsOnFloor
+        .filter(r => !imageCache[r.id])
+        .map(r => r.id);
+
+      // Jika ada, fetch dari API
+      if (roomIdsToFetch.length > 0) {
+        try {
+          const res = await api('/api/rooms/images', { method: 'POST', data: { roomIds: roomIdsToFetch } });
+          if (res.ok) {
+            const imagesData: { id: string, image: string | null }[] = await res.json();
+            const newImageCacheEntries = imagesData.reduce((acc, item) => {
+              if (item.image) acc[item.id] = item.image;
+              return acc;
+            }, {} as Record<string, string>);
+            setImageCache(prev => ({ ...prev, ...newImageCacheEntries }));
+          }
+        } catch (error) {
+          showToast("Gagal memuat gambar ruangan.", "error");
+        }
+      }
+      setCollapsedFloors(prev => ({ ...prev, [floor]: false }));
+      setLoadingFloor(null);
+    } else {
+      setCollapsedFloors(prev => ({ ...prev, [floor]: true }));
+    }
   };
 
   // Ekstrak daftar kategori unik dari data ruangan
@@ -238,25 +274,32 @@ const { rooms, fetchRooms: fetchRoomsApi } = useRooms({ autoFetch: false, exclud
   }, [searchTimeout]);
 
   // Initialize Pannellum when viewing details
-  useEffect(() => {
-    if (viewMode === 'detail' && selectedRoom && panoramaRef.current && window.pannellum) {
-      // Destroy existing viewer if any (clean up)
-      try {
-         // This is a bit of a hack as Pannellum doesn't have a clean destroy method on the instance easily accessible here
-         panoramaRef.current.innerHTML = ''; 
-      } catch(e) {}
+useEffect(() => {
+    if (viewMode === 'detail' && selectedRoom && panoramaRef.current) {
+      const imageUrl = imageCache[selectedRoom.id];
 
-      window.pannellum.viewer(panoramaRef.current, {
-        type: 'equirectangular',
-        panorama: selectedRoom.image,
-        autoLoad: true,
-        autoRotate: -2, // Rotate to the left at 2 degrees per second
-        compass: true,
-        title: "Tampilan 360°",
-        author: "Pannellum"
-      });
+      if (imageUrl) {
+        setIsPanoramaLoading(true);
+        if (window.pannellum) {
+          viewerRef.current = window.pannellum.viewer(panoramaRef.current, {
+            type: 'equirectangular',
+            panorama: imageUrl,
+            autoLoad: true,
+            autoRotate: -2,
+            compass: true,
+            listeners: { 'load': () => setIsPanoramaLoading(false) }
+          });
+        }
+      }
+
+      return () => {
+        if (viewerRef.current) {
+          try { viewerRef.current.destroy(); } catch (e) { /* silent */ }
+          viewerRef.current = null;
+        }
+      };
     }
-  }, [viewMode, selectedRoom]);
+  }, [viewMode, selectedRoom, imageCache]);
 
   // Fetch Initial Data & Setup Auto-Refresh
   useEffect(() => {
@@ -772,6 +815,18 @@ const { rooms, fetchRooms: fetchRoomsApi } = useRooms({ autoFetch: false, exclud
                   {/* 360 Viewer Container */}
                   <div className="relative h-96 w-full bg-black group">
                       <div ref={panoramaRef} className="w-full h-full"></div>
+                      {isPanoramaLoading && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm text-white z-20">
+                          <Loader2 className="w-10 h-10 animate-spin mb-3" />
+                          <p className="font-medium">Memuat Tampilan 360°...</p>
+                        </div>
+                      )}
+                      {!isPanoramaLoading && !imageCache[selectedRoom.id] && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-800 text-gray-400 z-20">
+                          <Info className="w-10 h-10 mb-3" />
+                          <p className="font-medium">Gambar 360° tidak tersedia.</p>
+                        </div>
+                      )}
                       <div className="absolute top-4 left-10 bg-black/50 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center backdrop-blur-sm pointer-events-none z-10">
                           <Eye className="w-4 h-4 mr-2" /> Tampilan Interaktif 360°
                       </div>
@@ -1263,6 +1318,8 @@ const { rooms, fetchRooms: fetchRoomsApi } = useRooms({ autoFetch: false, exclud
       <RoomList
         filteredRooms={filteredRooms}
         collapsedFloors={collapsedFloors}
+        imageCache={imageCache}
+        loadingFloor={loadingFloor}
         toggleFloor={toggleFloor}
         canManage={canManage}
         onRoomSelect={(room) => {
