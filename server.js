@@ -1857,6 +1857,66 @@ app.post('/api/bookings', async (req, res) => {
     }
 });
 
+// Update Booking (Hanya untuk User saat status masih Pending)
+app.put('/api/bookings/:id', async (req, res) => {
+    const { id } = req.params;
+    const { roomId, responsiblePerson, contactPerson, purpose, proposalFile, schedules } = req.body;
+    
+    let proposalBuffer = null;
+    if (proposalFile && proposalFile.startsWith('data:application/pdf')) {
+        const base64Data = proposalFile.split(',')[1];
+        proposalBuffer = Buffer.from(base64Data, 'base64');
+        if (proposalBuffer.length > 5 * 1024 * 1024) {
+            return res.status(400).json({ error: 'Ukuran file proposal melebihi batas maksimum 5MB.' });
+        }
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        
+        let updateQuery = `UPDATE bookings SET room_id=$1, penanggung_jawab=$2, contact_person=$3, keperluan=$4`;
+        let params = [roomId, responsiblePerson, contactPerson, purpose];
+        let paramIndex = 5;
+
+        if (proposalBuffer) {
+            updateQuery += `, file_proposal=$${paramIndex}`;
+            params.push(proposalBuffer);
+            paramIndex++;
+        }
+        
+        updateQuery += ` WHERE id=$${paramIndex} AND status='Pending'`;
+        params.push(id);
+
+        const result = await client.query(updateQuery, params);
+        if (result.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'Pemesanan tidak ditemukan atau tidak lagi berstatus Pending.' });
+        }
+
+        await client.query(`DELETE FROM booking_schedules WHERE booking_id=$1`, [id]);
+        
+        if (schedules && Array.isArray(schedules)) {
+            for (const sch of schedules) {
+                await client.query(
+                    `INSERT INTO booking_schedules (booking_id, schedule_date, start_time, end_time)
+                     VALUES ($1, $2, $3, $4)`,
+                    [id, sch.date, sch.startTime, sch.endTime]
+                );
+            }
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Update booking error:', err);
+        res.status(500).json({ error: 'Gagal update booking.' });
+    } finally {
+        client.release();
+    }
+});
+
 app.put('/api/bookings/:id/status', async (req, res) => {
     const { status, techSupportPic, techSupportNeeds, rejectionReason } = req.body;
     try {

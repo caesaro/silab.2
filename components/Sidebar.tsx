@@ -28,7 +28,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
     {
       title: 'Layanan & Transaksi',
       items: [
-        { id: 'create-booking', label: 'Buat Pesanan', icon: PlusCircle, roles: [Role.ADMIN, Role.LABORAN, Role.USER] },
         { id: 'bookings', label: 'Pemesanan Saya', icon: ClipboardList, roles: [Role.USER] },
         { id: 'manage-bookings', label: 'Pesanan Ruang', icon: ClipboardCheck, roles: [Role.ADMIN, Role.LABORAN] },
         { id: 'loans', label: 'Peminjaman Barang', icon: Box, roles: [Role.ADMIN, Role.LABORAN] },

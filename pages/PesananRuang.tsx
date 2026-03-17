@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Booking, BookingStatus, Room } from '../types';
-import { Search, Filter, CheckCircle, XCircle, Calendar, Clock, MapPin, User, AlertCircle, FileText, Download, X, Phone, Shield, Loader2, Wrench, Edit, Save, Share2, FileSpreadsheet, AlertTriangle, Trash2 } from 'lucide-react';
+import { Booking, BookingStatus, Room, Role } from '../types';
+import { Search, Filter, CheckCircle, XCircle, Calendar, Clock, MapPin, User, AlertCircle, FileText, Download, X, Phone, Shield, Loader2, Wrench, Edit, Save, Share2, FileSpreadsheet, AlertTriangle, Trash2, Plus } from 'lucide-react';
 import { api } from '../services/api';
 import html2canvas from 'html2canvas';
 import nocLogo from "../src/assets/noc.png";
-import { CLIENT_ID, API_KEY, DISCOVERY_DOCS, SCOPES } from '../src/config/google';
+import BookingForm from '../components/BookingForm';
+import { useGoogleCalendar } from '../hooks/useGoogleCalendar';
+import { useRooms } from '../hooks/useRooms';
 
 declare global {
   interface Window {
@@ -33,13 +35,16 @@ interface LabStaff {
 
 const PesananRuang: React.FC<ManageBookingsProps> = ({ addNotification, showToast }) => {
   const [bookings, setBookings] = useState<BookingWithTech[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]);
+  const { rooms } = useRooms({ excludeImage: true });
   const [staffList, setStaffList] = useState<LabStaff[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'All' | BookingStatus>('All');
   const [filterDate, setFilterDate] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<BookingWithTech | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+
+  const googleApi = useGoogleCalendar(Role.ADMIN, showToast);
 
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
   const [bookingToApprove, setBookingToApprove] = useState<BookingWithTech | null>(null);
@@ -73,7 +78,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({ addNotification, showToas
     setIsDeleting(true);
 
     // Try to delete from Google Calendar first (if approved)
-    if (bookingToDelete.status === BookingStatus.APPROVED && isGapiInitialized) {
+    if (bookingToDelete.status === BookingStatus.APPROVED && googleApi.isGapiInitialized) {
       const gapiResult: any = await deleteFromGoogleCalendar(bookingToDelete, 'all');
       if (!gapiResult.success && gapiResult.message !== "Dilewati: Tidak ada URL Kalender" && gapiResult.message !== "Event tidak ditemukan di Google Calendar") {
         showToast(`Peringatan: Gagal hapus dari Calendar (${gapiResult.message}), namun data tetap dihapus.`, 'warning');
@@ -103,9 +108,6 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({ addNotification, showToas
     setBookingToDelete(null);
   };
 
-  const [isGapiInitialized, setIsGapiInitialized] = useState(false);
-  const [tokenClient, setTokenClient] = useState<any>(null);
-
   const ticketRef = useRef<HTMLDivElement>(null);
 
   const deleteFromGoogleCalendar = async (booking: Booking, option: 'single' | 'thisAndFollowing' | 'all') => {
@@ -113,14 +115,9 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({ addNotification, showToas
     if (!room?.googleCalendarUrl) return { success: true, message: "Dilewati: Tidak ada URL Kalender" };
     const calendarId = getCalendarId(room.googleCalendarUrl);
     if (!calendarId) return { success: false, message: "ID Kalender Tidak Valid" };
-    if (window.gapi.client.getToken() === null) {
-      return new Promise((resolve) => {
-        tokenClient.requestAccessToken({ prompt: '' });
-        tokenClient.callback = async (resp: any) => {
-          if (resp.error) resolve({ success: false, message: "Otentikasi Gagal" });
-          else resolve(await performDelete(calendarId, booking, room.name, option));
-        };
-      });
+    if (!googleApi.isAuthenticated) {
+      googleApi.login();
+      return { success: false, message: "Harap otorisasi Google Calendar lalu coba lagi." };
     }
     return await performDelete(calendarId, booking, room.name, option);
   };
@@ -174,48 +171,14 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({ addNotification, showToas
     setBookingToDeleteCalendar(null);
   };
 
-  useEffect(() => {
-    const loadScripts = () => {
-      if (typeof window.gapi === 'undefined') {
-        const script1 = document.createElement('script');
-        script1.src = 'https://apis.google.com/js/api.js';
-        script1.onload = () => window.gapi.load('client', initializeGapiClient);
-        document.body.appendChild(script1);
-      } else {
-        window.gapi.load('client', initializeGapiClient);
-      }
-      if (typeof window.google === 'undefined') {
-        const script2 = document.createElement('script');
-        script2.src = 'https://accounts.google.com/gsi/client';
-        script2.onload = () => initializeGisClient();
-        document.body.appendChild(script2);
-      } else {
-        initializeGisClient();
-      }
-    };
-    loadScripts();
-  }, []);
-
-  const initializeGapiClient = async () => {
-    await window.gapi.client.init({ apiKey: API_KEY, discoveryDocs: DISCOVERY_DOCS });
-    setIsGapiInitialized(true);
-  };
-
-  const initializeGisClient = () => {
-    // FIX: SCOPES adalah object, harus ambil string spesifik (READWRITE untuk fitur ini)
-    const client = window.google.accounts.oauth2.initTokenClient({ client_id: CLIENT_ID, scope: SCOPES.READWRITE, callback: () => {} });
-    setTokenClient(client);
-  };
-
   useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
     try {
-      const [bkRes, rmRes, stRes] = await Promise.all([
-        api('/api/bookings'), api('/api/rooms?exclude_image=true'), api('/api/staff')
+      const [bkRes, stRes] = await Promise.all([
+        api('/api/bookings'), api('/api/staff')
       ]);
       if (bkRes.ok) setBookings(await bkRes.json());
-      if (rmRes.ok) setRooms(await rmRes.json());
       if (stRes.ok) {
         const staffData = await stRes.json();
         setStaffList(staffData.map((s: any) => ({
@@ -238,14 +201,9 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({ addNotification, showToas
     if (!room?.googleCalendarUrl) return { success: true, message: "Dilewati: Tidak ada URL Kalender" };
     const calendarId = getCalendarId(room.googleCalendarUrl);
     if (!calendarId) return { success: false, message: "ID Kalender Tidak Valid" };
-    if (window.gapi.client.getToken() === null) {
-      return new Promise((resolve) => {
-        tokenClient.requestAccessToken({ prompt: '' });
-        tokenClient.callback = async (resp: any) => {
-          if (resp.error) resolve({ success: false, message: "Otentikasi Gagal" });
-          else resolve(await insertEvent(calendarId, booking, room.name));
-        };
-      });
+    if (!googleApi.isAuthenticated) {
+      googleApi.login();
+      return { success: false, message: "Harap otorisasi Google Calendar lalu coba lagi." };
     }
     return await insertEvent(calendarId, booking, room.name);
   };
@@ -275,7 +233,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({ addNotification, showToas
     const booking = bookings.find(b => b.id === id);
     if (!booking) return;
     setProcessingId(id);
-    if (newStatus === BookingStatus.APPROVED && isGapiInitialized) {
+    if (newStatus === BookingStatus.APPROVED && googleApi.isGapiInitialized) {
       const gapiResult: any = await addToGoogleCalendar(booking);
       if (!gapiResult.success && gapiResult.message !== "Dilewati: Tidak ada URL Kalender") {
         showToast(`Peringatan: Gagal sinkron ke Calendar (${gapiResult.message}), namun status tetap diupdate.`, 'warning');
@@ -342,7 +300,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({ addNotification, showToas
   const handleConfirmRejection = async () => {
     if (bookingToReject) {
       const isCancellation = bookingToReject.status === BookingStatus.APPROVED;
-      if (isCancellation && isGapiInitialized) {
+      if (isCancellation && googleApi.isGapiInitialized) {
         const gapiResult: any = await deleteFromGoogleCalendar(bookingToReject, 'all');
         if (!gapiResult.success && gapiResult.message !== "Dilewati: Tidak ada URL Kalender" && gapiResult.message !== "Event tidak ditemukan di Google Calendar") {
           showToast(`Peringatan: Gagal hapus dari Calendar (${gapiResult.message}), namun status tetap diupdate.`, 'warning');
@@ -443,12 +401,17 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({ addNotification, showToas
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pesanan Ruang</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm">Kelola persetujuan peminjaman ruangan</p>
         </div>
-        {pendingCount > 0 && (
-          <div className="flex items-center bg-yellow-100 text-yellow-800 px-3 py-2 rounded-lg text-sm font-medium animate-pulse">
-            <AlertCircle className="w-4 h-4 mr-2" />
-            {pendingCount} Permintaan Menunggu Konfirmasi
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {pendingCount > 0 && (
+            <div className="flex items-center bg-yellow-100 text-yellow-800 px-3 py-2 rounded-lg text-sm font-medium animate-pulse">
+              <AlertCircle className="w-4 h-4 mr-2" />
+              {pendingCount} Permintaan Menunggu Konfirmasi
+            </div>
+          )}
+          <button onClick={() => setIsBookingModalOpen(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center text-sm font-medium shadow-sm transition-all hover:scale-105">
+            <Plus className="w-4 h-4 mr-2" /> Buat Pesanan
+          </button>
+        </div>
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -929,224 +892,70 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({ addNotification, showToas
       )}
 
       {/* Approval Confirmation Modal */}
-      {isApprovalModalOpen && bookingToApprove && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-green-50 dark:bg-green-900/20">
-              <h3 className="font-bold text-green-800 dark:text-green-400 flex items-center">
-                <CheckCircle className="w-5 h-5 mr-2" />
-                Setuju Peminjaman
-              </h3>
-            </div>
-            <div className="p-6 space-y-4">
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                Anda akan menyetujui peminjaman ruangan <strong>{getRoomName(bookingToApprove.roomId)}</strong> untuk kegiatan <strong>{bookingToApprove.purpose}</strong>.
-              </p>
-              <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600 space-y-3">
-                <h4 className="text-xs font-bold text-gray-500 uppercase flex items-center"><Wrench className="w-3 h-3 mr-1" /> Data Technical Support (Opsional)</h4>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">PIC Laboran / Teknisi</label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {approvalData.pic.map(picId => {
-                      const staff = staffList.find(s => s.id === picId);
-                      return (
-                        <span key={picId} className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                          {staff?.name}
-                          <button type="button" onClick={() => setApprovalData(prev => ({ ...prev, pic: prev.pic.filter(id => id !== picId) }))} className="ml-1 text-blue-600 hover:text-blue-800">
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      );
-                    })}
-                  </div>
-                  <select
-                    value=""
-                    onChange={e => { if (e.target.value) setApprovalData(prev => ({ ...prev, pic: [...prev.pic, e.target.value] })) }}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white text-sm focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="">+ Tambah PIC</option>
-                    {staffList.filter(s => !approvalData.pic.includes(s.id)).map(staff => (
-                      <option key={staff.id} value={staff.id}>{staff.name} ({staff.jabatan})</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Kebutuhan Teknis (Mic, Sound, dll)</label>
-                  <textarea
-                    value={approvalData.needs}
-                    onChange={e => setApprovalData({ ...approvalData, needs: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white text-sm focus:ring-2 focus:ring-green-500"
-                    rows={3}
-                    placeholder="Daftar alat yang dibutuhkan..."
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  onClick={() => setIsApprovalModalOpen(false)}
-                  className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={handleConfirmApproval}
-                  className="px-4 py-2 text-sm bg-green-600 text-white hover:bg-green-700 rounded-lg shadow-md"
-                >
-                  Simpan & Setuju
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ApprovalModal 
+        isOpen={isApprovalModalOpen} 
+        booking={bookingToApprove} 
+        rooms={rooms} 
+        staffList={staffList} 
+        approvalData={approvalData} 
+        setApprovalData={setApprovalData} 
+        onClose={() => setIsApprovalModalOpen(false)} 
+        onConfirm={handleConfirmApproval} 
+      />
 
       {/* Rejection Confirmation Modal */}
-      {isRejectionModalOpen && bookingToReject && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20">
-              <h3 className="font-bold text-red-800 dark:text-red-400 flex items-center">
-                {bookingToReject.status === BookingStatus.APPROVED ? <AlertTriangle className="w-5 h-5 mr-2" /> : <XCircle className="w-5 h-5 mr-2" />}
-                <span>{bookingToReject.status === BookingStatus.APPROVED ? 'Batalkan Peminjaman' : 'Tolak Peminjaman'}</span>
-              </h3>
-            </div>
-            <div className="p-6 space-y-4">
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                Anda akan {bookingToReject.status === BookingStatus.APPROVED ? 'membatalkan' : 'menolak'} peminjaman ruangan <strong>{getRoomName(bookingToReject.roomId)}</strong>. Mohon berikan alasan {bookingToReject.status === BookingStatus.APPROVED ? 'pembatalan' : 'penolakan'} untuk peminjam.
-              </p>
-              <textarea
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-red-500"
-                rows={3}
-                placeholder="Contoh: Ruangan sedang dalam perbaikan, Jadwal bentrok dengan kegiatan fakultas..."
-                autoFocus
-              />
-              <div className="flex justify-end gap-3 pt-2">
-                <button onClick={() => setIsRejectionModalOpen(false)} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Batal</button>
-                <button onClick={handleConfirmRejection} className="px-4 py-2 text-sm bg-red-600 text-white hover:bg-red-700 rounded-lg shadow-md">
-                  Simpan & {bookingToReject.status === BookingStatus.APPROVED ? 'Batalkan' : 'Tolak'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <RejectionModal 
+        isOpen={isRejectionModalOpen} 
+        booking={bookingToReject} 
+        rooms={rooms} 
+        rejectionReason={rejectionReason} 
+        setRejectionReason={setRejectionReason} 
+        onClose={() => setIsRejectionModalOpen(false)} 
+        onConfirm={handleConfirmRejection} 
+      />
 
       {/* Delete Google Calendar Confirmation Modal */}
-      {isDeleteCalendarModalOpen && bookingToDeleteCalendar && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20">
-              <h3 className="font-bold text-red-800 dark:text-red-400 flex items-center">
-                <Trash2 className="w-5 h-5 mr-2" />
-                Hapus dari Google Calendar
-              </h3>
-            </div>
-            <div className="p-6 space-y-4">
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                Pilih bagaimana ingin menghapus event <strong>"{bookingToDeleteCalendar.purpose}"</strong> dari Google Calendar:
-              </p>
-              <div className="space-y-2">
-                {(['single', 'thisAndFollowing', 'all'] as const).map((opt) => (
-                  <label
-                    key={opt}
-                    className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${deleteOption === opt ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
-                  >
-                    <input
-                      type="radio"
-                      name="deleteOption"
-                      value={opt}
-                      checked={deleteOption === opt}
-                      onChange={() => setDeleteOption(opt)}
-                      className="mr-3"
-                    />
-                    <div>
-                      {opt === 'single' && (
-                        <>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">Hapus event ini saja</p>
-                          <p className="text-xs text-gray-500">Menghapus hanya event pada tanggal {bookingToDeleteCalendar.date}</p>
-                        </>
-                      )}
-                      {opt === 'thisAndFollowing' && (
-                        <>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">Ini dan event selanjutnya</p>
-                          <p className="text-xs text-gray-500">Menghapus event ini dan semua event di tanggal yang sama</p>
-                        </>
-                      )}
-                      {opt === 'all' && (
-                        <>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">Semua event</p>
-                          <p className="text-xs text-gray-500">Menghapus semua event yang cocok dengan kegiatan ini</p>
-                        </>
-                      )}
-                    </div>
-                  </label>
-                ))}
-              </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <button onClick={() => setIsDeleteCalendarModalOpen(false)} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Batal</button>
-                <button onClick={handleConfirmDeleteCalendar} disabled={isDeleting} className="px-4 py-2 text-sm bg-red-600 text-white hover:bg-red-700 rounded-lg shadow-md flex items-center disabled:opacity-50">
-                  {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-                  Hapus dari Calendar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteCalendarModal 
+        isOpen={isDeleteCalendarModalOpen} 
+        booking={bookingToDeleteCalendar} 
+        deleteOption={deleteOption} 
+        setDeleteOption={setDeleteOption} 
+        isDeleting={isDeleting} 
+        onClose={() => setIsDeleteCalendarModalOpen(false)} 
+        onConfirm={handleConfirmDeleteCalendar} 
+      />
 
       {/* Delete Booking Confirmation Modal */}
-      {isDeleteModalOpen && bookingToDelete && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20">
-              <h3 className="font-bold text-red-800 dark:text-red-400 flex items-center">
-                <Trash2 className="w-5 h-5 mr-2" />
-                Hapus Data Peminjaman
-              </h3>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-                <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
-                  ⚠️ Peringatan! Tindakan ini tidak dapat dibatalkan.
-                </p>
+      <DeleteBookingModal 
+        isOpen={isDeleteModalOpen} 
+        booking={bookingToDelete} 
+        rooms={rooms} 
+        isDeleting={isDeleting} 
+        onClose={() => setIsDeleteModalOpen(false)} 
+        onConfirm={handleConfirmDelete} 
+      />
+
+      {isBookingModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-3xl overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up max-h-[90vh] flex flex-col">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 flex-shrink-0">
+                 <h3 className="font-bold text-gray-900 dark:text-white flex items-center text-base">
+                    <Plus className="w-5 h-5 mr-2 text-blue-600" />
+                    Buat Pesanan Ruangan
+                 </h3>
+                 <button onClick={() => setIsBookingModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <X className="w-5 h-5" />
+                 </button>
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                Anda akan menghapus data peminjaman berikut secara permanen:
-              </p>
-              <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600 space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-xs text-gray-500">Peminjam:</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">{bookingToDelete.userName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-xs text-gray-500">Ruangan:</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">{getRoomName(bookingToDelete.roomId)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-xs text-gray-500">Tanggal:</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">{bookingToDelete.date}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-xs text-gray-500">Keperluan:</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">{bookingToDelete.purpose}</span>
-                </div>
+              <div className="overflow-y-auto flex-1 p-0">
+                <BookingForm
+                  rooms={rooms}
+                  showToast={showToast}
+                  onSuccess={() => { setIsBookingModalOpen(false); fetchData(); }}
+                  onCancel={() => setIsBookingModalOpen(false)}
+                />
               </div>
-              {bookingToDelete.status === BookingStatus.APPROVED && (
-                <p className="text-xs text-orange-600 dark:text-orange-400">
-                  * Jika peminjaman sudah disetujui, event di Google Calendar juga akan dihapus.
-                </p>
-              )}
-              <div className="flex justify-end gap-3 pt-2">
-                <button onClick={() => setIsDeleteModalOpen(false)} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Batal</button>
-                <button onClick={handleConfirmDelete} disabled={isDeleting} className="px-4 py-2 text-sm bg-red-600 text-white hover:bg-red-700 rounded-lg shadow-md flex items-center disabled:opacity-50">
-                  {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-                  Hapus Permanen
-                </button>
-              </div>
-            </div>
-          </div>
+           </div>
         </div>
       )}
     </div>
@@ -1154,3 +963,180 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({ addNotification, showToas
 };
 
 export default PesananRuang;
+
+// --- SUB-COMPONENTS FOR MODALS ---
+
+const ApprovalModal = ({ isOpen, booking, rooms, staffList, approvalData, setApprovalData, onClose, onConfirm }: any) => {
+  if (!isOpen || !booking) return null;
+  const getRoomName = (roomId: string) => rooms.find((r: Room) => r.id === roomId)?.name || 'Ruangan Tidak Diketahui';
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-green-50 dark:bg-green-900/20">
+          <h3 className="font-bold text-green-800 dark:text-green-400 flex items-center">
+            <CheckCircle className="w-5 h-5 mr-2" /> Setuju Peminjaman
+          </h3>
+        </div>
+        <div className="p-6 space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Anda akan menyetujui peminjaman ruangan <strong>{getRoomName(booking.roomId)}</strong> untuk kegiatan <strong>{booking.purpose}</strong>.
+          </p>
+          <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600 space-y-3">
+            <h4 className="text-xs font-bold text-gray-500 uppercase flex items-center"><Wrench className="w-3 h-3 mr-1" /> Data Technical Support (Opsional)</h4>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">PIC Laboran / Teknisi</label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {approvalData.pic.map((picId: string) => {
+                  const staff = staffList.find((s: LabStaff) => s.id === picId);
+                  return (
+                    <span key={picId} className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                      {staff?.name}
+                      <button type="button" onClick={() => setApprovalData((prev: any) => ({ ...prev, pic: prev.pic.filter((id: string) => id !== picId) }))} className="ml-1 text-blue-600 hover:text-blue-800">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+              <select
+                value=""
+                onChange={e => { if (e.target.value) setApprovalData((prev: any) => ({ ...prev, pic: [...prev.pic, e.target.value] })) }}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white text-sm focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">+ Tambah PIC</option>
+                {staffList.filter((s: LabStaff) => !approvalData.pic.includes(s.id)).map((staff: LabStaff) => (
+                  <option key={staff.id} value={staff.id}>{staff.name} ({staff.jabatan})</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Kebutuhan Teknis (Mic, Sound, dll)</label>
+              <textarea
+                value={approvalData.needs}
+                onChange={e => setApprovalData({ ...approvalData, needs: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white text-sm focus:ring-2 focus:ring-green-500"
+                rows={3}
+                placeholder="Daftar alat yang dibutuhkan..."
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Batal</button>
+            <button onClick={onConfirm} className="px-4 py-2 text-sm bg-green-600 text-white hover:bg-green-700 rounded-lg shadow-md">Simpan & Setuju</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const RejectionModal = ({ isOpen, booking, rooms, rejectionReason, setRejectionReason, onClose, onConfirm }: any) => {
+  if (!isOpen || !booking) return null;
+  const getRoomName = (roomId: string) => rooms.find((r: Room) => r.id === roomId)?.name || 'Ruangan Tidak Diketahui';
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20">
+          <h3 className="font-bold text-red-800 dark:text-red-400 flex items-center">
+            {booking.status === BookingStatus.APPROVED ? <AlertTriangle className="w-5 h-5 mr-2" /> : <XCircle className="w-5 h-5 mr-2" />}
+            <span>{booking.status === BookingStatus.APPROVED ? 'Batalkan Peminjaman' : 'Tolak Peminjaman'}</span>
+          </h3>
+        </div>
+        <div className="p-6 space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Anda akan {booking.status === BookingStatus.APPROVED ? 'membatalkan' : 'menolak'} peminjaman ruangan <strong>{getRoomName(booking.roomId)}</strong>. Mohon berikan alasan {booking.status === BookingStatus.APPROVED ? 'pembatalan' : 'penolakan'} untuk peminjam.
+          </p>
+          <textarea
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-red-500"
+            rows={3}
+            placeholder="Contoh: Ruangan sedang dalam perbaikan, Jadwal bentrok dengan kegiatan fakultas..."
+            autoFocus
+          />
+          <div className="flex justify-end gap-3 pt-2">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Batal</button>
+            <button onClick={onConfirm} className="px-4 py-2 text-sm bg-red-600 text-white hover:bg-red-700 rounded-lg shadow-md">
+              Simpan & {booking.status === BookingStatus.APPROVED ? 'Batalkan' : 'Tolak'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DeleteCalendarModal = ({ isOpen, booking, deleteOption, setDeleteOption, isDeleting, onClose, onConfirm }: any) => {
+  if (!isOpen || !booking) return null;
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20">
+          <h3 className="font-bold text-red-800 dark:text-red-400 flex items-center">
+            <Trash2 className="w-5 h-5 mr-2" /> Hapus dari Google Calendar
+          </h3>
+        </div>
+        <div className="p-6 space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Pilih bagaimana ingin menghapus event <strong>"{booking.purpose}"</strong> dari Google Calendar:
+          </p>
+          <div className="space-y-2">
+            {(['single', 'thisAndFollowing', 'all'] as const).map((opt) => (
+              <label key={opt} className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${deleteOption === opt ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+                <input type="radio" name="deleteOption" value={opt} checked={deleteOption === opt} onChange={() => setDeleteOption(opt)} className="mr-3" />
+                <div>
+                  {opt === 'single' && <><p className="text-sm font-medium text-gray-900 dark:text-white">Hapus event ini saja</p><p className="text-xs text-gray-500">Menghapus hanya event pada tanggal {booking.date}</p></>}
+                  {opt === 'thisAndFollowing' && <><p className="text-sm font-medium text-gray-900 dark:text-white">Ini dan event selanjutnya</p><p className="text-xs text-gray-500">Menghapus event ini dan semua event di tanggal yang sama</p></>}
+                  {opt === 'all' && <><p className="text-sm font-medium text-gray-900 dark:text-white">Semua event</p><p className="text-xs text-gray-500">Menghapus semua event yang cocok dengan kegiatan ini</p></>}
+                </div>
+              </label>
+            ))}
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Batal</button>
+            <button onClick={onConfirm} disabled={isDeleting} className="px-4 py-2 text-sm bg-red-600 text-white hover:bg-red-700 rounded-lg shadow-md flex items-center disabled:opacity-50">
+              {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />} Hapus dari Calendar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DeleteBookingModal = ({ isOpen, booking, rooms, isDeleting, onClose, onConfirm }: any) => {
+  if (!isOpen || !booking) return null;
+  const getRoomName = (roomId: string) => rooms.find((r: Room) => r.id === roomId)?.name || 'Ruangan Tidak Diketahui';
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20">
+          <h3 className="font-bold text-red-800 dark:text-red-400 flex items-center">
+            <Trash2 className="w-5 h-5 mr-2" /> Hapus Data Peminjaman
+          </h3>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+            <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">⚠️ Peringatan! Tindakan ini tidak dapat dibatalkan.</p>
+          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-300">Anda akan menghapus data peminjaman berikut secara permanen:</p>
+          <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600 space-y-2">
+            <div className="flex justify-between"><span className="text-xs text-gray-500">Peminjam:</span><span className="text-sm font-medium text-gray-900 dark:text-white">{booking.userName}</span></div>
+            <div className="flex justify-between"><span className="text-xs text-gray-500">Ruangan:</span><span className="text-sm font-medium text-gray-900 dark:text-white">{getRoomName(booking.roomId)}</span></div>
+            <div className="flex justify-between"><span className="text-xs text-gray-500">Tanggal:</span><span className="text-sm font-medium text-gray-900 dark:text-white">{booking.date}</span></div>
+            <div className="flex justify-between"><span className="text-xs text-gray-500">Keperluan:</span><span className="text-sm font-medium text-gray-900 dark:text-white">{booking.purpose}</span></div>
+          </div>
+          {booking.status === BookingStatus.APPROVED && (
+            <p className="text-xs text-orange-600 dark:text-orange-400">* Jika peminjaman sudah disetujui, event di Google Calendar juga akan dihapus.</p>
+          )}
+          <div className="flex justify-end gap-3 pt-2">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Batal</button>
+            <button onClick={onConfirm} disabled={isDeleting} className="px-4 py-2 text-sm bg-red-600 text-white hover:bg-red-700 rounded-lg shadow-md flex items-center disabled:opacity-50">
+              {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />} Hapus Permanen
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

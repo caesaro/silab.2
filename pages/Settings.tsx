@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Database, Server, Globe, Save, RefreshCw, Eye, EyeOff, CheckCircle, AlertCircle, ShieldAlert, Power, Megaphone, Download, Upload, FileText, FileWarning, ChevronDown, ChevronUp, X, Check, Filter, Trash2, AlertTriangle, Info, CheckSquare, Square, Activity, Users, Package, Calendar, HardDrive, Clock, ExternalLink, Settings as SettingsIcon, LogIn } from 'lucide-react';
 import { api } from '../services/api';
+import ConfirmModal from '../components/ConfirmModal';
 
 interface SettingsProps {
   showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void;
@@ -53,6 +54,12 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
   });
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Confirm Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false, title: '', message: '', actionType: ''
+  });
+  const [isConfirming, setIsConfirming] = useState(false);
   
   // SSO Users State
   const [ssoUsers, setSsoUsers] = useState<{id: string; email: string; name: string; status: string; createdAt: string; updatedAt: string}[]>([]);
@@ -256,22 +263,56 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
     }
   };
 
-  const handleClearResolved = async () => {
-    if (!window.confirm('Hapus semua error yang sudah diselesaikan?')) return;
-    
+  const handleClearResolvedClick = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Hapus Log Selesai',
+      message: 'Apakah Anda yakin ingin menghapus semua log error yang telah ditandai selesai?',
+      actionType: 'clear_resolved'
+    });
+  };
+
+  const handleRestoreDatabaseClick = () => {
+    if (!restoreFile) {
+      showToast('Silakan pilih file backup terlebih dahulu.', 'warning');
+      return;
+    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Restore Database',
+      message: 'PERINGATAN: Tindakan ini akan MENIMPA seluruh data database saat ini dengan data dari file backup. Apakah Anda yakin ingin melanjutkan?',
+      actionType: 'restore_db'
+    });
+  };
+
+  const executeConfirmAction = async () => {
+    setIsConfirming(true);
     try {
-      const res = await api('/api/error-logs', { 
-        method: 'DELETE',
-        data: { resolved: true }
-      });
-      if (res.ok) {
-        const result = await res.json();
-        showToast(`${result.deleted} error berhasil dihapus`, 'success');
-        fetchErrorLogs();
-        fetchErrorStats();
+      if (confirmModal.actionType === 'clear_resolved') {
+        const res = await api('/api/error-logs', { method: 'DELETE', data: { resolved: true } });
+        if (res.ok) {
+          const result = await res.json();
+          showToast(`${result.deleted} error berhasil dihapus`, 'success');
+          fetchErrorLogs();
+          fetchErrorStats();
+        }
+      } else if (confirmModal.actionType === 'restore_db') {
+        const formData = new FormData();
+        formData.append('backupFile', restoreFile!);
+        const response = await api('/api/settings/restore', { method: 'POST', data: formData });
+        const result = await response.json();
+        if (response.ok && result.success) {
+          showToast('Database berhasil direstore!', 'success');
+          setRestoreFile(null);
+        } else {
+          throw new Error(result.error || 'Restore failed');
+        }
       }
-    } catch (err) {
-      showToast('Gagal menghapus error logs', 'error');
+    } catch (error) {
+      showToast('Tindakan gagal dilakukan.', 'error');
+    } finally {
+      setIsConfirming(false);
+      setConfirmModal(prev => ({ ...prev, isOpen: false }));
     }
   };
 
@@ -374,32 +415,6 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
     }
   };
 
-  const handleRestoreDatabase = async () => {
-    if (!restoreFile) return;
-    if (!window.confirm("PERINGATAN: Tindakan ini akan MENIMPA seluruh data database saat ini dengan data dari file backup. Apakah Anda yakin ingin melanjutkan?")) {
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const formData = new FormData();
-      formData.append('backupFile', restoreFile);
-      const response = await api('/api/settings/restore', {
-        method: 'POST',
-        data: formData
-      });
-      const result = await response.json();
-      if (response.ok && result.success) {
-        showToast('Database berhasil direstore!', 'success');
-        setRestoreFile(null);
-      } else {
-        throw new Error(result.error || 'Restore failed');
-      }
-    } catch (error) {
-      showToast('Gagal merestore database.', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-10">
@@ -804,7 +819,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
                         <button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium flex items-center">
                             <FileText className="w-4 h-4 mr-2" /> {restoreFile ? restoreFile.name : 'Pilih File .sql'}
                         </button>
-                        {restoreFile && (<button onClick={handleRestoreDatabase} disabled={isLoading} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium flex items-center disabled:opacity-50">
+                        {restoreFile && (<button onClick={handleRestoreDatabaseClick} disabled={isLoading} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium flex items-center disabled:opacity-50">
                             {isLoading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />} Mulai Restore
                         </button>)}
                     </div>
@@ -869,7 +884,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={handleClearResolved} className="flex items-center px-3 py-2 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
+                <button onClick={handleClearResolvedClick} className="flex items-center px-3 py-2 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
                   <Trash2 className="w-4 h-4 mr-2" /> Hapus Resolved
                 </button>
                 <button onClick={() => { fetchErrorLogs(); fetchErrorStats(); }} className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
@@ -1079,6 +1094,17 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={executeConfirmAction}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText="Ya, Lanjutkan"
+        type="danger"
+        isLoading={isConfirming}
+      />
     </div>
   );
 };

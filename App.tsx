@@ -20,7 +20,6 @@ const PerpindahanBarang = lazy(() => import('./pages/PerpindahanBarang'));
 const ManajemenUser = lazy(() => import('./pages/ManajemenUser'));
 const PesananRuang = lazy(() => import('./pages/PesananRuang'));
 const PemesananSaya = lazy(() => import('./pages/PemesananSaya'));
-const BuatPesanan = lazy(() => import('./pages/BuatPesanan'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Login = lazy(() => import('./pages/Login'));
@@ -265,7 +264,7 @@ const App: React.FC = () => {
         case 'schedule':
           return <JadwalRuang role={currentRole} showToast={showToast} isDarkMode={isDarkMode} />;
         case 'rooms':
-          return <Ruangan role={currentRole} isDarkMode={isDarkMode} onNavigate={setCurrentPage} />;
+          return <Ruangan role={currentRole} isDarkMode={isDarkMode} onNavigate={setCurrentPage} showToast={showToast} />;
         case 'events':
           return <Acara showToast={showToast} isDarkMode={isDarkMode} />;
         case 'loans':
@@ -285,7 +284,7 @@ const App: React.FC = () => {
               allowedRoles={[Role.ADMIN]} 
               onNavigate={setCurrentPage}
             >
-              <ManajemenLaboran onNavigate={setCurrentPage} />
+              <ManajemenLaboran onNavigate={setCurrentPage} showToast={showToast} />
             </ProtectedRoute>
           );
         case 'pkl-management':
@@ -325,15 +324,13 @@ const App: React.FC = () => {
               allowedRoles={[Role.ADMIN]} 
               onNavigate={setCurrentPage}
             >
-              <ManajemenUser />
+              <ManajemenUser showToast={showToast} />
             </ProtectedRoute>
           );
         case 'bookings':
           // Get dynamic user ID from localStorage
           const currentUserId = localStorage.getItem('userId') || '';
           return <PemesananSaya userId={currentUserId} showToast={showToast} />;
-        case 'create-booking':
-          return <BuatPesanan showToast={showToast} onNavigate={setCurrentPage} />;
         case 'manage-bookings':
           return (
             <ProtectedRoute 
@@ -345,7 +342,7 @@ const App: React.FC = () => {
             </ProtectedRoute>
           );
         case 'profile':
-          return <Profile role={currentRole} />;
+          return <Profile role={currentRole} showToast={showToast} />;
 case 'settings':
           return (
             <ProtectedRoute 

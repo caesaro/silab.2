@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Role, Room } from '../types';
 import { 
   Calendar as CalendarIcon, Clock, Plus, ChevronLeft, ChevronRight, 
@@ -41,104 +41,239 @@ interface DayDetail {
 }
 
 interface RoomCalendarProps {
-  events: GoogleEvent[];
-  rooms: Room[];
   selectedRoom: Room | undefined;
-  viewMode: 'month' | 'week' | 'day';
-  currentDate: Date;
-  isAuthenticated: boolean;
-  googleUserEmail: string;
+  googleApi: any;
   role: Role;
-  isAddEventModalOpen: boolean;
-  isEditEventModalOpen: boolean;
-  isDeleteModalOpen: boolean;
-  selectedEvent: GoogleEvent | null;
-  selectedDayDetail: DayDetail | null;
-  eventForm: EventForm;
-  editEventForm: EditEventForm;
-  eventToDelete: GoogleEvent | null;
-  deleteOption: 'single' | 'thisAndFollowing' | 'all';
-  isCreatingEvent: boolean;
-  isDeletingEvent: boolean;
-  isLoading: boolean;
-  isGapiInitialized: boolean;
-  setViewMode: (mode: 'month' | 'week' | 'day') => void;
-  setCurrentDate: (date: Date) => void;
-  goToToday: () => void;
-  handlePrev: () => void;
-  handleNext: () => void;
-  handleAuthClick: () => void;
-  handleGoogleLogout: () => void;
-  handleOpenAddEventModal: () => void;
-  handleDayClick: (day: { date: number; events: GoogleEvent[]; isCurrentMonth: boolean; fullDate: string }) => void;
-  setSelectedEvent: (event: GoogleEvent | null) => void;
-  setSelectedDayDetail: (detail: DayDetail | null) => void;
-  setEventForm: (form: EventForm) => void;
-  setEditEventForm: (form: EditEventForm) => void;
-  setIsAddEventModalOpen: (open: boolean) => void;
-  setIsEditEventModalOpen: (open: boolean) => void;
-  setIsDeleteModalOpen: (open: boolean) => void;
-  setEventToDelete: (event: GoogleEvent | null) => void;
-  setDeleteOption: (option: 'single' | 'thisAndFollowing' | 'all') => void;
-  handleEditEventClick: (event: GoogleEvent) => void;
-  handleDeleteEventClick: (event: GoogleEvent) => void;
-  handleSaveEvent: (e: React.FormEvent) => void;
-  handleUpdateEvent: (e: React.FormEvent) => void;
-  confirmDeleteEvent: () => void;
-  fetchEvents: () => void;
-  isDarkMode: boolean;
   showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void;
+  getCalendarId: (url: string) => string | null;
 }
 
 const RoomCalendar: React.FC<RoomCalendarProps> = ({
-  events,
-  rooms,
   selectedRoom,
-  viewMode,
-  currentDate,
-  isAuthenticated,
-  googleUserEmail,
+  googleApi,
   role,
-  isAddEventModalOpen,
-  isEditEventModalOpen,
-  isDeleteModalOpen,
-  selectedEvent,
-  selectedDayDetail,
-  eventForm,
-  editEventForm,
-  eventToDelete,
-  deleteOption,
-  isCreatingEvent,
-  isDeletingEvent,
-  isLoading,
-  isGapiInitialized,
-  setViewMode,
-  setCurrentDate,
-  goToToday,
-  handlePrev,
-  handleNext,
-  handleAuthClick,
-  handleGoogleLogout,
-  handleOpenAddEventModal,
-  handleDayClick,
-  setSelectedEvent,
-  setSelectedDayDetail,
-  setEventForm,
-  setEditEventForm,
-  setIsAddEventModalOpen,
-  setIsEditEventModalOpen,
-  setIsDeleteModalOpen,
-  setEventToDelete,
-  setDeleteOption,
-  handleEditEventClick,
-  handleDeleteEventClick,
-  handleSaveEvent,
-  handleUpdateEvent,
-  confirmDeleteEvent,
-  fetchEvents,
-  isDarkMode,
   showToast,
+  getCalendarId
 }) => {
+  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
+  const [currentDate, setCurrentDate] = useState(new Date());
+  
+  const [selectedEvent, setSelectedEvent] = useState<GoogleEvent | null>(null);
+  const [selectedDayDetail, setSelectedDayDetail] = useState<DayDetail | null>(null);
+  
+  const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
+  const [eventForm, setEventForm] = useState<EventForm>({
+    summary: '',
+    description: '',
+    startDate: new Date().toISOString().split('T')[0],
+    startTime: '08:00',
+    endTime: '10:00',
+    recurrence: 'NONE',
+    recurrenceEnd: ''
+  });
+  
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<GoogleEvent | null>(null);
+  const [deleteOption, setDeleteOption] = useState<'single' | 'thisAndFollowing' | 'all'>('single');
+
+  const [isEditEventModalOpen, setIsEditEventModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<GoogleEvent | null>(null);
+  const [editEventForm, setEditEventForm] = useState<EditEventForm>({
+    summary: '',
+    description: '',
+    startDate: new Date().toISOString().split('T')[0],
+    startTime: '08:00',
+    endTime: '10:00'
+  });
+
+  const { events, isAuthenticated, googleUserEmail, isCreatingEvent, isDeletingEvent, isLoading, isGapiInitialized, login, logout, fetchEvents, createEvent, updateEvent, deleteEvent } = googleApi;
+
+  const getDateRangeForView = (date: Date, view: 'month' | 'week' | 'day') => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const day = date.getDate();
+    let timeMin, timeMax;
+
+    if (view === 'month') {
+      timeMin = new Date(year, month, 1);
+      timeMax = new Date(year, month + 1, 0, 23, 59, 59);
+    } else if (view === 'week') {
+      timeMin = new Date(date);
+      timeMin.setDate(day - date.getDay());
+      timeMin.setHours(0, 0, 0, 0);
+      timeMax = new Date(timeMin);
+      timeMax.setDate(timeMin.getDate() + 6);
+      timeMax.setHours(23, 59, 59, 999);
+    } else {
+      timeMin = new Date(year, month, day, 0, 0, 0);
+      timeMax = new Date(year, month, day, 23, 59, 59);
+    }
+    return { timeMin, timeMax };
+  };
+
+  const fetchCurrentEvents = () => {
+    if (!selectedRoom?.googleCalendarUrl || !isGapiInitialized) return;
+    const calendarId = getCalendarId(selectedRoom.googleCalendarUrl);
+    if (!calendarId) return;
+    const { timeMin, timeMax } = getDateRangeForView(currentDate, viewMode);
+    fetchEvents(calendarId, timeMin, timeMax);
+  };
+
+  useEffect(() => {
+    if (isGapiInitialized) {
+      const handler = setTimeout(() => {
+        fetchCurrentEvents();
+      }, 200);
+      return () => clearTimeout(handler);
+    }
+  }, [selectedRoom, isGapiInitialized, currentDate, viewMode]);
+
+  const goToToday = () => setCurrentDate(new Date());
+
+  const handlePrev = () => {
+    const newDate = new Date(currentDate);
+    if (viewMode === 'month') newDate.setMonth(newDate.getMonth() - 1);
+    else if (viewMode === 'week') newDate.setDate(newDate.getDate() - 7);
+    else newDate.setDate(newDate.getDate() - 1);
+    setCurrentDate(newDate);
+  };
+
+  const handleNext = () => {
+    const newDate = new Date(currentDate);
+    if (viewMode === 'month') newDate.setMonth(newDate.getMonth() + 1);
+    else if (viewMode === 'week') newDate.setDate(newDate.getDate() + 7);
+    else newDate.setDate(newDate.getDate() + 1);
+    setCurrentDate(newDate);
+  };
+
+  const handleDayClick = (day: { date: number; events: GoogleEvent[]; isCurrentMonth: boolean; fullDate: string }) => {
+    if (!day.isCurrentMonth) return;
+    const canAdd = role === Role.ADMIN || role === Role.LABORAN;
+    if (canAdd && day.events.length === 0) {
+        if (!isAuthenticated) {
+            login();
+            return;
+        }
+        setEventForm({
+            summary: '', description: '', startDate: day.fullDate,
+            startTime: '08:00', endTime: '10:00', recurrence: 'NONE', recurrenceEnd: ''
+        });
+        setIsAddEventModalOpen(true);
+    } else {
+        setSelectedDayDetail(day);
+    }
+  };
+
+  const handleOpenAddEventModal = () => {
+    if (!isAuthenticated) {
+        login();
+        return;
+    }
+    let defaultDate = viewMode === 'day' ? currentDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    setEventForm({
+        summary: '', description: '', startDate: defaultDate,
+        startTime: '08:00', endTime: '10:00', recurrence: 'NONE', recurrenceEnd: ''
+    });
+    setIsAddEventModalOpen(true);
+  };
+
+  const handleSaveEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRoom?.googleCalendarUrl) return;
+    const calendarId = getCalendarId(selectedRoom.googleCalendarUrl);
+    if (!calendarId) {
+        showToast("ID Kalender tidak valid.", "error");
+        return;
+    }
+    const startDateTime = new Date(`${eventForm.startDate}T${eventForm.startTime}:00`);
+    const endDateTime = new Date(`${eventForm.startDate}T${eventForm.endTime}:00`);
+    if (endDateTime <= startDateTime) {
+        showToast("Waktu selesai harus lebih besar dari waktu mulai.", "warning");
+        return;
+    }
+    const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const eventResource: any = {
+      'summary': eventForm.summary,
+      'location': selectedRoom.name,
+      'description': eventForm.description + `\n\nDibuat oleh Admin () via CORE.FTI`,
+      'start': { 'dateTime': startDateTime.toISOString(), 'timeZone': userTimeZone },
+      'end': { 'dateTime': endDateTime.toISOString(), 'timeZone': userTimeZone },
+    };
+    if (eventForm.recurrence !== 'NONE') {
+        let rrule = `RRULE:FREQ=${eventForm.recurrence}`;
+        if (eventForm.recurrenceEnd) {
+            const untilDate = new Date(eventForm.recurrenceEnd);
+            untilDate.setHours(23, 59, 59);
+            const untilStr = untilDate.toISOString().replace(/[-:.]/g, '').substring(0, 15) + 'Z';
+            rrule += `;UNTIL=${untilStr}`;
+        }
+        eventResource.recurrence = [rrule];
+    }
+    const success = await createEvent(calendarId, eventResource);
+    if (success) {
+      setIsAddEventModalOpen(false);
+      fetchCurrentEvents();
+    }
+  };
+
+  const handleDeleteEventClick = (event: GoogleEvent) => {
+    if (!isAuthenticated) { login(); return; }
+    setEventToDelete(event);
+    setDeleteOption('single');
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteEvent = async () => {
+    if (!eventToDelete || !selectedRoom?.googleCalendarUrl) return;
+    const calendarId = getCalendarId(selectedRoom.googleCalendarUrl);
+    if (!calendarId) { showToast("ID Kalender tidak valid.", "error"); return; }
+    const success = await deleteEvent(calendarId, eventToDelete.id);
+    if (success) {
+      setIsDeleteModalOpen(false);
+      setSelectedEvent(null);
+      fetchCurrentEvents();
+    }
+  };
+
+  const handleEditEventClick = (event: GoogleEvent) => {
+    if (!isAuthenticated) { login(); return; }
+    const startDateTime = event.start.dateTime ? new Date(event.start.dateTime) : new Date(event.start.date || '');
+    const endDateTime = event.end.dateTime ? new Date(event.end.dateTime) : new Date(event.end.date || '');
+    setEditingEvent(event);
+    setEditEventForm({
+      summary: event.summary,
+      description: event.description || '',
+      startDate: event.start.date || startDateTime.toISOString().split('T')[0],
+      startTime: event.start.dateTime ? startDateTime.toTimeString().slice(0, 5) : '08:00',
+      endTime: event.end.dateTime ? endDateTime.toTimeString().slice(0, 5) : '10:00'
+    });
+    setIsEditEventModalOpen(true);
+  };
+
+  const handleUpdateEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEvent || !selectedRoom?.googleCalendarUrl) return;
+    const calendarId = getCalendarId(selectedRoom.googleCalendarUrl);
+    if (!calendarId) { showToast("ID Kalender tidak valid.", "error"); return; }
+    const startDateTime = new Date(`${editEventForm.startDate}T${editEventForm.startTime}:00`);
+    const endDateTime = new Date(`${editEventForm.startDate}T${editEventForm.endTime}:00`);
+    if (endDateTime <= startDateTime) { showToast("Waktu selesai harus lebih besar dari waktu mulai.", "warning"); return; }
+    const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const eventResource: any = {
+      'summary': editEventForm.summary,
+      'location': selectedRoom.name,
+      'description': editEventForm.description + `\n\nDiubah oleh Admin via CORE.FTI`,
+      'start': { 'dateTime': startDateTime.toISOString(), 'timeZone': userTimeZone },
+      'end': { 'dateTime': endDateTime.toISOString(), 'timeZone': userTimeZone },
+    };
+    const success = await updateEvent(calendarId, editingEvent.id, eventResource);
+    if (success) {
+      setIsEditEventModalOpen(false);
+      setSelectedEvent(null);
+      fetchCurrentEvents();
+    }
+  };
+
   const formatEventTime = (dateTime?: string, date?: string) => {
     if (dateTime) {
       return new Date(dateTime).toLocaleString('id-ID', { 
@@ -405,7 +540,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
           )}
           {isGapiInitialized && (
             <button 
-              onClick={() => fetchEvents()} 
+              onClick={fetchCurrentEvents} 
               className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
               title="Refresh Jadwal"
             >
@@ -424,7 +559,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
                     {googleUserEmail || 'Terhubung'}
                   </span>
                   <button 
-                    onClick={handleGoogleLogout}
+                    onClick={logout}
                     className="p-1 hover:bg-green-100 dark:hover:bg-green-900/40 rounded transition-colors"
                     title="Logout Google"
                   >
@@ -433,7 +568,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
                 </div>
               ) : (
                 <button 
-                  onClick={handleAuthClick}
+                  onClick={login}
                   className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                   title="Login dengan Google untuk menambahkan jadwal"
                 >
@@ -447,14 +582,14 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
       </div>
 
       <div className="animate-fade-in-up">
-        {rooms.length === 0 && !isLoading ? (
+        {!selectedRoom && !isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-full mb-4">
               <MapPin className="w-12 h-12 text-gray-400" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Data Ruangan Kosong</h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Pilih Ruangan</h3>
             <p className="text-gray-500 dark:text-gray-400 max-w-sm">
-              Belum ada ruangan yang terdaftar. Silakan tambahkan ruangan terlebih dahulu di menu Daftar Ruangan.
+              Belum ada ruangan yang dipilih atau data ruangan kosong.
             </p>
           </div>
         ) : (
@@ -911,4 +1046,3 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
 };
 
 export default RoomCalendar;
-

@@ -9,6 +9,7 @@ import { api } from '../services/api';
 import ExcelJS from 'exceljs';
 import ComputerForm from '../components/ComputerForm';
 import SoftwareForm from '../components/SoftwareForm';
+import ConfirmModal from '../components/ConfirmModal';
 
 interface ManajemenSpesifikasiProps {
   role: Role;
@@ -45,6 +46,12 @@ const ManajemenSpesifikasi: React.FC<ManajemenSpesifikasiProps> = ({ role, isDar
   const [softwareList, setSoftwareList] = useState<Software[]>([]);
   const [editingSoftware, setEditingSoftware] = useState<Partial<Software> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Modal States
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false, title: '', message: '', targetId: '', actionType: ''
+  });
+  const [isConfirming, setIsConfirming] = useState(false);
 
   // Filter
   const filteredRooms = rooms.filter(room => {
@@ -125,32 +132,54 @@ const ManajemenSpesifikasi: React.FC<ManajemenSpesifikasiProps> = ({ role, isDar
       fetchRoomComputers();
       fetchRooms(); // Update jumlah komputer pada card
     } catch (e) { 
-      alert("Gagal menyimpan data komputer"); 
+      showToast("Gagal menyimpan data komputer", "error"); 
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDeleteComputer = async (id: string) => {
-    if (confirm("Hapus data komputer ini?")) {
-      try {
-        await api(`/api/computers/${id}`, { method: 'DELETE' });
-        showToast("Data komputer berhasil dihapus.", "info");
-        fetchRoomComputers();
-        fetchRooms(); // Update jumlah komputer pada card
-      } catch (e) { alert("Gagal menghapus"); }
-    }
+  const handleDeleteComputerClick = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Hapus Data Komputer',
+      message: 'Apakah Anda yakin ingin menghapus data komputer ini?',
+      targetId: id,
+      actionType: 'delete_computer'
+    });
   };
 
-  const handleDeleteAllComputers = async () => {
+  const handleDeleteAllComputersClick = () => {
     if (!selectedRoom) return;
-    if (confirm(`PERINGATAN: Hapus SEMUA data komputer di ${selectedRoom.name}?`)) {
-      try {
-        await api(`/api/rooms/${selectedRoom.id}/computers`, { method: 'DELETE' });
-        showToast(`Semua data komputer di ${selectedRoom.name} telah dihapus.`, "success");
-        fetchRoomComputers();
-        fetchRooms(); // Update jumlah komputer pada card
-      } catch (e) { alert("Gagal menghapus"); }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Reset Semua Data Komputer',
+      message: `PERINGATAN: Apakah Anda yakin ingin menghapus SEMUA data komputer di ruangan ${selectedRoom.name}? Tindakan ini tidak dapat dibatalkan.`,
+      targetId: selectedRoom.id,
+      actionType: 'delete_all_computers'
+    });
+  };
+
+  const executeConfirmAction = async () => {
+    setIsConfirming(true);
+    try {
+      if (confirmModal.actionType === 'delete_computer') {
+        await api(`/api/computers/${confirmModal.targetId}`, { method: 'DELETE' });
+        showToast("Data komputer berhasil dihapus.", "info");
+      } else if (confirmModal.actionType === 'delete_all_computers') {
+        await api(`/api/rooms/${confirmModal.targetId}/computers`, { method: 'DELETE' });
+        showToast("Semua data komputer telah dihapus.", "success");
+      } else if (confirmModal.actionType === 'delete_software') {
+        await api(`/api/software/${confirmModal.targetId}`, { method: 'DELETE' });
+        showToast("Data software berhasil dihapus.", "info");
+      }
+      fetchRoomComputers();
+      fetchSoftware();
+      fetchRooms();
+    } catch (e) {
+      showToast("Gagal menghapus data.", "error");
+    } finally {
+      setIsConfirming(false);
+      setConfirmModal(prev => ({ ...prev, isOpen: false }));
     }
   };
 
@@ -192,7 +221,10 @@ const ManajemenSpesifikasi: React.FC<ManajemenSpesifikasiProps> = ({ role, isDar
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(buffer);
         const worksheet = workbook.getWorksheet(1);
-        if (!worksheet) return alert("File Excel kosong");
+        if (!worksheet) {
+            showToast("File Excel kosong", "error");
+            return;
+        }
         const promises: Promise<any>[] = [];
         worksheet.eachRow((row, rowNumber) => {
           if (rowNumber === 1) return;
@@ -217,12 +249,12 @@ const ManajemenSpesifikasi: React.FC<ManajemenSpesifikasiProps> = ({ role, isDar
           promises.push(api('/api/computers', { method: 'POST', data: payload }));
         });
         await Promise.all(promises);
-        alert("Berhasil import komputer");
+        showToast("Berhasil import komputer", "success");
         fetchRoomComputers();
         fetchRooms(); // Update jumlah komputer pada card
       } catch (error) { 
         console.error(error);
-        alert("Gagal process Excel"); 
+        showToast("Gagal process Excel", "error"); 
       }
     };
     reader.readAsArrayBuffer(file);
@@ -311,19 +343,19 @@ const ManajemenSpesifikasi: React.FC<ManajemenSpesifikasiProps> = ({ role, isDar
       }
       setEditingSoftware(null);
       fetchSoftware();
-    } catch (e) { alert("Gagal menyimpan software"); } finally {
+    } catch (e) { showToast("Gagal menyimpan software", "error"); } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDeleteSoftware = async (id: string) => {
-    if (confirm("Hapus software ini?")) {
-      try {
-        await api(`/api/software/${id}`, { method: 'DELETE' });
-        showToast("Data software berhasil dihapus.", "info");
-        fetchSoftware();
-      } catch (e) { alert("Gagal menghapus"); }
-    }
+  const handleDeleteSoftwareClick = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Hapus Software',
+      message: 'Apakah Anda yakin ingin menghapus data software ini?',
+      targetId: id,
+      actionType: 'delete_software'
+    });
   };
 
   // --- RENDER ---
@@ -479,7 +511,7 @@ const ManajemenSpesifikasi: React.FC<ManajemenSpesifikasiProps> = ({ role, isDar
         {canManage && activeTab === 'computers' && (
           <div className="flex gap-2">
             <button 
-              onClick={handleDeleteAllComputers}
+              onClick={handleDeleteAllComputersClick}
               className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700"
             >
               Reset Semua
@@ -538,7 +570,7 @@ const ManajemenSpesifikasi: React.FC<ManajemenSpesifikasiProps> = ({ role, isDar
                     {canManage && (
                       <td className="px-4 py-3 text-right">
                         <button onClick={() => setEditingComputer(pc)} className="text-blue-600 hover:text-blue-800 mr-3"><Edit2 className="w-4 h-4"/></button>
-                        <button onClick={() => handleDeleteComputer(pc.id)} className="text-red-600 hover:text-red-800"><Trash2 className="w-4 h-4"/></button>
+                        <button onClick={() => handleDeleteComputerClick(pc.id)} className="text-red-600 hover:text-red-800"><Trash2 className="w-4 h-4"/></button>
                       </td>
                     )}
                   </tr>
@@ -586,7 +618,7 @@ const ManajemenSpesifikasi: React.FC<ManajemenSpesifikasiProps> = ({ role, isDar
                     {canManage && (
                       <td className="px-4 py-3 text-right">
                         <button onClick={() => setEditingSoftware(soft)} className="text-blue-600 hover:text-blue-800 mr-3"><Edit2 className="w-4 h-4"/></button>
-                        <button onClick={() => handleDeleteSoftware(soft.id)} className="text-red-600 hover:text-red-800"><Trash2 className="w-4 h-4"/></button>
+                        <button onClick={() => handleDeleteSoftwareClick(soft.id)} className="text-red-600 hover:text-red-800"><Trash2 className="w-4 h-4"/></button>
                       </td>
                     )}
                   </tr>
@@ -614,6 +646,17 @@ const ManajemenSpesifikasi: React.FC<ManajemenSpesifikasiProps> = ({ role, isDar
         onSave={handleSaveSoftware}
         initialData={editingSoftware}
         isSaving={isSaving}
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={executeConfirmAction}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText="Ya, Hapus"
+        type="danger"
+        isLoading={isConfirming}
       />
     </div>
   );

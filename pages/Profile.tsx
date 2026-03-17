@@ -42,6 +42,7 @@ async function getCroppedImg(imageSrc: string, pixelCrop: any): Promise<string> 
 
 interface ProfileProps {
   role: Role;
+  showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void;
 }
 
 interface UserStats {
@@ -54,7 +55,7 @@ interface UserStats {
   unreadNotifications: number;
 }
 
-const Profile: React.FC<ProfileProps> = ({ role }) => {
+const Profile: React.FC<ProfileProps> = ({ role, showToast }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [userData, setUserData] = useState({
     id: '',
@@ -166,7 +167,7 @@ const Profile: React.FC<ProfileProps> = ({ role }) => {
         setTempImage(null);
       } catch (e) {
         console.error(e);
-        alert("Gagal memproses gambar.");
+        showToast("Gagal memproses gambar.", "error");
       }
     }
   };
@@ -175,7 +176,7 @@ const Profile: React.FC<ProfileProps> = ({ role }) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) { // Limit 2MB
-        alert("Ukuran file maksimal 2MB");
+        showToast("Ukuran file maksimal 2MB", "warning");
         return;
       }
       const reader = new FileReader();
@@ -192,7 +193,7 @@ const Profile: React.FC<ProfileProps> = ({ role }) => {
     e.preventDefault();
 
     if (/\s/.test(userData.username)) {
-      alert("Username tidak boleh mengandung spasi.");
+      showToast("Username tidak boleh mengandung spasi.", "warning");
       return;
     }
 
@@ -210,27 +211,27 @@ const Profile: React.FC<ProfileProps> = ({ role }) => {
       });
       if (res.ok) {
         setIsEditing(false);
-        alert("Profil berhasil diperbarui!");
+        showToast("Profil berhasil diperbarui!", "success");
       } else {
         const data = await res.json();
-        alert(data.error || "Gagal menyimpan profil.");
+        showToast(data.error || "Gagal menyimpan profil.", "error");
       }
     } catch (e) {
-      alert("Gagal menyimpan profil.");
+      showToast("Gagal menyimpan profil.", "error");
     }
   };
 
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (!passwordForm.current || !passwordForm.new || !passwordForm.confirm) {
-      alert("Mohon lengkapi semua field password.");
+      showToast("Mohon lengkapi semua field password.", "warning");
       return;
     }
     if (passwordForm.new !== passwordForm.confirm) {
-      alert("Password baru dan konfirmasi tidak cocok!");
+      showToast("Password baru dan konfirmasi tidak cocok!", "error");
       return;
     }
-    alert("Password berhasil diubah!");
+    showToast("Password berhasil diubah!", "success");
     setIsChangePasswordOpen(false);
     setPasswordForm({ current: '', new: '', confirm: '' });
   };

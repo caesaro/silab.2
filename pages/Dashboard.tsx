@@ -99,24 +99,31 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Definisikan semua panggilan API yang mungkin
-        const apiCalls = [
-          api('/api/bookings'),
-          api('/api/loans'),
-          api('/api/rooms?exclude_image=true'),
-          !isUser ? api('/api/users') : Promise.resolve(new Response(JSON.stringify([]))), // Hanya panggil jika bukan 'User'
-          api('/api/inventory'),
-          api('/api/settings/announcement')
-        ];
-
-        const [resBookings, resLoans, resRooms, resUsers, resEquipment, resAnnounce] = await Promise.all(apiCalls);
-        
-        if (resBookings.ok) setBookings(await resBookings.json());
-        if (resLoans.ok) setLoans(await resLoans.json());
-        if (resRooms.ok) setRooms(await resRooms.json());
-        if (resUsers.ok && !isUser) setUsers(await resUsers.json());
-        if (resEquipment.ok) setEquipment(await resEquipment.json());
-        if (resAnnounce.ok) setAnnouncement(await resAnnounce.json());
+        if (isUser) {
+          // OPTIMASI: User biasa hanya butuh data pemesanan & pengumuman
+          const [resBookings, resAnnounce] = await Promise.all([
+            api('/api/bookings'),
+            api('/api/settings/announcement')
+          ]);
+          if (resBookings.ok) setBookings(await resBookings.json());
+          if (resAnnounce.ok) setAnnouncement(await resAnnounce.json());
+        } else {
+          // Admin dan Laboran butuh semua data statistik
+          const [resBookings, resLoans, resRooms, resUsers, resEquipment, resAnnounce] = await Promise.all([
+            api('/api/bookings'),
+            api('/api/loans'),
+            api('/api/rooms?exclude_image=true'),
+            api('/api/users'),
+            api('/api/inventory'),
+            api('/api/settings/announcement')
+          ]);
+          if (resBookings.ok) setBookings(await resBookings.json());
+          if (resLoans.ok) setLoans(await resLoans.json());
+          if (resRooms.ok) setRooms(await resRooms.json());
+          if (resUsers.ok) setUsers(await resUsers.json());
+          if (resEquipment.ok) setEquipment(await resEquipment.json());
+          if (resAnnounce.ok) setAnnouncement(await resAnnounce.json());
+        }
       } catch (error) {
         console.error("Gagal mengambil data dashboard:", error);
       } finally {
@@ -129,11 +136,22 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
 
   // Calculate Statistics Dynamically
   const stats = useMemo(() => {
+    // User Specific Stats (Dihitung untuk semua role karena Admin juga bisa pinjam)
+    const myBookings = bookings.filter(b => b.userId === LOGGED_IN_USER_ID);
+    const myPending = myBookings.filter(b => b.status === BookingStatus.PENDING).length;
+    const myApproved = myBookings.filter(b => b.status === BookingStatus.APPROVED).length;
+    const myRejected = myBookings.filter(b => b.status === BookingStatus.REJECTED).length;
+
+    // OPTIMASI: Hentikan kalkulasi berat jika role adalah User
+    if (isUser) {
+      return { totalBookings: 0, pendingBookings: 0, activeLoans: 0, availableRooms: 0, totalUsers: 0, damagedEquipment: 0, totalEquipment: 0, myBookings, myPending, myApproved, myRejected };
+    }
+
     const totalBookings = bookings.length;
     const pendingBookings = bookings.filter(b => b.status === BookingStatus.PENDING).length;
     const activeLoans = loans.filter(l => l.status === 'Dipinjam').length;
     
-    // Simple availability check: Rooms not booked today (ignoring time for simplicity in mock)
+    // Simple availability check
     const today = new Date().toLocaleDateString('en-CA');
     const bookedRoomIds = new Set(
         bookings
@@ -146,24 +164,20 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
     const damagedEquipment = equipment.filter(e => e.condition !== 'Baik').length;
     const totalEquipment = equipment.length;
 
-    // User Specific Stats
-    const myBookings = bookings.filter(b => b.userId === LOGGED_IN_USER_ID);
-    const myPending = myBookings.filter(b => b.status === BookingStatus.PENDING).length;
-    const myApproved = myBookings.filter(b => b.status === BookingStatus.APPROVED).length;
-    const myRejected = myBookings.filter(b => b.status === BookingStatus.REJECTED).length;
-
     return { totalBookings, pendingBookings, activeLoans, availableRooms, totalUsers, damagedEquipment, totalEquipment, myBookings, myPending, myApproved, myRejected };
-  }, [isUser, bookings, loans, rooms, users, equipment]);
+  }, [isUser, bookings, loans, rooms, users, equipment, LOGGED_IN_USER_ID]);
 
   // Calculate Chart Data
   const barData = useMemo(() => {
+      if (isUser) return []; // OPTIMASI: User tidak render chart ini
       return rooms.map(room => ({
           name: room.name.split(' ').slice(0, 2).join(' '), // Shorten name for display
           bookings: bookings.filter(b => b.roomId === room.id).length
       }));
-  }, [rooms, bookings]);
+  }, [rooms, bookings, isUser]);
 
   const pieData = useMemo(() => {
+      if (isUser) return []; // OPTIMASI: User tidak render chart ini
       const approved = bookings.filter(b => b.status === BookingStatus.APPROVED).length;
       const pending = bookings.filter(b => b.status === BookingStatus.PENDING).length;
       const rejected = bookings.filter(b => b.status === BookingStatus.REJECTED).length;
@@ -173,9 +187,10 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
           { name: 'Pending', value: pending, color: '#f59e0b' },
           { name: 'Ditolak', value: rejected, color: '#ef4444' },
       ];
-  }, [bookings]);
+  }, [bookings, isUser]);
 
   const equipmentConditionData = useMemo(() => {
+      if (isUser) return []; // OPTIMASI: User tidak render chart ini
       const good = equipment.filter(e => e.condition === 'Baik').length;
       const minor = equipment.filter(e => e.condition === 'Rusak Ringan').length;
       const major = equipment.filter(e => e.condition === 'Rusak Berat').length;
@@ -184,7 +199,7 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
           { name: 'Rusak Ringan', value: minor, color: '#f59e0b' },
           { name: 'Rusak Berat', value: major, color: '#ef4444' },
       ];
-  }, [equipment]);
+  }, [equipment, isUser]);
 
   // Helper for Announcement Banner
   const renderAnnouncement = () => {

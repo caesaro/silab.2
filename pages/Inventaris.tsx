@@ -7,6 +7,7 @@ import { api } from '../services/api';
 import QRScannerModal from '../components/QRScannerModal'; // Assuming this is a reusable component
 import ConfirmModal from '../components/ConfirmModal'; // Assuming this is a reusable component
 import { TableSkeleton } from '../components/Skeleton';
+import { useInventory } from '../hooks/useInventory';
 
 const LabelComponent = ({ item }: { item: Equipment }) => (
     <div className="p-1 flex flex-col items-center justify-center text-center break-words w-full h-full font-sans">
@@ -22,8 +23,7 @@ interface InventoryProps {
 }
 
 const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
-  const [items, setItems] = useState<Equipment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { items, isLoading, fetchItems } = useInventory();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCondition, setFilterCondition] = useState<'All' | 'Baik' | 'Rusak Ringan' | 'Rusak Berat'>('All');
   const [filterCategory, setFilterCategory] = useState<string>('All');
@@ -60,23 +60,6 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
 
   // Sorting State
   const [sortConfig, setSortConfig] = useState<{ key: keyof Equipment; direction: 'asc' | 'desc' } | null>(null);
-
-  // Reset page when filters change
-  useEffect(() => {
-    fetchItems();
-  }, []);
-
-  const fetchItems = async () => {
-    setIsLoading(true);
-    try {
-      const res = await api('/api/inventory');
-      if (res.ok) setItems(await res.json());
-    } catch (error) {
-      console.error("Failed to fetch inventory", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   useEffect(() => {
     setCurrentPage(1);

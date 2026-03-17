@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Booking, BookingStatus, Room } from '../types';
-import { Calendar, Clock, MapPin, Search, FileText, XCircle, AlertCircle, CheckCircle, Hourglass, Trash2, Download } from 'lucide-react';
+import { Calendar, Clock, MapPin, Search, FileText, XCircle, AlertCircle, CheckCircle, Hourglass, Trash2, Download, Plus, X, Edit } from 'lucide-react';
 import { api } from '../services/api';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import nocLogo from "../src/assets/noc.png";
+import BookingForm from '../components/BookingForm';
+import ConfirmModal from '../components/ConfirmModal';
+import { useRooms } from '../hooks/useRooms';
 
 interface PemesananSayaProps {
   userId: string;
@@ -13,28 +16,46 @@ interface PemesananSayaProps {
 
 const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
   const [myBookings, setMyBookings] = useState<Booking[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]);
+  const { rooms } = useRooms({ excludeImage: true });
   const [searchTerm, setSearchTerm] = useState('');
   const [proofBooking, setProofBooking] = useState<Booking | null>(null);
   const proofRef = useRef<HTMLDivElement>(null);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false, title: '', message: '', targetId: '', actionType: ''
+  });
+  const [isConfirming, setIsConfirming] = useState(false);
+
+  const fetchData = async () => {
+      try {
+          const bkRes = await api('/api/bookings');
+          if (bkRes.ok) {
+              const allBookings: Booking[] = await bkRes.json();
+              setMyBookings(allBookings.filter(b => b.userId === userId));
+          }
+      } catch (e) { console.error(e); }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-        try {
-            const [bkRes, rmRes] = await Promise.all([
-                api('/api/bookings'),
-                api('/api/rooms?exclude_image=true')
-            ]);
-            if (bkRes.ok) {
-                const allBookings: Booking[] = await bkRes.json();
-                setMyBookings(allBookings.filter(b => b.userId === userId));
-            }
-            if (rmRes.ok) setRooms(await rmRes.json());
-        } catch (e) { console.error(e); }
-    };
     fetchData();
   }, [userId]);
 
+  const handleCreateBooking = () => {
+    setEditingBooking(null);
+    setIsBookingModalOpen(true);
+  };
+
+  const handleEditBooking = (booking: Booking) => {
+    setEditingBooking(booking);
+    setIsBookingModalOpen(true);
+  };
+
+  const closeBookingModal = () => {
+    setIsBookingModalOpen(false);
+    setEditingBooking(null);
+  };
 
   const getRoomName = (roomId: string) => {
     return rooms.find(r => r.id === roomId)?.name || 'Unknown Room';
@@ -51,27 +72,37 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
     }
   };
 
-  const handleCancelBooking = async (id: string) => {
-    if (confirm("Apakah Anda yakin ingin membatalkan permohonan peminjaman ini?")) {
-      try {
-        await api(`/api/bookings/${id}`, { method: 'DELETE' });
-        setMyBookings(prev => prev.filter(b => b.id !== id));
-        showToast("Permohonan peminjaman berhasil dibatalkan.", "info");
-      } catch (e) {
-        showToast("Gagal membatalkan permohonan.", "error");
-      }
-    }
+  const handleCancelClick = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Batalkan Permohonan',
+      message: 'Apakah Anda yakin ingin membatalkan permohonan peminjaman ini?',
+      targetId: id,
+      actionType: 'cancel'
+    });
   };
 
-  const handleDeleteBooking = async (id: string) => {
-    if (confirm("Hapus riwayat peminjaman ini?")) {
-      try {
-        await api(`/api/bookings/${id}`, { method: 'DELETE' });
-        setMyBookings(prev => prev.filter(b => b.id !== id));
-        showToast("Riwayat berhasil dihapus.", "success");
-      } catch (e) {
-        showToast("Gagal menghapus riwayat.", "error");
-      }
+  const handleDeleteClick = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Hapus Riwayat',
+      message: 'Hapus riwayat peminjaman ini? Data tidak dapat dikembalikan.',
+      targetId: id,
+      actionType: 'delete'
+    });
+  };
+
+  const executeConfirmAction = async () => {
+    setIsConfirming(true);
+    try {
+      await api(`/api/bookings/${confirmModal.targetId}`, { method: 'DELETE' });
+      setMyBookings(prev => prev.filter(b => b.id !== confirmModal.targetId));
+      showToast(confirmModal.actionType === 'cancel' ? "Permohonan dibatalkan." : "Riwayat dihapus.", "success");
+    } catch (e) {
+      showToast("Tindakan gagal dilakukan.", "error");
+    } finally {
+      setIsConfirming(false);
+      setConfirmModal(prev => ({ ...prev, isOpen: false }));
     }
   };
 
@@ -128,6 +159,9 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Pemesanan Saya</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm">Riwayat dan status peminjaman ruangan Anda</p>
         </div>
+        <button onClick={handleCreateBooking} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center text-sm font-medium shadow-sm transition-all hover:scale-105">
+          <Plus className="w-4 h-4 mr-2" /> Buat Pesanan Baru
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -233,12 +267,20 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
                      </td>
                      <td className="px-6 py-4 text-right">
                         {booking.status === BookingStatus.PENDING ? (
-                           <button 
-                              onClick={() => handleCancelBooking(booking.id)}
-                              className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center ml-auto"
-                           >
-                              <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Batalkan
-                           </button>
+                           <div className="flex items-center justify-end space-x-2">
+                             <button 
+                                onClick={() => handleEditBooking(booking)}
+                                className="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center"
+                             >
+                                <Edit className="w-3.5 h-3.5 mr-1.5" /> Edit
+                             </button>
+                             <button 
+                                onClick={() => handleCancelClick(booking.id)}
+                                className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center"
+                             >
+                                <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Batalkan
+                             </button>
+                           </div>
                         ) : booking.status === BookingStatus.APPROVED ? (
                            <button 
                               onClick={() => handleDownloadProof(booking)}
@@ -248,7 +290,7 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
                            </button>
                         ) : booking.status === BookingStatus.REJECTED ? (
                            <button 
-                              onClick={() => handleDeleteBooking(booking.id)}
+                              onClick={() => handleDeleteClick(booking.id)}
                               className="text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center ml-auto"
                            >
                               <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Hapus
@@ -361,6 +403,42 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
             )}
         </div>
       </div>
+
+      {isBookingModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-3xl overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up max-h-[90vh] flex flex-col">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 flex-shrink-0">
+                 <h3 className="font-bold text-gray-900 dark:text-white flex items-center text-base">
+                    <Plus className="w-5 h-5 mr-2 text-blue-600" />
+                    {editingBooking ? 'Edit Pesanan Ruangan' : 'Buat Pesanan Ruangan'}
+                 </h3>
+                 <button onClick={closeBookingModal} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <X className="w-5 h-5" />
+                 </button>
+              </div>
+              <div className="overflow-y-auto flex-1 p-0">
+                <BookingForm
+                  rooms={rooms}
+                  initialData={editingBooking}
+                  showToast={showToast}
+                  onSuccess={() => { closeBookingModal(); fetchData(); }}
+                  onCancel={closeBookingModal}
+                />
+              </div>
+           </div>
+        </div>
+      )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={executeConfirmAction}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.actionType === 'cancel' ? 'Ya, Batalkan' : 'Ya, Hapus'}
+        type={confirmModal.actionType === 'cancel' ? 'warning' : 'danger'}
+        isLoading={isConfirming}
+      />
     </div>
   );
 };

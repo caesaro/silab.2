@@ -1,19 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { AppUser as BaseAppUser } from '../types';
-import { Search, Plus, Filter, Edit, Trash2, X, Check, MoreHorizontal, UserCheck, UserX, Shield, KeyRound, RefreshCw, Loader2, Users } from 'lucide-react';
+import { Search, Plus, Filter, Edit, Trash2, X, Check, MoreHorizontal, UserCheck, UserX, Shield, KeyRound, RefreshCw, Loader2, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../services/api';
 import { TableSkeleton } from '../components/Skeleton';
+import ConfirmModal from '../components/ConfirmModal';
 
 // Extend AppUser type locally to include phone
 type AppUser = BaseAppUser & { phone?: string };
 
-const UserManagement: React.FC = () => {
+interface UserManagementProps {
+  showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void;
+}
+
+const UserManagement: React.FC<UserManagementProps> = ({ showToast }) => {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState<'All' | 'Mahasiswa' | 'Dosen'>('All');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Aktif' | 'Non-Aktif' | 'Suspended'>('All');
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'internal' | 'sso'>('internal');
+  
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -21,6 +29,11 @@ const UserManagement: React.FC = () => {
   const [formData, setFormData] = useState<Partial<AppUser>>({
     name: '', email: '', username: '', role: 'User', identifier: '', phone: '', status: 'Aktif'
   });
+
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false, title: '', message: '', type: 'danger' as 'danger' | 'warning' | 'info', targetId: '', actionType: ''
+  });
+  const [isConfirming, setIsConfirming] = useState(false);
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -46,15 +59,28 @@ const UserManagement: React.FC = () => {
     fetchUsers();
   }, [activeTab]);
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          user.identifier.includes(searchTerm) ||
-                          (user.username && user.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = filterRole === 'All' || user.role === filterRole;
-    const matchesStatus = filterStatus === 'All' || user.status === filterStatus;
-    return matchesSearch && matchesRole && matchesStatus;
-  });
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
+      const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            user.identifier.includes(searchTerm) ||
+                            (user.username && user.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                            user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesRole = filterRole === 'All' || user.role === filterRole;
+      const matchesStatus = filterStatus === 'All' || user.status === filterStatus;
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [users, searchTerm, filterRole, filterStatus]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterRole, filterStatus, itemsPerPage, activeTab]);
+
+  // Pagination calculations
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentUsers = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
 
   const handleOpenModal = (user?: AppUser) => {
     if (user) {
@@ -76,30 +102,36 @@ const UserManagement: React.FC = () => {
           method: 'PUT',
           data: formData
         });
-        if (res.ok) fetchUsers();
+        if (res.ok) {
+          fetchUsers();
+          showToast("Data user berhasil diperbarui.", "success");
+        }
       } else {
         // Create
         const res = await api('/api/users', {
           method: 'POST',
           data: formData
         });
-        if (res.ok) fetchUsers();
+        if (res.ok) {
+          fetchUsers();
+          showToast("User baru berhasil ditambahkan.", "success");
+        }
       }
       setIsModalOpen(false);
     } catch (error) {
-      alert("Gagal menyimpan data user.");
+      showToast("Gagal menyimpan data user.", "error");
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm("Apakah Anda yakin ingin menghapus user ini?")) {
-      try {
-        await api(`/api/users/${id}`, { method: 'DELETE' });
-        fetchUsers();
-      } catch (error) {
-        alert("Gagal menghapus user.");
-      }
-    }
+  const handleDeleteClick = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Hapus User',
+      message: 'Apakah Anda yakin ingin menghapus user ini? Data tidak dapat dikembalikan.',
+      type: 'danger',
+      targetId: id,
+      actionType: 'delete'
+    });
   };
 
   const toggleStatus = async (user: AppUser) => {
@@ -113,23 +145,43 @@ const UserManagement: React.FC = () => {
 
         if (response.ok) {
           setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: newStatus } : u));
+          showToast(`Status user berhasil diubah menjadi ${newStatus}.`, "success");
         } else {
-          alert("Gagal mengubah status user.");
+          showToast("Gagal mengubah status user.", "error");
         }
       } catch (error) {
         console.error("Error updating status:", error);
+        showToast("Gagal mengubah status user.", "error");
       }
   };
 
-  const handleResetPassword = async (user: AppUser) => {
-    if (window.confirm(`Reset password untuk user ${user.name}? User akan diminta membuat password baru saat login berikutnya.`)) {
-      try {
-        await api(`/api/users/${user.id}/reset-password`, { method: 'PUT' });
-        alert(`Password untuk ${user.name} berhasil direset.`);
-        fetchUsers();
-      } catch (error) {
-        alert("Gagal mereset password.");
+  const handleResetPasswordClick = (user: AppUser) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Reset Password',
+      message: `Reset password untuk user ${user.name}? User akan diminta membuat password baru saat login berikutnya.`,
+      type: 'warning',
+      targetId: user.id,
+      actionType: 'reset'
+    });
+  };
+
+  const executeConfirmAction = async () => {
+    setIsConfirming(true);
+    try {
+      if (confirmModal.actionType === 'delete') {
+        await api(`/api/users/${confirmModal.targetId}`, { method: 'DELETE' });
+        showToast("User berhasil dihapus.", "success");
+      } else if (confirmModal.actionType === 'reset') {
+        await api(`/api/users/${confirmModal.targetId}/reset-password`, { method: 'PUT' });
+        showToast("Password berhasil direset.", "success");
       }
+      fetchUsers();
+    } catch (error) {
+      showToast("Terjadi kesalahan saat memproses permintaan.", "error");
+    } finally {
+      setIsConfirming(false);
+      setConfirmModal(prev => ({ ...prev, isOpen: false }));
     }
   };
 
@@ -235,7 +287,7 @@ const UserManagement: React.FC = () => {
                   </tr>
                </thead>
                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {filteredUsers.length > 0 ? filteredUsers.map((user) => (
+                  {currentUsers.length > 0 ? currentUsers.map((user) => (
                      <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                         <td className="px-6 py-4">
                            <div className="flex items-center">
@@ -274,13 +326,13 @@ const UserManagement: React.FC = () => {
                               >
                                  {user.status === 'Aktif' ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                               </button>
-                              <button onClick={() => handleResetPassword(user)} className="p-1.5 text-yellow-600 hover:bg-yellow-50 rounded dark:hover:bg-yellow-900/30 transition-colors" title="Reset Password">
+                              <button onClick={() => handleResetPasswordClick(user)} className="p-1.5 text-yellow-600 hover:bg-yellow-50 rounded dark:hover:bg-yellow-900/30 transition-colors" title="Reset Password">
                                  <KeyRound className="w-4 h-4" />
                               </button>
                               <button onClick={() => handleOpenModal(user)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded dark:hover:bg-blue-900/30 transition-colors" title="Edit">
                                  <Edit className="w-4 h-4" />
                               </button>
-                              <button onClick={() => handleDelete(user.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded dark:hover:bg-red-900/30 transition-colors" title="Hapus">
+                              <button onClick={() => handleDeleteClick(user.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded dark:hover:bg-red-900/30 transition-colors" title="Hapus">
                                  <Trash2 className="w-4 h-4" />
                               </button>
                            </div>
@@ -299,6 +351,44 @@ const UserManagement: React.FC = () => {
                </tbody>
             </table>
          </div>
+      </div>
+
+      {/* Pagination Controls */}
+      <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white dark:bg-gray-800 rounded-b-xl shadow-sm -mt-6">
+        <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+          <span>Tampilkan</span>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+            className="px-2 py-1 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
+          >
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+          </select>
+          <span>dari {filteredUsers.length} data</span>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300 px-2">
+            Halaman {currentPage} dari {totalPages || 1}
+          </span>
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages || totalPages === 0}
+            className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Modal Form */}
@@ -409,6 +499,17 @@ const UserManagement: React.FC = () => {
            </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={executeConfirmAction}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        confirmText={confirmModal.actionType === 'delete' ? 'Ya, Hapus' : 'Ya, Reset'}
+        isLoading={isConfirming}
+      />
     </div>
   );
 };

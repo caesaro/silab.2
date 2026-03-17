@@ -5,6 +5,8 @@ import { api } from '../services/api';
 import SoftwareForm from '../components/SoftwareForm';
 import RoomForm from '../components/RoomForm';
 import BookingForm from '../components/BookingForm';
+import { Skeleton } from '../components/Skeleton';
+import { useRooms } from '../hooks/useRooms';
 import { CLIENT_ID, API_KEY, DISCOVERY_DOCS, SCOPES } from '../src/config/google';
 
 // Declare Pannellum for TypeScript
@@ -20,6 +22,7 @@ interface RoomsProps {
   role: Role;
   isDarkMode: boolean;
   onNavigate?: (page: string) => void;
+  showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void;
 }
 
 interface GoogleEvent {
@@ -223,13 +226,14 @@ const getConditionColor = (condition?: string) => {
   }
 };
 
-const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate }) => {
+const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate, showToast }) => {
   // Helper: Cek admin case-insensitive
   const isAdmin = role.toString().toUpperCase() === Role.ADMIN.toString().toUpperCase();
   const isLaboran = role.toString().toUpperCase() === Role.LABORAN.toString().toUpperCase();
   const canManage = isAdmin || isLaboran;
 
-  const [rooms, setRooms] = useState<Room[]>([]);
+  // Menggunakan custom hook useRooms (autoFetch dimatikan agar kontrol loading awal tetap dipegang Promise.all)
+  const { rooms, fetchRooms: fetchRoomsApi } = useRooms({ autoFetch: false });
   const [availableFacilities, setAvailableFacilities] = useState<string[]>([]);
   const [newFacilityInput, setNewFacilityInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -295,7 +299,7 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate }) => {
   const [isSavingRoom, setIsSavingRoom] = useState(false);
   const [isSavingComputer, setIsSavingComputer] = useState(false);
   const [isSavingSoftware, setIsSavingSoftware] = useState(false);
-  const [isLoadingRooms, setIsLoadingRooms] = useState(false);
+  const [isLoadingRooms, setIsLoadingRooms] = useState(true);
 
   // Filter Active Technicians for PIC Dropdown
   const activeTechnicians = labStaff; // API /api/staff already filters Active
@@ -366,9 +370,17 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate }) => {
 
   // Fetch Initial Data & Setup Auto-Refresh
   useEffect(() => {
-    fetchRooms();
-    fetchStaff();
-    fetchAllSoftware();
+    const loadInitialData = async () => {
+      setIsLoadingRooms(true);
+      await Promise.all([
+        fetchRooms(),
+        fetchStaff(),
+        fetchAllSoftware()
+      ]);
+      setIsLoadingRooms(false);
+    };
+
+    loadInitialData();
 
     // Auto-refresh data ruangan setiap 1 menit (60000 ms) untuk memperbarui status Tersedia/Digunakan
     const intervalId = setInterval(() => {
@@ -392,34 +404,30 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate }) => {
   }, [rooms]);
 
   const fetchRooms = async () => {
-    try {
-      const res = await api('/api/rooms');
-      if (res.ok) {
-        const data: Room[] = await res.json();
-        setRooms(data);
+    const data = await fetchRoomsApi();
+    
+    if (data) {
+      // Create a dynamic list of unique facilities from all rooms + a base list
+      const allFacs = new Set<string>();
+      const baseFacilities = ["AC", "CCTV", "Komputer", "Meja", "Kursi", "Stop Kontak", "Proyektor", "Smart TV", "Interactive TV", "TV", "Console Cisco", "Videowall", "Sound/Speaker", "Mic", "Podium", "Green Screen", "Peralatan Fotografi & Videografi", "Internet LAN"];
+      baseFacilities.forEach(f => allFacs.add(f));
 
-        // Create a dynamic list of unique facilities from all rooms + a base list
-        const allFacs = new Set<string>();
-        const baseFacilities = ["AC", "CCTV", "Komputer", "Meja", "Kursi", "Stop Kontak", "Proyektor", "Smart TV", "Interactive TV", "TV", "Console Cisco", "Videowall", "Sound/Speaker", "Mic", "Podium", "Green Screen", "Peralatan Fotografi & Videografi", "Internet LAN"];
-        baseFacilities.forEach(f => allFacs.add(f));
+      data.forEach(room => {
+          if (room.facilities) {
+              room.facilities.forEach(fac => allFacs.add(fac));
+          }
+      });
+      setAvailableFacilities(Array.from(allFacs).sort());
 
-        data.forEach(room => {
-            if (room.facilities) {
-                room.facilities.forEach(fac => allFacs.add(fac));
-            }
-        });
-        setAvailableFacilities(Array.from(allFacs).sort());
-
-            // Jika sedang membuka detail ruangan, update state selectedRoom agar status ketersediaannya ikut akurat
-            setSelectedRoom(prev => {
-                if (prev) {
-                    const updatedRoom = data.find(r => r.id === prev.id);
-                    return updatedRoom || prev;
-                }
-                return prev;
-            });
-      }
-    } catch (e) { console.error(e); }
+      // Jika sedang membuka detail ruangan, update state selectedRoom agar status ketersediaannya ikut akurat
+      setSelectedRoom(prev => {
+          if (prev) {
+              const updatedRoom = data.find(r => r.id === prev.id);
+              return updatedRoom || prev;
+          }
+          return prev;
+      });
+    }
   };
 
   const fetchStaff = async () => {
@@ -623,7 +631,7 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate }) => {
   const handleAddNew = () => {
     // Restrict Access
     if (!canManage) {
-        alert("Akses Ditolak. Hanya Admin dan Laboran yang bisa menambah ruangan.");
+        showToast("Akses Ditolak. Hanya Admin dan Laboran yang bisa menambah ruangan.", "error");
         return;
     }
 
@@ -650,7 +658,8 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate }) => {
       try {
         await api(`/api/rooms/${deleteTargetId}`, { method: 'DELETE' });
         fetchRooms();
-      } catch (e) { alert("Gagal menghapus"); }
+        showToast("Ruangan berhasil dihapus.", "success");
+      } catch (e) { showToast("Gagal menghapus", "error"); }
       setShowDeleteModal(false);
       setDeleteTargetId(null);
     }
@@ -674,7 +683,7 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate }) => {
   const handleSaveRoom = async (submittedData: Partial<Room>) => {
     // Validasi Kapasitas (double check, sudah ada di form)
     if (!submittedData.capacity || submittedData.capacity <= 0) {
-      alert("Kapasitas ruangan harus lebih dari 0.");
+      showToast("Kapasitas ruangan harus lebih dari 0.", "warning");
       return;
     }
 
@@ -706,6 +715,7 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate }) => {
       if (response.ok) {
         fetchRooms();
         setViewMode('list');
+        showToast("Data ruangan berhasil disimpan.", "success");
       } else {
         let errorMessage = 'Terjadi kesalahan di server';
         try {
@@ -714,11 +724,11 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate }) => {
         } catch {
             errorMessage = `Status: ${response.status} ${response.statusText}`;
         }
-        alert(`Gagal menyimpan data: ${errorMessage}`);
+        showToast(`Gagal menyimpan data: ${errorMessage}`, "error");
       }
     } catch (e: any) {
       console.error("Save Room Error:", e);
-      alert(`Gagal menyimpan data. Detail: ${e.message || "Cek koneksi internet"}`);
+      showToast(`Gagal menyimpan data. Detail: ${e.message || "Cek koneksi internet"}`, "error");
     } finally {
       setIsSavingRoom(false);
     }
@@ -731,8 +741,9 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate }) => {
       try {
         await api(`/api/rooms/${selectedRoom.id}/computers/${id}`, { method: 'DELETE' });
         fetchRoomComputers();
+        showToast("Data komputer berhasil dihapus.", "success");
       } catch (e) {
-        alert("Gagal menghapus data komputer");
+        showToast("Gagal menghapus data komputer", "error");
       }
     }
   };
@@ -758,11 +769,12 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate }) => {
       if (response.ok) {
         setEditingComputer(null);
         fetchRoomComputers();
+        showToast("Data komputer berhasil disimpan.", "success");
       } else {
-        alert("Gagal menyimpan data komputer");
+        showToast("Gagal menyimpan data komputer", "error");
       }
     } catch (e) {
-      alert("Gagal menyimpan data komputer");
+      showToast("Gagal menyimpan data komputer", "error");
     }
   };
 
@@ -773,8 +785,9 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate }) => {
       try {
         await api(`/api/software/${id}`, { method: 'DELETE' });
         fetchRoomSoftware();
+        showToast("Data software berhasil dihapus.", "success");
       } catch (e) {
-        alert("Gagal menghapus data software");
+        showToast("Gagal menghapus data software", "error");
       }
     }
   };
@@ -804,8 +817,9 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate }) => {
       if (response.ok) {
         setEditingSoftware(null);
         fetchRoomSoftware();
+        showToast("Data software berhasil disimpan.", "success");
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); showToast("Gagal menyimpan data software", "error"); }
   };
 
   // Calendar Visual Logic
@@ -822,6 +836,50 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate }) => {
   };
 
   // --- RENDERERS ---
+
+  if (isLoadingRooms) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-10 w-64 rounded-lg" />
+            <Skeleton className="h-10 w-32 rounded-lg" />
+            <Skeleton className="h-10 w-32 rounded-lg" />
+            <Skeleton className="h-10 w-32 rounded-lg" />
+            {canManage && <Skeleton className="h-10 w-24 rounded-lg" />}
+          </div>
+        </div>
+        <div className="space-y-10 mt-4">
+          <div>
+            <Skeleton className="h-8 w-48 mb-4" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col h-[400px]">
+                  <Skeleton className="h-48 w-full rounded-none" />
+                  <div className="p-5 flex-1 flex flex-col">
+                    <Skeleton className="h-6 w-3/4 mb-3" />
+                    <Skeleton className="h-4 w-1/4 mb-4" />
+                    <div className="flex gap-2 mb-4">
+                      <Skeleton className="h-6 w-16 rounded" />
+                      <Skeleton className="h-6 w-16 rounded" />
+                    </div>
+                    <Skeleton className="h-12 w-full mb-4" />
+                    <div className="mt-auto flex justify-end">
+                      <Skeleton className="h-9 w-28 rounded-lg" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (viewMode === 'form') {
     return (
@@ -1094,12 +1152,12 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate }) => {
   // --- MANAGE COMPUTERS VIEW ---
   if (viewMode === 'computers' && selectedRoom) {
       const handleDownloadTemplate = async () => {
-        alert("Fitur ini sedang dalam pengembangan.");
+        showToast("Fitur ini sedang dalam pengembangan.", "info");
       };
       const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        alert("Fitur ini sedang dalam pengembangan.");
+        showToast("Fitur ini sedang dalam pengembangan.", "info");
       };
-      const handleDeleteAllComputers = async () => { alert("Fitur ini sedang dalam pengembangan."); };
+      const handleDeleteAllComputers = async () => { showToast("Fitur ini sedang dalam pengembangan.", "info"); };
 
       return (
           <div className="space-y-6">
@@ -1257,9 +1315,9 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate }) => {
             <BookingForm
                 rooms={rooms}
                 initialRoomId={selectedRoom.id}
-                showToast={(msg, type) => alert(`${type}: ${msg}`)} // Placeholder, ideally use a real toast component
+                showToast={showToast}
                 onSuccess={() => {
-                    alert("Permohonan berhasil dikirim!");
+                    showToast("Permohonan berhasil dikirim!", "success");
                     setViewMode('detail');
                 }}
                 onCancel={() => setViewMode('detail')}

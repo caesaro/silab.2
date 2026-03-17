@@ -3,6 +3,7 @@ import { Search, Plus, Printer, Download, Edit, Trash2, X, Check, FileSpreadshee
 import nocLogo from "../src/assets/noc.png";
 import { api } from '../services/api';
 import { Room } from '../types';
+import ConfirmModal from '../components/ConfirmModal';
 
 interface LabStaff {
   id: string;
@@ -16,9 +17,10 @@ interface LabStaff {
 
 interface LaboranManagementProps {
   onNavigate?: (page: string) => void;
+  showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void;
 }
 
-const LaboranManagement: React.FC<LaboranManagementProps> = ({ onNavigate }) => {
+const LaboranManagement: React.FC<LaboranManagementProps> = ({ onNavigate, showToast }) => {
   const [staffList, setStaffList] = useState<LabStaff[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Aktif' | 'Non-Aktif'>('All');
@@ -28,6 +30,9 @@ const LaboranManagement: React.FC<LaboranManagementProps> = ({ onNavigate }) => 
   const [editingStaff, setEditingStaff] = useState<LabStaff | null>(null);
   const [viewingStaff, setViewingStaff] = useState<LabStaff | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState<Partial<LabStaff>>({
     name: '', nim: '', email: '', phone: '', jabatan: 'Teknisi', status: 'Aktif'
   });
@@ -135,6 +140,7 @@ const LaboranManagement: React.FC<LaboranManagementProps> = ({ onNavigate }) => 
         
         if (res.ok) {
           setStaffList(prev => prev.map(s => s.id === editingStaff.id ? { ...s, ...formData } as LabStaff : s));
+          showToast("Data laboran berhasil diperbarui.", "success");
         }
       } else {
         // Create
@@ -147,22 +153,33 @@ const LaboranManagement: React.FC<LaboranManagementProps> = ({ onNavigate }) => 
           const result = await res.json();
           const newStaff = { ...formData, id: result.id } as LabStaff;
           setStaffList(prev => [newStaff, ...prev]);
+          showToast("Data laboran berhasil ditambahkan.", "success");
         }
       }
       setIsModalOpen(false);
     } catch (error) {
-      alert("Terjadi kesalahan saat menyimpan data.");
+      showToast("Terjadi kesalahan saat menyimpan data.", "error");
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm("Apakah Anda yakin ingin menghapus data laboran ini?")) {
-      try {
-        await api(`/api/staff/${id}`, { method: 'DELETE' });
-        setStaffList(prev => prev.filter(s => s.id !== id));
-      } catch (error) {
-        alert("Gagal menghapus data.");
-      }
+  const handleDeleteClick = (id: string) => {
+    setDeleteTargetId(id);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTargetId) return;
+    setIsDeleting(true);
+    try {
+      await api(`/api/staff/${deleteTargetId}`, { method: 'DELETE' });
+      setStaffList(prev => prev.filter(s => s.id !== deleteTargetId));
+      showToast("Data laboran berhasil dihapus.", "success");
+    } catch (error) {
+      showToast("Gagal menghapus data.", "error");
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteModal(false);
+      setDeleteTargetId(null);
     }
   };
 
@@ -277,7 +294,7 @@ const LaboranManagement: React.FC<LaboranManagementProps> = ({ onNavigate }) => 
                               <button onClick={() => handleOpenModal(staff)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded dark:hover:bg-blue-900/30 transition-colors" title="Edit">
                                  <Edit className="w-4 h-4" />
                               </button>
-                              <button onClick={() => handleDelete(staff.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded dark:hover:bg-red-900/30 transition-colors" title="Hapus">
+                              <button onClick={() => handleDeleteClick(staff.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded dark:hover:bg-red-900/30 transition-colors" title="Hapus">
                                  <Trash2 className="w-4 h-4" />
                               </button>
                            </div>
@@ -471,6 +488,18 @@ const LaboranManagement: React.FC<LaboranManagementProps> = ({ onNavigate }) => 
            </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => { setShowDeleteModal(false); setDeleteTargetId(null); }}
+        onConfirm={confirmDelete}
+        title="Hapus Data Laboran"
+        message="Apakah Anda yakin ingin menghapus data laboran ini? Tindakan ini tidak dapat dibatalkan."
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+        type="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 };

@@ -6,6 +6,7 @@ import { api } from '../services/api';
 interface BookingFormProps {
   rooms: Room[];
   initialRoomId?: string;
+  initialData?: Partial<Booking> | null;
   onSuccess: () => void;
   onCancel: () => void;
   showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void;
@@ -14,22 +15,29 @@ interface BookingFormProps {
 const BookingForm: React.FC<BookingFormProps> = ({
   rooms,
   initialRoomId,
+  initialData,
   onSuccess,
   onCancel,
   showToast,
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedRoomId, setSelectedRoomId] = useState(initialRoomId || '');
+  const [selectedRoomId, setSelectedRoomId] = useState(initialData?.roomId || initialRoomId || '');
   const [roomSearch, setRoomSearch] = useState('');
 
   const [bookingForm, setBookingForm] = useState<Partial<Booking>>({
-    purpose: '',
-    responsiblePerson: '',
-    contactPerson: '',
-    proposalFile: '',
+    purpose: initialData?.purpose || '',
+    responsiblePerson: initialData?.responsiblePerson || '',
+    contactPerson: initialData?.contactPerson || '',
+    proposalFile: initialData?.proposalFile || '',
   });
   const [bookingSchedules, setBookingSchedules] = useState<{ date: string; startTime: string; endTime: string }[]>([
-    { date: '', startTime: '', endTime: '' },
+    ...(initialData?.schedules && initialData.schedules.length > 0 
+      ? initialData.schedules.map((s: any) => ({
+          date: s.date ? new Date(s.date).toLocaleDateString('en-CA') : '',
+          startTime: s.startTime?.slice(0, 5) || '',
+          endTime: s.endTime?.slice(0, 5) || ''
+        }))
+      : [{ date: '', startTime: '', endTime: '' }])
   ]);
   const [bookingFile, setBookingFile] = useState<File | null>(null);
 
@@ -81,13 +89,19 @@ const BookingForm: React.FC<BookingFormProps> = ({
       showToast('Silakan pilih ruangan terlebih dahulu.', 'warning');
       return;
     }
-    if (!bookingFile) {
+    if (!bookingFile && !bookingForm.proposalFile) {
       showToast('Mohon upload surat permohonan.', 'warning');
       return;
     }
     const isScheduleValid = bookingSchedules.every(s => s.date && s.startTime && s.endTime);
     if (!isScheduleValid) {
       showToast('Mohon lengkapi semua jadwal.', 'warning');
+      return;
+    }
+
+    const isTimeValid = bookingSchedules.every(s => s.endTime > s.startTime);
+    if (!isTimeValid) {
+      showToast('Jam selesai harus lebih dari jam mulai pada semua baris jadwal.', 'warning');
       return;
     }
 
@@ -104,13 +118,21 @@ const BookingForm: React.FC<BookingFormProps> = ({
         schedules: bookingSchedules,
       };
 
-      const res = await api('/api/bookings', {
-        method: 'POST',
-        data: payload,
-      });
+      let res;
+      if (initialData?.id) {
+        res = await api(`/api/bookings/${initialData.id}`, {
+          method: 'PUT',
+          data: payload,
+        });
+      } else {
+        res = await api('/api/bookings', {
+          method: 'POST',
+          data: payload,
+        });
+      }
 
       if (res.ok) {
-        showToast('Permohonan peminjaman berhasil dikirim!', 'success');
+        showToast(initialData?.id ? 'Permohonan peminjaman berhasil diperbarui!' : 'Permohonan peminjaman berhasil dikirim!', 'success');
         onSuccess();
       } else {
         const err = await res.json();
@@ -178,7 +200,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
             <div key={index} className="flex flex-col sm:flex-row gap-3 items-end animate-fade-in-up">
               <div className="flex-1 w-full">
                 <label className="block text-xs text-gray-500 mb-1">Tanggal</label>
-                <input type="date" required value={schedule.date} onChange={e => updateScheduleRow(index, 'date', e.target.value)} className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 text-sm" />
+                <input type="date" min={new Date().toLocaleDateString('en-CA')} required value={schedule.date} onChange={e => updateScheduleRow(index, 'date', e.target.value)} className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 text-sm" />
               </div>
               <div className="w-full sm:w-32">
                 <label className="block text-xs text-gray-500 mb-1">Jam Mulai</label>
@@ -224,6 +246,8 @@ const BookingForm: React.FC<BookingFormProps> = ({
               <FileText className={`w-8 h-8 mb-2 ${bookingFile ? 'text-blue-600' : 'text-gray-400'}`} />
               {bookingFile ? (
                 <span className="text-sm font-medium text-blue-600">{bookingFile.name}</span>
+              ) : bookingForm.proposalFile ? (
+                <span className="text-sm font-medium text-blue-600">Surat sudah diupload (PDF) - Klik untuk mengganti</span>
               ) : (
                 <>
                   <span className="text-sm text-gray-600 dark:text-gray-300 font-medium">Klik untuk upload surat</span>
@@ -240,7 +264,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
           </button>
           <button type="submit" disabled={isSubmitting} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center justify-center disabled:opacity-50">
             {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
-            {isSubmitting ? 'Mengirim...' : 'Kirim Permohonan'}
+            {isSubmitting ? 'Menyimpan...' : (initialData ? 'Simpan Perubahan' : 'Kirim Permohonan')}
           </button>
         </div>
       </form>
