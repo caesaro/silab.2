@@ -8,6 +8,7 @@ import QRScannerModal from '../components/QRScannerModal'; // Assuming this is a
 import ConfirmModal from '../components/ConfirmModal'; // Assuming this is a reusable component
 import { TableSkeleton } from '../components/Skeleton';
 import { useInventory } from '../hooks/useInventory';
+import { usePagination } from '../hooks/usePagination';
 
 const LabelComponent = ({ item }: { item: Equipment }) => (
     <div className="p-1 flex flex-col items-center justify-center text-center break-words w-full h-full font-sans">
@@ -27,8 +28,6 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCondition, setFilterCondition] = useState<'All' | 'Baik' | 'Rusak Ringan' | 'Rusak Berat'>('All');
   const [filterCategory, setFilterCategory] = useState<string>('All');
-  const [itemsPerPage, setItemsPerPage] = useState<number>(5);
-  const [currentPage, setCurrentPage] = useState<number>(1);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [paperSize, setPaperSize] = useState<'A4' | 'F4'>('A4');
@@ -60,10 +59,6 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
 
   // Sorting State
   const [sortConfig, setSortConfig] = useState<{ key: keyof Equipment; direction: 'asc' | 'desc' } | null>(null);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filterCondition, filterCategory, itemsPerPage]);
 
   const filteredItems = items.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -99,11 +94,22 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
     return sortableItems;
   }, [filteredItems, sortConfig]);
 
-  // Pagination Logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = sortedItems.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(sortedItems.length / itemsPerPage);
+// Menggunakan custom hook paginasi
+  const {
+    currentPage,
+    setCurrentPage,
+    itemsPerPage,
+    setItemsPerPage,
+    paginatedData: currentItems,
+    totalPages,
+    prevPage,
+    nextPage
+  } = usePagination(sortedItems, 5);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterCondition, filterCategory, itemsPerPage, setCurrentPage]);
+
 
   const handleSort = (key: keyof Equipment) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -910,12 +916,12 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
             
             <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4 print:hidden">
                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  Menampilkan <span className="font-medium text-gray-900 dark:text-white">{sortedItems.length > 0 ? indexOfFirstItem + 1 : 0}</span> sampai <span className="font-medium text-gray-900 dark:text-white">{Math.min(indexOfLastItem, sortedItems.length)}</span> dari <span className="font-medium text-gray-900 dark:text-white">{sortedItems.length}</span> data
+                  Menampilkan <span className="font-medium text-gray-900 dark:text-white">{sortedItems.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}</span> sampai <span className="font-medium text-gray-900 dark:text-white">{Math.min(currentPage * itemsPerPage, sortedItems.length)}</span> dari <span className="font-medium text-gray-900 dark:text-white">{sortedItems.length}</span> data
                </div>
                
                <div className="flex items-center space-x-2">
                   <button 
-                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                     onClick={prevPage}
                      disabled={currentPage === 1}
                      className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -925,7 +931,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                      Halaman {currentPage} dari {totalPages || 1}
                   </span>
                   <button 
-                     onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                     onClick={nextPage}
                      disabled={currentPage === totalPages || totalPages === 0}
                      className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >

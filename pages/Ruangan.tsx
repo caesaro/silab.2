@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense, lazy } from 'react';
 import { Room, Role, BookingStatus, Booking, RoomComputer, Software } from '../types';
 import { Search, MapPin, Users, Wifi, Edit2, Trash2, Calendar, Eye, Check, Plus, Upload, Loader2, ArrowUpDown, ExternalLink, FileText, User, LogIn, RefreshCw, Clock, ChevronRight, ChevronDown, X, Monitor, Cpu, HardDrive, Keyboard, Mouse, Download, FileSpreadsheet, ChevronLeft, Package, Filter, Info } from 'lucide-react';
 import { api } from '../services/api';
@@ -7,6 +7,7 @@ import RoomForm from '../components/RoomForm';
 import BookingForm from '../components/BookingForm';
 import { Skeleton } from '../components/Skeleton';
 import { useRooms } from '../hooks/useRooms';
+import RoomList from '../components/RoomList';
 import { CLIENT_ID, API_KEY, DISCOVERY_DOCS, SCOPES } from '../src/config/google';
 
 // Declare Pannellum for TypeScript
@@ -45,178 +46,22 @@ interface LabStaff {
   status: 'Aktif' | 'Non-Aktif';
 }
 
-// Sub-component for 360 Thumbnail in List View
-const Room360Thumbnail: React.FC<{ room: Room }> = React.memo(({ room }) => {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const thumbnailRef = useRef<HTMLDivElement>(null);
-    const viewerRef = useRef<any>(null);
-    const [isVisible, setIsVisible] = useState(false);
-    const [shouldLoadWebGL, setShouldLoadWebGL] = useState(false);
-    const [showActivity, setShowActivity] = useState(false);
-
-    // Menggunakan Intersection Observer untuk mendeteksi apakah elemen ada di dalam layar
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            ([entry]) => {
-                setIsVisible(entry.isIntersecting);
-            },
-            // Kurangi margin agar tidak memuat terlalu banyak instance WebGL saat scroll cepat
-            { rootMargin: '300px' } 
-        );
-
-        if (containerRef.current) {
-            observer.observe(containerRef.current);
-        }
-
-        return () => {
-            if (containerRef.current) {
-                observer.unobserve(containerRef.current);
-            }
-        };
-    }, []);
-
-    // Debounce: Tunggu 300ms sebelum me-load WebGL
-    // Mencegah lag parah saat user men-scroll halaman dari atas ke bawah dengan sangat cepat
-    useEffect(() => {
-        let timer: NodeJS.Timeout;
-        if (isVisible) {
-            timer = setTimeout(() => setShouldLoadWebGL(true), 300);
-        } else {
-            setShouldLoadWebGL(false);
-        }
-        return () => clearTimeout(timer);
-    }, [isVisible]);
-
-    useEffect(() => {
-        // Hanya render (load) Pannellum jika shouldLoadWebGL === true
-        if (shouldLoadWebGL && thumbnailRef.current && window.pannellum) {
-            const uniqueId = `pannellum-thumb-${room.id}`;
-            thumbnailRef.current.id = uniqueId;
-
-            try {
-                viewerRef.current = window.pannellum.viewer(uniqueId, {
-                    type: 'equirectangular',
-                    panorama: room.image,
-                    autoLoad: true,
-                    autoRotate: 0,
-                    compass: false,
-                    showControls: false,
-                    mouseZoom: false,
-                    keyboardZoom: false,
-                    draggable: true,
-                    hfov: 100
-                });
-            } catch (error) {
-                console.error("Pannellum error:", error);
-            }
-        } else {
-            // Unload viewer dan hapus instance WebGL ketika elemen keluar dari layar
-            if (viewerRef.current) {
-                try { viewerRef.current.destroy(); } catch(e) {}
-                viewerRef.current = null;
-            }
-            if (thumbnailRef.current) {
-                thumbnailRef.current.innerHTML = '';
-            }
-        }
-        
-        return () => {
-            if (viewerRef.current) {
-                try {
-                    viewerRef.current.destroy();
-                } catch(e) {
-                    if (thumbnailRef.current) thumbnailRef.current.innerHTML = '';
-                }
-                viewerRef.current = null;
-            }
-        };
-    }, [room.id, room.image, shouldLoadWebGL]);
-
-    const handleMouseEnter = () => {
-        if (viewerRef.current) {
-            viewerRef.current.startAutoRotate(-2);
-        }
-    };
-
-    const handleMouseLeave = () => {
-        if (viewerRef.current) {
-            viewerRef.current.stopAutoRotate();
-        }
-    };
-
-    return (
-        <div 
-            ref={containerRef}
-            className="w-full h-full relative group cursor-pointer overflow-hidden bg-gray-200" 
-            onClick={(e) => e.stopPropagation()}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-        >
-            {/* Gambar statis sebagai placeholder (Cache Visual) */}
-            <div 
-                className="absolute inset-0 w-full h-full"
-                style={{
-                    backgroundImage: `url(${room.image})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                }}
-            />
-            
-            {/* Kontainer Pannellum */}
-            <div ref={thumbnailRef} className="absolute inset-0 w-full h-full z-10" />
-            
-            <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-sm flex items-center z-20 pointer-events-none">
-                  <MapPin className="w-3 h-3 mr-1"/> {room.floor || 'Lantai 4'}
-            </div>
-            
-            <div 
-              onClick={(e) => {
-                if ((room as any).currentStatus === 'Digunakan') {
-                  e.stopPropagation();
-                  setShowActivity(!showActivity);
-                }
-              }}
-              className={`absolute top-2 left-2 text-white text-xs font-medium px-2 py-1 rounded backdrop-blur-sm flex items-center z-30 ${(room as any).currentStatus === 'Digunakan' ? 'bg-red-500/90 cursor-pointer pointer-events-auto shadow-sm hover:bg-red-600 transition-colors' : 'bg-green-500/80 pointer-events-none'}`}
-            >
-                  {(room as any).currentStatus || 'Tersedia'}
-                  {(room as any).currentStatus === 'Digunakan' && <Info className="w-3 h-3 ml-1.5 opacity-80" />}
-            </div>
-
-            {/* Popover/Tooltip Kegiatan */}
-            {showActivity && (room as any).currentStatus === 'Digunakan' && (
-              <div 
-                className="absolute top-10 left-2 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs p-3 rounded-lg shadow-xl z-40 w-56 border border-gray-200 dark:border-gray-700 animate-fade-in-up"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-1.5 mb-2">
-                  <span className="font-bold text-gray-900 dark:text-white uppercase tracking-wider text-[10px]">Sedang Berlangsung</span>
-                  <X className="w-3.5 h-3.5 cursor-pointer hover:text-red-500 transition-colors" onClick={() => setShowActivity(false)} />
-                </div>
-                <p className="font-medium text-blue-600 dark:text-blue-400 mb-1.5 leading-snug">{(room as any).currentActivity || 'Kegiatan tidak diketahui'}</p>
-                <p className="text-gray-500 flex items-center bg-gray-50 dark:bg-gray-700/50 p-1.5 rounded">
-                  <Clock className="w-3 h-3 mr-1" />
-                  Sampai: <span className="font-bold ml-1">{(room as any).currentActivityEnd ? ((room as any).currentActivityEnd as string).substring(0, 5) : 'Selesai'}</span> WIB
-                </p>
-              </div>
-            )}
-        </div>
-    );
-});
-
+// Sub-component for 360 Thumbnail in List View - REMOVED
+// Static gradient thumbs in RoomList.tsx for perf
+// Full Pannellum + activity overlay only in RoomDetail
 const getCategoryColor = (category?: string) => {
   switch (category) {
-    case 'Laboratorium Komputer': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800';
-    case 'Teori': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800';
-    case 'Praktek': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 border border-orange-200 dark:border-orange-800';
-    case 'Rekreasi': return 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400 border border-pink-200 dark:border-pink-800';
-    case 'Meeting': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 border border-purple-200 dark:border-purple-800';
-    case 'Lounge': return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800';
-    case 'Open Space': return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-800';
-    case 'Auditorium/Ruang Kuliah Umum': return 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-200 dark:border-rose-800';
-    default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600';
+    case 'Laboratorium Komputer': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
+    case 'Teori': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400';
+    case 'Praktek': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400';
+    case 'Rekreasi': return 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400';
+    case 'Meeting': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
+    case 'Lounge': return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400';
+    case 'Open Space': return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400';
+    case 'Auditorium/Ruang Kuliah Umum': return 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400';
+    default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
   }
 };
-
 const getConditionColor = (condition?: string) => {
   switch (condition) {
     case 'Baik': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
@@ -225,7 +70,6 @@ const getConditionColor = (condition?: string) => {
     default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
   }
 };
-
 const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate, showToast }) => {
   // Helper: Cek admin case-insensitive
   const isAdmin = role.toString().toUpperCase() === Role.ADMIN.toString().toUpperCase();
@@ -233,13 +77,56 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate, showToast
   const canManage = isAdmin || isLaboran;
 
   // Menggunakan custom hook useRooms (autoFetch dimatikan agar kontrol loading awal tetap dipegang Promise.all)
-  const { rooms, fetchRooms: fetchRoomsApi } = useRooms({ autoFetch: false });
+const { rooms, fetchRooms: fetchRoomsApi } = useRooms({ autoFetch: false, excludeImage: true });
   const [availableFacilities, setAvailableFacilities] = useState<string[]>([]);
   const [newFacilityInput, setNewFacilityInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<'name' | 'capacity'>('name');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+
   const [filterCategory, setFilterCategory] = useState<string>('All');
+  const [debouncedFilterCategory, setDebouncedFilterCategory] = useState('All');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Tersedia' | 'Digunakan'>('All');
+  const [debouncedFilterStatus, setDebouncedFilterStatus] = useState<'All' | 'Tersedia' | 'Digunakan'>('All');
+  const [sortBy, setSortBy] = useState<'name' | 'capacity'>('name');
+  const [debouncedSortBy, setDebouncedSortBy] = useState<'name' | 'capacity'>('name');
+
+  const [filterCategoryTimeout, setFilterCategoryTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [filterStatusTimeout, setFilterStatusTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [sortByTimeout, setSortByTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  // Debounced search
+  const debouncedSearch = useCallback((value: string) => {
+    if (searchTimeout) clearTimeout(searchTimeout);
+    const timeout = setTimeout(() => {
+      setSearchTerm(value);
+      setDebouncedSearchTerm(value);
+    }, 300);
+    setSearchTimeout(timeout);
+  }, [searchTimeout]);
+
+  const handleFilterChange = useCallback((key: 'category' | 'status' | 'sort', value: string) => {
+    switch (key) {
+      case 'category':
+        setFilterCategory(value);
+        if (filterCategoryTimeout) clearTimeout(filterCategoryTimeout);
+        const catTimeout = setTimeout(() => setDebouncedFilterCategory(value), 500);
+        setFilterCategoryTimeout(catTimeout);
+        break;
+      case 'status':
+        (setFilterStatus as any)(value);
+        if (filterStatusTimeout) clearTimeout(filterStatusTimeout);
+        const statTimeout = setTimeout(() => setDebouncedFilterStatus(value as any), 500);
+        setFilterStatusTimeout(statTimeout);
+        break;
+      case 'sort':
+        (setSortBy as any)(value);
+        if (sortByTimeout) clearTimeout(sortByTimeout);
+        const sortTimeout = setTimeout(() => setDebouncedSortBy(value as any), 200);
+        setSortByTimeout(sortTimeout);
+        break;
+    }
+  }, [filterCategoryTimeout, filterStatusTimeout, sortByTimeout]);
   
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'detail' | 'booking' | 'form' | 'computers'>('list');
@@ -292,8 +179,6 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate, showToast
   // Software State
   const [roomSoftware, setRoomSoftware] = useState<Software[]>([]);
   const [editingSoftware, setEditingSoftware] = useState<Partial<Software> | null>(null);
-  // Software for List View (mapped by roomId)
-  const [roomSoftwareMap, setRoomSoftwareMap] = useState<{ [roomId: string]: Software[] }>({});
 
   // Loading States for CRUD operations
   const [isSavingRoom, setIsSavingRoom] = useState(false);
@@ -314,22 +199,22 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate, showToast
   // Ekstrak daftar kategori unik dari data ruangan
   const categories = Array.from(new Set(rooms.map(room => room.category || 'Umum'))).sort();
 
-  // Filter & Sort Logic
-  const filteredRooms = rooms
+  // Filter & Sort Logic - Using DEBOUNCED values
+  const filteredRooms = useMemo(() => rooms
     .filter(room => {
-      const matchesSearch = room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            (room.description || '').toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = filterCategory === 'All' || (room.category || 'Umum') === filterCategory;
-      const matchesStatus = filterStatus === 'All' || (room as any).currentStatus === filterStatus;
+      const matchesSearch = room.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                            (room.description || '').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+      const matchesCategory = debouncedFilterCategory === 'All' || (room.category || 'Umum') === debouncedFilterCategory;
+      const matchesStatus = debouncedFilterStatus === 'All' || (room as any).currentStatus === debouncedFilterStatus;
       return matchesSearch && matchesCategory && matchesStatus;
     })
     .sort((a, b) => {
-      if (sortBy === 'name') return a.name.localeCompare(b.name);
+      if (debouncedSortBy === 'name') return a.name.localeCompare(b.name);
       return b.capacity - a.capacity;
-    });
+    }), [rooms, debouncedSearchTerm, debouncedFilterCategory, debouncedFilterStatus, debouncedSortBy]);
 
   // Mengelompokkan daftar ruangan yang sudah difilter berdasarkan Lantai
-  const groupedRooms = React.useMemo(() => {
+  const groupedRooms = useMemo(() => {
     const groups: Record<string, Room[]> = {};
     filteredRooms.forEach(room => {
       // Kelompokkan berdasarkan lantai, beri default jika kosong
@@ -346,6 +231,11 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate, showToast
       rooms: groups[floor]
     }));
   }, [filteredRooms]);
+
+  // Cleanup debounce on unmount
+  useEffect(() => () => {
+    if (searchTimeout) clearTimeout(searchTimeout);
+  }, [searchTimeout]);
 
   // Initialize Pannellum when viewing details
   useEffect(() => {
@@ -370,13 +260,9 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate, showToast
 
   // Fetch Initial Data & Setup Auto-Refresh
   useEffect(() => {
-    const loadInitialData = async () => {
+  const loadInitialData = async () => {
       setIsLoadingRooms(true);
-      await Promise.all([
-        fetchRooms(),
-        fetchStaff(),
-        fetchAllSoftware()
-      ]);
+      await fetchRooms();
       setIsLoadingRooms(false);
     };
 
@@ -535,31 +421,11 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate, showToast
       } catch (e) { console.error(e); }
   };
 
-  // Fetch software for all Laboratorium Komputer rooms (for list view)
-  const fetchAllSoftware = async () => {
-      try {
-          const res = await api('/api/software');
-          if (res.ok) {
-              const allSoftware: Software[] = await res.json();
-              // Group software by roomId
-              const softwareMap: { [roomId: string]: Software[] } = {};
-              allSoftware.forEach((sw: Software) => {
-                  if (sw.roomId) {
-                      if (!softwareMap[sw.roomId]) {
-                          softwareMap[sw.roomId] = [];
-                      }
-                      softwareMap[sw.roomId].push(sw);
-                  }
-              });
-              setRoomSoftwareMap(softwareMap);
-          }
-      } catch (e) { console.error(e); }
-  };
-
   useEffect(() => {
       if (viewMode === 'detail' && selectedRoom) {
+          fetchStaff();
           fetchDominantSpec();
-          // Fetch software for Laboratorium Komputer rooms
+          // Fetch software only for this room in detail
           if (selectedRoom.category === 'Laboratorium Komputer') {
               fetchRoomSoftware();
           }
@@ -1326,7 +1192,7 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate, showToast
       )
   }
 
-  // LIST VIEW
+  // LIST VIEW - Replaced with RoomList component
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1342,7 +1208,7 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate, showToast
                     type="text" 
                     placeholder="Cari Ruangan..." 
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => debouncedSearch(e.target.value)}
                     className="pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:text-white w-full md:w-64"
                 />
             </div>
@@ -1350,7 +1216,7 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate, showToast
             <div className="relative">
                 <select 
                    value={filterStatus} 
-                   onChange={(e) => setFilterStatus(e.target.value as any)}
+                   onChange={(e) => handleFilterChange('status', e.target.value)}
                    className="pl-3 pr-8 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 dark:text-white appearance-none cursor-pointer"
                 >
                    <option value="All">Semua Status</option>
@@ -1363,7 +1229,7 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate, showToast
             <div className="relative">
                 <select 
                    value={filterCategory} 
-                   onChange={(e) => setFilterCategory(e.target.value)}
+                   onChange={(e) => handleFilterChange('category', e.target.value)}
                    className="pl-3 pr-8 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 dark:text-white appearance-none cursor-pointer"
                 >
                    <option value="All">Semua Kategori</option>
@@ -1377,7 +1243,7 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate, showToast
             <div className="relative">
                 <select 
                    value={sortBy} 
-                   onChange={(e) => setSortBy(e.target.value as 'name' | 'capacity')}
+                   onChange={(e) => handleFilterChange('sort', e.target.value)}
                    className="pl-3 pr-8 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 dark:text-white appearance-none cursor-pointer"
                 >
                    <option value="name">Nama (A-Z)</option>
@@ -1394,121 +1260,19 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate, showToast
         </div>
       </div>
 
-      {filteredRooms.length > 0 ? (
-        <div className="space-y-10">
-          {groupedRooms.map((group) => (
-            <div key={group.floor}>
-              {/* Header Lantai dengan Garis Pemisah (Divider) */}
-              <div 
-                className="flex items-center cursor-pointer group select-none" 
-                onClick={() => toggleFloor(group.floor)}
-              >
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 mr-3 transition-colors group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50">
-                  <ChevronRight className={`w-5 h-5 transition-transform duration-300 ${collapsedFloors[group.floor] !== false ? '' : 'rotate-90'}`} />
-                </div>
-                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{group.floor}</h2>
-                <div className="ml-4 flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
-                <span className="ml-4 text-xs font-medium text-gray-500 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-1 rounded-full">
-                  {group.rooms.length} Ruangan
-                </span>
-              </div>
-              
-              {/* Grid Ruangan untuk Lantai Ini */}
-              {collapsedFloors[group.floor] === false && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4 pb-2 animate-fade-in-up">
-                {group.rooms.map((room) => (
-                  <div key={room.id} onClick={() => { setSelectedRoom(room); setViewMode('detail'); }} className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all flex flex-col group cursor-pointer">
-              <div className="h-48 overflow-hidden relative bg-gray-200">
-                 {/* 360 Thumbnail Component */}
-                 <Room360Thumbnail room={room} />
-              </div>
-              <div className="p-5 flex-1 flex flex-col">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 group-hover:text-blue-600 transition-colors">{room.name}</h3>
-                <div className="mb-3">
-                    <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide ${getCategoryColor(room.category)}`}>{room.category}</span>
-                </div>
-                <div className="flex justify-between items-center mb-4">
-                    <div className="flex gap-2">
-                        <span className="text-xs font-semibold px-2 py-1 bg-blue-100 text-blue-700 rounded dark:bg-blue-900/30 dark:text-blue-300">
-                           Kap: {room.capacity}
-                        </span>
-                        {(room.computerCount && room.computerCount > 0) ? (
-                            <span className="text-xs font-semibold px-2 py-1 bg-purple-100 text-purple-700 rounded dark:bg-purple-900/30 dark:text-purple-300">
-                               {room.computerCount} PC
-                            </span>
-                        ) : null}
-                    </div>
-                    {room.googleCalendarUrl && (
-                      <span title="Kalender Tersinkronisasi">
-                        <Check className="w-4 h-4 text-green-500" />
-                      </span>
-                    )}
-                </div>
-                <p className="text-gray-500 dark:text-gray-400 text-sm line-clamp-2 mb-4 flex-1">{room.description}</p>
-                
-                {/* Software Section - Only for Laboratorium Komputer in List View */}
-                {room.category === 'Laboratorium Komputer' && roomSoftwareMap[room.id] && roomSoftwareMap[room.id].length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-4">
-                        <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-1 rounded flex items-center">
-                            <Package className="w-3 h-3 mr-1" />
-                            {roomSoftwareMap[room.id].length} Software
-                        </span>
-                        {roomSoftwareMap[room.id].slice(0, 2).map((sw, idx) => (
-                            <span key={idx} className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded">
-                                {sw.name}
-                            </span>
-                        ))}
-                        {roomSoftwareMap[room.id].length > 2 && (
-                            <span className="text-xs text-gray-400 px-2 py-1">+{roomSoftwareMap[room.id].length - 2} lainnya</span>
-                        )}
-                    </div>
-                )}
-
-                <div className="flex flex-wrap gap-2 mb-4">
-                    {room.facilities?.slice(0, 3).map((f, i) => (
-                        <span key={i} className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded">{f}</span>
-                    ))}
-                    {(room.facilities?.length || 0) > 3 && <span className="text-xs text-gray-400 px-2 py-1">+lainnya</span>}
-                </div>
-
-                <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100 dark:border-gray-700">
-                   <div className="flex space-x-2 w-full">
-                      {(canManage) && (
-                           <div className="flex space-x-2" onClick={e => e.stopPropagation()}>
-                             <button onClick={() => handleEdit(room)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg dark:hover:bg-blue-900/20" title="Edit">
-                                <Edit2 className="w-4 h-4" />
-                             </button>
-                             <button onClick={() => handleDelete(room.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg dark:hover:bg-red-900/20" title="Delete">
-                                <Trash2 className="w-4 h-4" />
-                             </button>
-                           </div>
-                      )}
-                      <button 
-                          className="flex-1 px-4 py-2 bg-gray-900 dark:bg-white dark:text-gray-900 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity text-center ml-auto"
-                      >
-                          Detail & 360°
-                      </button>
-                   </div>
-                </div>
-              </div>
-            </div>
-                ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="bg-gray-100 dark:bg-gray-800 p-6 rounded-full mb-4">
-                <MapPin className="w-12 h-12 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Tidak ada ruangan ditemukan</h3>
-            <p className="text-gray-500 dark:text-gray-400 max-w-sm">
-                Coba ubah kata kunci pencarian atau tambahkan ruangan baru jika Anda adalah admin.
-            </p>
-        </div>
-      )}
+      <RoomList
+        filteredRooms={filteredRooms}
+        collapsedFloors={collapsedFloors}
+        toggleFloor={toggleFloor}
+        canManage={canManage}
+        onRoomSelect={(room) => {
+          setSelectedRoom(room);
+          setViewMode('detail');
+        }}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        isDarkMode={isDarkMode}
+      />
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
@@ -1542,6 +1306,5 @@ const Ruangan: React.FC<RoomsProps> = ({ role, isDarkMode, onNavigate, showToast
       )}
     </div>
   );
-};
-
+}
 export default Ruangan;

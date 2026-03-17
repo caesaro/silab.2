@@ -1,11 +1,12 @@
 // Page: ItemMovements (Perpindahan Barang)
 import React, { useState, useEffect } from 'react';
 import { Role, ItemMovement, Equipment } from '../types';
-import { Search, Filter, Plus, X, ArrowRightLeft, Box, Calendar, MapPin, FileText, Eye, Save, RotateCcw, ArrowUpRight, ArrowDownLeft, Hand, ChevronLeft, ChevronRight, QrCode } from 'lucide-react';
+import { Search, Filter, Plus, X, ArrowRightLeft, Box, Calendar, MapPin, FileText, Eye, Save, RotateCcw, ArrowUpRight, ArrowDownLeft, Hand, ChevronLeft, ChevronRight, QrCode, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import { TableSkeleton } from '../components/Skeleton';
 import ConfirmModal from '../components/ConfirmModal';
 import QRScannerModal from '../components/QRScannerModal';
+import { usePagination } from '../hooks/usePagination';
 
 interface ItemMovementsProps {
   role: Role;
@@ -19,11 +20,6 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
   const [filterType, setFilterType] = useState<'All' | 'Peminjaman' | 'Manual' | 'Pengembalian'>('All');
   const [filterInventory, setFilterInventory] = useState<string>('All');
   
-  const [viewMode, setViewMode] = useState<'latest' | 'history'>('latest');
-
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
-
   const [isLoading, setIsLoading] = useState(true);
   const [isUndoModalOpen, setIsUndoModalOpen] = useState(false);
   const [undoTargetId, setUndoTargetId] = useState<string | null>(null);
@@ -48,6 +44,7 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   useEffect(() => {
+    // Initial data fetch
     fetchData();
   }, []);
 
@@ -63,6 +60,8 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
     } catch (e) { console.error(e); }
     finally { setIsLoading(false); }
   };
+
+  const [viewMode, setViewMode] = useState<'latest' | 'history'>('latest');
 
   // Group movements by inventory ID and get only the latest movement per item
   const latestMovementsByItem = React.useMemo(() => {
@@ -86,25 +85,34 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
     return Object.values(grouped);
   }, [movements]);
 
+  // Filter logic
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterType, filterInventory, itemsPerPage, viewMode]);
+  }, [searchTerm, filterType, filterInventory, viewMode]);
 
   const baseMovements = viewMode === 'latest' ? latestMovementsByItem : movements;
   const filteredMovements = baseMovements.filter(m => {
     const matchesSearch = (m.inventoryName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          m.fromPerson?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          m.toPerson?.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesType = filterType === 'All' || m.movementType === filterType;
-    const matchesInventory = filterInventory === 'All' || m.inventoryId === filterInventory;
+    const matchesType = filterType === 'All' || m.movementType === filterType; // Corrected: Use filterType
+    const matchesInventory = filterInventory === 'All' || m.inventoryId === filterInventory; // Corrected: Use filterInventory
     return matchesSearch && matchesType && matchesInventory;
   });
 
-  // Pagination logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredMovements.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredMovements.length / itemsPerPage);
+  // Pagination hook
+  const {
+    currentPage,
+    setCurrentPage,
+    itemsPerPage,
+    setItemsPerPage,
+    paginatedData: currentMovements,
+    totalPages,
+    prevPage,
+    nextPage
+  } = usePagination(filteredMovements, 10); // Default itemsPerPage to 10
+
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -329,7 +337,7 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {currentItems.length > 0 ? currentItems.map((movement) => (
+              {currentMovements.length > 0 ? currentMovements.map((movement) => (
                 <tr key={movement.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                   <td className="px-6 py-4">
                     <div className="font-medium text-gray-900 dark:text-white">{movement.inventoryName || getEquipmentName(movement.inventoryId)}</div>
@@ -406,7 +414,7 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
 
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              onClick={prevPage}
               disabled={currentPage === 1}
               className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -416,7 +424,7 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
               Halaman {currentPage} dari {totalPages || 1}
             </span>
             <button
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              onClick={nextPage}
               disabled={currentPage === totalPages || totalPages === 0}
               className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
