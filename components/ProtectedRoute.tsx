@@ -1,7 +1,7 @@
 // f:\Silab FTI\silab.2\components\ProtectedRoute.tsx
 import React from 'react';
 import { Role } from '../types';
-import AccessDenied from '../pages/AccessDenied';
+import AccessDenied from './AccessDenied';
 
 interface ProtectedRouteProps {
   currentRole: Role;

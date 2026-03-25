@@ -466,7 +466,7 @@ const Login: React.FC<LoginProps> = ({
           </p>
         </div>
         <div className="relative z-10 text-sm text-blue-200">
-          &copy; {new Date().getFullYear()} FTI UKSW. All rights reserved.
+          &copy; {new Date().getFullYear()} Sarana dan Prasarana FTI UKSW. All rights reserved.
         </div>
       </div>
 
@@ -480,7 +480,7 @@ const Login: React.FC<LoginProps> = ({
                   Selamat Datang
                 </h2>
                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                  Masuk untuk mengakses layanan Sarpras FTI
+                  Masuk untuk mengakses layanan CORE.FTI
                 </p>
               </div>
 
