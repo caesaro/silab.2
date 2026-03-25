@@ -28,7 +28,10 @@ const LoadingScreen: React.FC = () => {
           <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
         </div>
         <p className="text-xs text-gray-400 dark:text-gray-500 font-medium uppercase tracking-widest mt-2">
-          Universitas Kristen Satya Wacana
+          Sarana dan Prasarana
+        </p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 font-medium uppercase tracking-widest mt-2">
+          Fakultas Teknologi Informasi - Universitas Kristen Satya Wacana
         </p>
       </div>
     </div>
