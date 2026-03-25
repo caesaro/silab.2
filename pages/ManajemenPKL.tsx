@@ -3,6 +3,7 @@ import { Search, Plus, Printer, Download, Edit, Trash2, X, Check, FileText, Uplo
 import nocLogo from "../src/assets/noc.png";
 import { api } from '../services/api';
 import { PKLStudent } from '../types';
+import SearchableSelect, { SelectOption } from '../components/SearchableSelect';
 
 interface PKLManagementProps {
   showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void;
@@ -147,6 +148,12 @@ const PKLManagement: React.FC<PKLManagementProps> = ({ showToast }) => {
     setIsBatchMode(false);
     setIsModalOpen(true);
   };
+
+  const staffOptions: SelectOption[] = staffList.map(s => ({
+    value: s.id,
+    label: s.nama,
+    subLabel: s.jabatan
+  }));
 
   // Add/Update single PKL
   const handleSaveSingle = async (e: React.FormEvent) => {
@@ -527,16 +534,13 @@ const PKLManagement: React.FC<PKLManagementProps> = ({ showToast }) => {
                     </div>
                     <div>
                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Pembimbing (Teknisi)</label>
-                       <select 
+                       <SearchableSelect
+                         options={staffOptions}
                          value={formPembimbingId}
-                         onChange={e => setFormPembimbingId(e.target.value)}
-                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                       >
-                          <option value="">Pilih Pembimbing</option>
-                          {staffList.map(staff => (
-                            <option key={staff.id} value={staff.id}>{staff.nama}</option>
-                          ))}
-                       </select>
+                         onChange={val => setFormPembimbingId(val)}
+                         placeholder="-- Pilih Pembimbing --"
+                         searchPlaceholder="Cari pembimbing..."
+                       />
                     </div>
                     {editingPKL && (
                       <div>

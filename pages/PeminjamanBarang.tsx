@@ -3,6 +3,7 @@ import { Role, Loan, Equipment } from '../types';
 import { Search, Filter, Plus, Check, X, Clock, Box, User, Save, Trash2, CreditCard, Eye, Calendar, QrCode, MapPin, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import QRScannerModal from '../components/QRScannerModal';
+import SearchableSelect, { SelectOption } from '../components/SearchableSelect';
 
 interface LoansProps {
   role: Role;
@@ -156,6 +157,20 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
 
   // Derived data
   const availableEquipment = equipment.filter(e => e.isAvailable);
+
+  const getEquipmentOptions = (currentSelectedId: string): SelectOption[] => {
+    return availableEquipment.map(item => ({
+      value: item.id,
+      label: item.name,
+      subLabel: item.id,
+      disabled: formData.equipmentIds.includes(item.id) && item.id !== currentSelectedId
+    }));
+  };
+
+  const petugasOptions: SelectOption[] = activeStaff.map(staff => ({
+    value: staff.nama,
+    label: staff.nama
+  }));
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -627,17 +642,14 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Petugas Peminjaman</label>
-                  <select 
-                    required
+                  <SearchableSelect 
+                    options={petugasOptions}
                     value={formData.borrowOfficer}
-                    onChange={(e) => setFormData({...formData, borrowOfficer: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">-- Pilih Petugas --</option>
-                    {activeStaff.map(staff => (
-                      <option key={staff.id} value={staff.nama}>{staff.nama}</option>
-                    ))}
-                  </select>
+                    onChange={(val) => setFormData({...formData, borrowOfficer: val})}
+                    placeholder="-- Pilih Petugas --"
+                    searchPlaceholder="Cari petugas..."
+                    required
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lokasi Peminjaman</label>
@@ -676,26 +688,15 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                   {formData.equipmentIds.map((selectedId, index) => (
                     <div key={index} className="flex gap-2 animate-fade-in-up">
-                      <div className="relative flex-1">
-                        <Box className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <select 
-                          required
-                          value={selectedId}
-                          onChange={(e) => updateEquipmentRow(index, e.target.value)}
-                          className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 text-sm"
-                        >
-                          <option value="">-- Pilih Barang --</option>
-                          {availableEquipment.map(item => (
-                            <option 
-                              key={item.id} 
-                              value={item.id}
-                              disabled={formData.equipmentIds.includes(item.id) && item.id !== selectedId}
-                            >
-                              {item.name} ({item.id})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      <SearchableSelect
+                        options={getEquipmentOptions(selectedId)}
+                        value={selectedId}
+                        onChange={(val) => updateEquipmentRow(index, val)}
+                        placeholder="-- Pilih Barang --"
+                        searchPlaceholder="Cari barang..."
+                        required
+                        className="flex-1"
+                      />
                       <button 
                         type="button" 
                         onClick={() => {
@@ -904,17 +905,14 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Petugas Pengembalian</label>
-                  <select 
-                    required
+                  <SearchableSelect 
+                    options={petugasOptions}
                     value={returnConfirmation!.returnOfficer}
-                    onChange={e => setReturnConfirmation({...returnConfirmation!, returnOfficer: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">-- Pilih Petugas --</option>
-                    {activeStaff.map(staff => (
-                      <option key={staff.id} value={staff.nama}>{staff.nama}</option>
-                    ))}
-                  </select>
+                    onChange={(val) => setReturnConfirmation({...returnConfirmation!, returnOfficer: val})}
+                    placeholder="-- Pilih Petugas --"
+                    searchPlaceholder="Cari petugas..."
+                    required
+                  />
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center">

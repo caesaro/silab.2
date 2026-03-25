@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Room } from '../types';
-import { Loader2, Upload, Check, ChevronDown, Search } from 'lucide-react';
+import { Loader2, Upload, Check, ChevronLeft } from 'lucide-react';
+import SearchableSelect, { SelectOption } from './SearchableSelect';
 
 interface RoomFormProps {
   initialData: Partial<Room>;
@@ -17,8 +18,6 @@ const RoomForm: React.FC<RoomFormProps> = ({ initialData, isEditing, onSave, onC
   const [isImageProcessing, setIsImageProcessing] = useState(false);
   const [newFacilityInput, setNewFacilityInput] = useState('');
   const [currentFacilities, setCurrentFacilities] = useState(availableFacilities);
-  const [isPicDropdownOpen, setIsPicDropdownOpen] = useState(false);
-  const [picSearchTerm, setPicSearchTerm] = useState('');
 
   useEffect(() => {
     setFormData(initialData);
@@ -65,6 +64,15 @@ const RoomForm: React.FC<RoomFormProps> = ({ initialData, isEditing, onSave, onC
     }
   };
 
+  const picOptions: SelectOption[] = [
+    { value: '', label: '-- Tidak Ada PIC --' },
+    ...staffList.map(s => ({
+      value: s.id,
+      label: s.name,
+      subLabel: s.jabatan || 'Staff'
+    }))
+  ];
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.capacity || formData.capacity <= 0) {
@@ -80,53 +88,74 @@ const RoomForm: React.FC<RoomFormProps> = ({ initialData, isEditing, onSave, onC
 
   return (
     <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-      <h2 className="text-2xl font-bold mb-6 dark:text-white">{isEditing ? 'Edit Ruangan' : 'Tambah Ruangan Baru'}</h2>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nama Ruangan</label>
-            <input type="text" required value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500" />
+      <div className="flex items-center mb-6">
+        <button 
+          type="button" 
+          onClick={onCancel} 
+          className="mr-3 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
+          title="Kembali"
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+        <h2 className="text-2xl font-bold dark:text-white">{isEditing ? 'Edit Ruangan' : 'Tambah Ruangan Baru'}</h2>
+      </div>
+      <form onSubmit={handleSubmit} className="space-y-8">
+        
+        {/* --- Bagian 1: Informasi Dasar --- */}
+        <div className="bg-gray-50 dark:bg-gray-700/20 p-6 rounded-xl border border-gray-100 dark:border-gray-700">
+          <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Informasi Dasar</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nama Ruangan</label>
+              <input type="text" required value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 shadow-sm" placeholder="Contoh: Lab Jaringan Komputer" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Kategori Ruangan</label>
+              <select required value={formData.category || 'Laboratorium Komputer'} onChange={e => setFormData({ ...formData, category: e.target.value })} className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 shadow-sm">
+                <option value="Laboratorium Komputer">Laboratorium Komputer</option>
+                <option value="Teori">Teori</option>
+                <option value="Praktek">Praktek</option>
+                <option value="Rekreasi">Rekreasi</option>
+                <option value="Meeting">Meeting</option>
+                <option value="Lounge">Lounge</option>
+                <option value="Open Space">Open Space</option>
+                <option value="Auditorium/Ruang Kuliah Umum">Auditorium/Ruang Kuliah Umum</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Kapasitas (Orang)</label>
+              <input type="number" min="0" required value={formData.capacity || ''} onChange={e => setFormData({ ...formData, capacity: parseInt(e.target.value) })} className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 shadow-sm" placeholder="0" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lantai</label>
+              <select 
+                value={formData.floor || 'Lantai 4'} 
+                onChange={e => setFormData({ ...formData, floor: e.target.value })} 
+                className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 shadow-sm"
+              >
+                <option value="Lantai 1">Lantai 1</option>
+                <option value="Lantai 2">Lantai 2</option>
+                <option value="Lantai 3">Lantai 3</option>
+                <option value="Lantai 4">Lantai 4</option>
+                <option value="Lantai 5">Lantai 5</option>
+                <option value="Lantai 6">Lantai 6</option>
+              </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Deskripsi Ruangan</label>
+              <textarea rows={3} required value={formData.description || ''} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 shadow-sm" placeholder="Tuliskan deskripsi singkat mengenai ruangan ini..." />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Kategori Ruangan</label>
-            <select required value={formData.category || 'Laboratorium Komputer'} onChange={e => setFormData({ ...formData, category: e.target.value })} className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500">
-              <option value="Laboratorium Komputer">Laboratorium Komputer</option>
-              <option value="Teori">Teori</option>
-              <option value="Praktek">Praktek</option>
-              <option value="Rekreasi">Rekreasi</option>
-              <option value="Meeting">Meeting</option>
-              <option value="Lounge">Lounge</option>
-              <option value="Open Space">Open Space</option>
-              <option value="Auditorium/Ruang Kuliah Umum">Auditorium/Ruang Kuliah Umum</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Kapasitas (Orang)</label>
-            <input type="number" min="0" required value={formData.capacity || ''} onChange={e => setFormData({ ...formData, capacity: parseInt(e.target.value) })} className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lantai</label>
-            <select 
-              value={formData.floor || 'Lantai 4'} 
-              onChange={e => setFormData({ ...formData, floor: e.target.value })} 
-              className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="Lantai 1">Lantai 1</option>
-              <option value="Lantai 2">Lantai 2</option>
-              <option value="Lantai 3">Lantai 3</option>
-              <option value="Lantai 4">Lantai 4</option>
-              <option value="Lantai 5">Lantai 5</option>
-              <option value="Lantai 6">Lantai 6</option>
-            </select>
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Deskripsi</label>
-            <textarea rows={3} required value={formData.description || ''} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500" />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fasilitas</label>
-            <div className="p-3 bg-gray-50 dark:bg-gray-700/30 border border-gray-200 dark:border-gray-600 rounded-lg">
-              <div className="flex flex-wrap gap-2">
+        </div>
+
+        {/* --- Bagian 2: Fasilitas & Pengelola --- */}
+        <div className="bg-gray-50 dark:bg-gray-700/20 p-6 rounded-xl border border-gray-100 dark:border-gray-700">
+          <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Fasilitas & Pengelola</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Fasilitas Tersedia</label>
+              <div className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl shadow-sm">
+                <div className="flex flex-wrap gap-2">
                 {currentFacilities.map((fac) => {
                   const isSelected = (formData.facilities || []).includes(fac);
                   return (
@@ -140,104 +169,65 @@ const RoomForm: React.FC<RoomFormProps> = ({ initialData, isEditing, onSave, onC
                     </button>
                   );
                 })}
-              </div>
-              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-gray-500">
-                <input type="text" value={newFacilityInput} onChange={(e) => setNewFacilityInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddNewFacility(); } }} placeholder="Ketik fasilitas baru lalu Enter..." className="flex-1 px-3 py-1.5 text-sm border rounded-md dark:bg-gray-800 dark:border-gray-500 dark:text-white" />
-                <button type="button" onClick={handleAddNewFacility} className="px-4 py-1.5 bg-gray-200 dark:bg-gray-600 text-sm font-medium rounded-md hover:bg-gray-300">Tambah</button>
+                </div>
+                <div className="flex mt-4">
+                  <input type="text" value={newFacilityInput} onChange={(e) => setNewFacilityInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddNewFacility(); } }} placeholder="Ketik fasilitas khusus lainnya..." className="flex-1 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-l-lg dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500 outline-none" />
+                  <button type="button" onClick={handleAddNewFacility} className="px-4 py-2 bg-gray-100 dark:bg-gray-600 text-gray-800 dark:text-gray-200 text-sm font-medium rounded-r-lg hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors border border-l-0 border-gray-300 dark:border-gray-600">Tambah</button>
+                </div>
               </div>
             </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">PIC (Penanggung Jawab)</label>
+              <SearchableSelect
+                options={picOptions}
+                value={(formData as any).pic_id || (formData as any).picId || ''}
+                onChange={(val) => {
+                  const staff = staffList.find(s => s.id === val);
+                  setFormData({ ...formData, pic: staff ? staff.name : '', pic_id: val, picId: val } as any);
+                }}
+                placeholder="-- Pilih PIC --"
+                searchPlaceholder="Cari nama staff..."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Google Calendar ID <span className="text-xs text-gray-400 font-normal ml-1">(Opsional)</span></label>
+              <input type="text" value={formData.googleCalendarUrl || ''} onChange={e => setFormData({ ...formData, googleCalendarUrl: e.target.value })} placeholder='Contoh: fti.laboran@adm.uksw.edu' className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 shadow-sm" />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">PIC (Penanggung Jawab)</label>
-            <div className="relative">
-              <div 
-                className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 cursor-pointer flex justify-between items-center"
-                onClick={() => setIsPicDropdownOpen(!isPicDropdownOpen)}
-              >
-                <span className={`${!(formData as any).pic_id && !formData.pic ? 'text-gray-500' : ''}`}>
-                  {(formData as any).pic_id 
-                    ? staffList.find(s => s.id === (formData as any).pic_id)?.name 
-                    : formData.pic || '-- Pilih PIC --'}
-                </span>
-                <ChevronDown className="w-4 h-4 text-gray-500" />
-              </div>
+        </div>
 
-              {isPicDropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setIsPicDropdownOpen(false)}></div>
-                  <div className="absolute z-20 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-60 overflow-hidden flex flex-col">
-                    <div className="p-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-                      <div className="relative">
-                        <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="text"
-                          placeholder="Cari staff..."
-                          className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white focus:outline-none focus:border-blue-500"
-                          value={picSearchTerm}
-                          onChange={(e) => setPicSearchTerm(e.target.value)}
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
-                    </div>
-                    <div className="overflow-y-auto flex-1">
-                      <div 
-                        className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-gray-500 text-sm"
-                        onClick={() => {
-                          setFormData({ ...formData, pic: '', pic_id: '' } as any);
-                          setIsPicDropdownOpen(false);
-                          setPicSearchTerm('');
-                        }}
-                      >
-                        -- Tidak Ada PIC --
-                      </div>
-                      {staffList.filter(s => s.name.toLowerCase().includes(picSearchTerm.toLowerCase())).map((staff) => (
-                        <div
-                          key={staff.id}
-                          className={`px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer text-sm flex justify-between items-center ${
-                            (formData as any).pic_id === staff.id ? 'bg-blue-50 dark:bg-gray-700/50 text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-700 dark:text-gray-200'
-                          }`}
-                          onClick={() => {
-                            setFormData({ ...formData, pic: staff.name, pic_id: staff.id } as any);
-                            setIsPicDropdownOpen(false);
-                            setPicSearchTerm('');
-                          }}
-                        >
-                          <span>{staff.name}</span>
-                          <span className="text-xs text-gray-500 ml-2">{staff.jabatan || 'Staff'}</span>
-                        </div>
-                      ))}
-                      {staffList.filter(s => s.name.toLowerCase().includes(picSearchTerm.toLowerCase())).length === 0 && (
-                        <div className="px-4 py-3 text-center text-gray-500 text-sm">
-                          Staff tidak ditemukan
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
+        {/* --- Bagian 3: Media & Visual --- */}
+        <div className="bg-gray-50 dark:bg-gray-700/20 p-6 rounded-xl border border-gray-100 dark:border-gray-700">
+          <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Media & Visual</h3>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Google Calendar ID</label>
-            <input type="text" value={formData.googleCalendarUrl || ''} onChange={e => setFormData({ ...formData, googleCalendarUrl: e.target.value })} placeholder='Contoh: fti.laboran@adm.uksw.edu' className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500" />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upload Gambar 360</label>
-            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Upload Gambar 360°</label>
+            <div className="border-2 border-dashed border-gray-300 dark:border-gray-500 rounded-xl p-8 text-center hover:bg-white dark:hover:bg-gray-800 transition-all group relative overflow-hidden bg-gray-50/50 dark:bg-gray-800/50">
               {isImageProcessing ? (
-                <div className="flex flex-col items-center text-blue-600"><Loader2 className="w-8 h-8 animate-spin mb-2" /><span className="text-sm font-semibold">Memproses...</span></div>
+                <div className="flex flex-col items-center text-blue-600"><Loader2 className="w-10 h-10 animate-spin mb-3" /><span className="text-sm font-semibold">Memproses resolusi...</span></div>
               ) : formData.image ? (
-                <div className="flex flex-col items-center"><img src={formData.image} alt="Preview" className="h-32 object-cover rounded mb-3" /><button type="button" onClick={() => setFormData({ ...formData, image: '', thumbnail: '', imageChanged: true } as any)} className="text-red-500 text-sm hover:underline">Hapus Gambar</button></div>
+                <div className="flex flex-col items-center">
+                  <img src={formData.image} alt="Preview" className="h-56 w-full object-cover rounded-lg shadow-sm mb-4 border border-gray-200 dark:border-gray-700" />
+                  <button type="button" onClick={() => setFormData({ ...formData, image: '', thumbnail: '', imageChanged: true } as any)} className="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg text-sm font-medium transition-colors">Hapus & Ganti Gambar</button>
+                </div>
               ) : (
-                <label className="cursor-pointer flex flex-col items-center"><Upload className="w-8 h-8 text-gray-400 mb-2" /><span className="text-sm text-gray-500">Klik untuk upload (JPG/PNG)</span><input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} /></label>
+                <label className="cursor-pointer flex flex-col items-center py-6">
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-full mb-4 group-hover:scale-110 transition-transform">
+                    <Upload className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Klik untuk upload gambar Equirectangular (360)</span>
+                  <span className="text-xs text-gray-500">Mendukung format JPG/PNG</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                </label>
               )}
             </div>
           </div>
         </div>
-        <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <button type="button" onClick={onCancel} disabled={isSaving} className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50">Batal</button>
-          <button type="submit" disabled={isImageProcessing || isSaving} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center">
+
+        {/* --- Tindakan (Actions) --- */}
+        <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <button type="button" onClick={onCancel} disabled={isSaving} className="px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors">Batal</button>
+          <button type="submit" disabled={isImageProcessing || isSaving} className="px-6 py-2.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 shadow-md flex items-center transition-colors">
             {isSaving ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

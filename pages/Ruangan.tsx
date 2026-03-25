@@ -295,6 +295,7 @@ useEffect(() => {
   useEffect(() => {
   const loadInitialData = async () => {
       setIsLoadingRooms(true);
+      await fetchStaff();
       await fetchRooms();
       setIsLoadingRooms(false);
     };
@@ -1244,7 +1245,11 @@ useEffect(() => {
                 showToast={showToast}
                 onSuccess={() => {
                     showToast("Permohonan berhasil dikirim!", "success");
-                    setViewMode('detail');
+                    if (canManage && onNavigate) {
+                        onNavigate('manage-bookings');
+                    } else {
+                        setViewMode('detail');
+                    }
                 }}
                 onCancel={() => setViewMode('detail')}
             />

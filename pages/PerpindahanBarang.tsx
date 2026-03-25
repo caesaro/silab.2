@@ -7,6 +7,7 @@ import { TableSkeleton } from '../components/Skeleton';
 import ConfirmModal from '../components/ConfirmModal';
 import QRScannerModal from '../components/QRScannerModal';
 import { usePagination } from '../hooks/usePagination';
+import SearchableSelect, { SelectOption } from '../components/SearchableSelect';
 
 interface ItemMovementsProps {
   role: Role;
@@ -165,6 +166,12 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
       notes: ''
     });
   };
+
+const equipmentOptions: SelectOption[] = equipment.map(item => ({
+  value: item.id,
+  label: item.name,
+  subLabel: `Lokasi: ${item.location || 'Belum ada'}`
+}));
 
   const renderTypeBadge = (type: string) => {
     let color = 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
@@ -465,26 +472,21 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
                     <QrCode className="w-3 h-3 mr-1" /> Scan QR
                   </button>
                 </div>
-                <select 
-                  required
+                <SearchableSelect
+                  options={equipmentOptions}
                   value={formData.inventoryId}
-                  onChange={(e) => {
-                    const item = equipment.find(eq => eq.id === e.target.value);
+                  onChange={(val) => {
+                    const item = equipment.find(eq => eq.id === val);
                     setFormData({
-                      ...formData, 
-                      inventoryId: e.target.value,
+                      ...formData,
+                      inventoryId: val,
                       fromLocation: item?.location || ''
                     });
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">-- Pilih Barang --</option>
-                  {equipment.map(item => (
-                    <option key={item.id} value={item.id}>
-                      {item.name} (Lokasi: {item.location || 'Belum ada'})
-                    </option>
-                  ))}
-                </select>
+                  placeholder="-- Pilih Barang --"
+                  searchPlaceholder="Cari nama barang..."
+                  required
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">

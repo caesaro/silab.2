@@ -3,6 +3,7 @@ import { Role, Room } from '../types';
 import { Search, Plus, Filter, Edit, Trash2, X, Check, RefreshCw, Loader2, Users, BookOpen, Calendar, Clock, MapPin } from 'lucide-react';
 import { api } from '../services/api';
 import { TableSkeleton } from '../components/Skeleton';
+import SearchableSelect, { SelectOption } from '../components/SearchableSelect';
 
 interface ClassSchedule {
   id: string;
@@ -136,6 +137,12 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
     }
     setIsModalOpen(true);
   };
+
+  const roomOptions: SelectOption[] = rooms.map(r => ({
+    value: r.id,
+    label: r.name,
+    subLabel: r.category
+  }));
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -391,16 +398,13 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ruangan</label>
-                        <select 
+                        <SearchableSelect
+                            options={roomOptions}
                             value={formData.roomId}
-                            onChange={e => setFormData({...formData, roomId: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                        >
-                            <option value="">-</option>
-                            {rooms.map(r => (
-                              <option key={r.id} value={r.id}>{r.name}</option>
-                            ))}
-                        </select>
+                            onChange={val => setFormData({...formData, roomId: val})}
+                            placeholder="-- Pilih Ruangan --"
+                            searchPlaceholder="Cari ruangan..."
+                        />
                     </div>
                  </div>
                  

@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿import express from 'express';
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿import express from 'express';
 import pg from 'pg';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -1888,7 +1888,7 @@ app.get('/api/bookings', async (req, res) => {
 });
 
 app.post('/api/bookings', async (req, res) => {
-    const { roomId, userId, responsiblePerson, contactPerson, purpose, proposalFile, schedules } = req.body;
+    const { roomId, userId, responsiblePerson, contactPerson, purpose, proposalFile, schedules, autoApprove } = req.body;
     
     // 1. Validasi & Konversi File Proposal (Sebelum Transaksi DB)
     let proposalBuffer = null;
@@ -1908,8 +1908,11 @@ app.post('/api/bookings', async (req, res) => {
         
         const bookingId = `BOOK-${Date.now()}`;
         
-        // 2. Set Status Default ke Pending untuk semua role (termasuk Admin/Laboran)
-        const initialStatus = 'Pending';
+        // 2. Set Status Default ke Pending
+        let initialStatus = 'Pending';
+        if (req.user && (req.user.role === 'Admin' || req.user.role === 'Laboran') && autoApprove) {
+            initialStatus = 'Disetujui';
+        }
 
         // Insert Header Booking
         await client.query(

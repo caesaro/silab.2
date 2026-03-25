@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Room, Booking } from '../types';
+import { Room, Booking, Role } from '../types';
 import { MapPin, Plus, Trash2, Loader2, Check, FileText, User, Search } from 'lucide-react';
 import { api } from '../services/api';
+import SearchableSelect, { SelectOption } from './SearchableSelect';
 
 interface BookingFormProps {
   rooms: Room[];
@@ -22,7 +23,10 @@ const BookingForm: React.FC<BookingFormProps> = ({
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedRoomId, setSelectedRoomId] = useState(initialData?.roomId || initialRoomId || '');
-  const [roomSearch, setRoomSearch] = useState('');
+
+  const userRole = (localStorage.getItem('currentRole') as Role) || Role.USER;
+  const canManage = userRole === Role.ADMIN || userRole === Role.LABORAN;
+  const [autoApprove, setAutoApprove] = useState(true);
 
   const [bookingForm, setBookingForm] = useState<Partial<Booking>>({
     purpose: initialData?.purpose || '',
@@ -41,11 +45,13 @@ const BookingForm: React.FC<BookingFormProps> = ({
   ]);
   const [bookingFile, setBookingFile] = useState<File | null>(null);
 
-  const filteredRooms = rooms.filter(room => 
-    room.name.toLowerCase().includes(roomSearch.toLowerCase())
-  );
-
   const selectedRoom = rooms.find(r => r.id === selectedRoomId);
+
+  const roomOptions: SelectOption[] = rooms.map(r => ({
+    value: r.id,
+    label: r.name,
+    subLabel: `Kapasitas: ${r.capacity}`
+  }));
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -116,6 +122,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
         purpose: bookingForm.purpose,
         proposalFile: bookingForm.proposalFile,
         schedules: bookingSchedules,
+        autoApprove: canManage ? autoApprove : false,
       };
 
       let res;
@@ -160,31 +167,14 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 className="w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 cursor-not-allowed"
               />
             ) : (
-              <div className="space-y-2">
-                <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input 
-                    type="text"
-                    placeholder="Cari nama ruangan..."
-                    value={roomSearch}
-                    onChange={e => setRoomSearch(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 text-sm"
-                  />
-                </div>
-              <select
+              <SearchableSelect
+                options={roomOptions}
                 value={selectedRoomId}
-                onChange={e => setSelectedRoomId(e.target.value)}
-                className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+                onChange={(val) => setSelectedRoomId(val)}
+                placeholder="-- Pilih Ruangan --"
+                searchPlaceholder="Cari nama ruangan..."
                 required
-              >
-                <option value="">-- Pilih Ruangan --</option>
-                {filteredRooms.map(room => (
-                  <option key={room.id} value={room.id}>
-                    {room.name} (Kapasitas: {room.capacity})
-                  </option>
-                ))}
-              </select>
-              </div>
+              />
             )}
           </div>
         </div>
@@ -237,6 +227,28 @@ const BookingForm: React.FC<BookingFormProps> = ({
             <input type="tel" required value={bookingForm.contactPerson} onChange={e => setBookingForm({ ...bookingForm, contactPerson: e.target.value })} className="w-full px-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus:ring-2 focus:ring-blue-500" placeholder="08123xxxxxxx" />
           </div>
         </div>
+
+      {!initialData?.id && canManage && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800">
+          <div className="flex items-center space-x-2">
+            <input 
+              type="checkbox" 
+              id="autoApprove" 
+              checked={autoApprove} 
+              onChange={(e) => setAutoApprove(e.target.checked)}
+              className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 cursor-pointer"
+            />
+            <label htmlFor="autoApprove" className="text-sm font-medium text-blue-900 dark:text-blue-300 cursor-pointer select-none">
+              Setujui Otomatis (Auto-Accept)
+            </label>
+          </div>
+          {autoApprove && (
+            <p className="text-xs text-blue-700 dark:text-blue-400 mt-2 ml-6">
+              Pemesanan akan langsung berstatus Disetujui (Verifikasi Google Calendar harus dilakukan manual di menu Pesanan Ruang jika diperlukan).
+            </p>
+          )}
+        </div>
+      )}
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upload Surat Permohonan (PDF, Max 5MB)</label>
