@@ -10,12 +10,12 @@ import { TableSkeleton } from '../components/Skeleton';
 import { useInventory } from '../hooks/useInventory';
 import { usePagination } from '../hooks/usePagination';
 
-const LabelComponent = ({ item }: { item: Equipment }) => (
-    <div className="p-1 flex flex-col items-center justify-center text-center break-words w-full h-full font-sans">
-        <QRCode value={item.id} size={40} level="M" style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
-        <p className="mt-1 font-bold text-[7pt] tracking-tighter font-mono break-all leading-none">{item.id}</p>
-        <p className="text-[6pt] leading-tight line-clamp-2 mt-0.5">{item.name}</p>
-        <p className="text-[5pt] mt-auto pt-0.5 text-gray-600 font-semibold">CORE.FTI</p>
+const LabelComponent = ({ item, includeQR = true }: { item: Equipment; includeQR?: boolean }) => (
+    <div className={`px-1 flex flex-col items-center text-center break-words w-full h-full font-sans ${includeQR ? 'justify-start pt-1' : 'justify-center'}`}>
+        <p className={`text-gray-800 font-bold ${includeQR ? 'text-[5pt] mb-0.5 mt-0' : 'text-[7pt] mb-2 tracking-widest'}`}>CORE.FTI</p>
+        {includeQR && <QRCode value={item.id} size={40} level="M" style={{ height: "auto", maxWidth: "100%", width: "100%" }} />}
+        <p className={`font-extrabold tracking-tighter font-mono whitespace-nowrap overflow-hidden text-ellipsis w-full px-0.5 leading-none text-black ${includeQR ? 'text-[5.5pt] mt-1' : 'text-[8pt] mb-1'}`}>{item.id}</p>
+        <p className={`leading-tight text-gray-900 ${includeQR ? 'text-[4.5pt] mt-0.5 line-clamp-3' : 'text-[6pt] font-normal px-1 mt-1 line-clamp-4'}`}>{item.name}</p>
     </div>
 );
 
@@ -33,6 +33,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
   const [paperSize, setPaperSize] = useState<'A4' | 'F4'>('A4');
   const [singleLabelPaperSize, setSingleLabelPaperSize] = useState<'A4' | 'F4'>('A4');
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [includeQR, setIncludeQR] = useState(true);
 
   // Modal State for Form
   const [addMode, setAddMode] = useState<'manual' | 'excel'>('manual');
@@ -405,19 +406,21 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
     
     // Generate QR code using qrserver.com API with 45px size to match 40mm label
     const getQRCodeURL = (value: string) => {
-      return `https://api.qrserver.com/v1/create-qr-code/?size=45x45&data=${encodeURIComponent(value)}`;
+      return `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(value)}`;
     };
 
     const labelsHTML = selectedItemsData.map(item => `
-      <div style="width: 40mm; height: 25mm; padding: 2mm; box-sizing: border-box; border: 1px dashed #ccc; display: flex; flex-direction: column; overflow: hidden; page-break-inside: avoid; float: left; margin: 1mm;">
-        <div style="display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start;">
-          <span style="font-size: 5pt; color: #666; font-weight: 600;">CORE.FTI</span>
+      <div style="width: 40mm; height: 25mm; padding: ${includeQR ? '0.5mm' : '1.5mm'} 2mm; box-sizing: border-box; border: 1px dashed #ccc; display: flex; flex-direction: column; justify-content: ${includeQR ? 'flex-start' : 'center'}; align-items: center; overflow: hidden; page-break-inside: avoid; float: left; margin: 1mm; background-color: #fff;">
+        <div style="text-align: center; width: 100%; margin-bottom: ${includeQR ? '0.5mm' : '2mm'}; margin-top: 0;">
+          <span style="font-size: ${includeQR ? '5pt' : '6pt'}; color: #333; font-weight: 800; letter-spacing: 0.5px;">CORE.FTI</span>
         </div>
-        <div style="flex: 1; display: flex; align-items: center; justify-content: center; margin: 1mm 0;">
-          <img src="${getQRCodeURL(item.id)}" alt="QR Code" style="width: 45px; height: 45px;" />
+        ${includeQR ? `
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; margin-bottom: 0.5mm;">
+          <img src="${getQRCodeURL(item.id)}" alt="QR Code" style="width: 40px; height: 40px;" />
         </div>
-        <p style="margin: 0; font-weight: bold; font-size: 7pt; font-family: monospace; text-align: center; word-break: break-all;">${item.id}</p>
-        <p style="margin: 1px 0 0 0; font-size: 5pt; text-align: center; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; max-height: 2.2em;">${item.name}</p>
+        ` : ''}
+        <p style="margin: 0; font-weight: 900; font-size: ${includeQR ? '5.5pt' : '8pt'}; font-family: monospace; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; color: #000; line-height: 1; letter-spacing: -0.5px;">${item.id}</p>
+        <p style="margin: ${includeQR ? '1px' : '2px'} 0 0 0; font-size: ${includeQR ? '4.5pt' : '6pt'}; text-align: center; line-height: 1.1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: ${includeQR ? '3' : '4'}; -webkit-box-orient: vertical; color: #222; font-weight: normal;">${item.name}</p>
       </div>
     `).join('');
 
@@ -485,42 +488,87 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
-      // Draw CORE.FTI at top-left
+      // Draw CORE.FTI at top-center
       ctx.fillStyle = '#666666';
       ctx.font = 'bold 14px Arial';
-      ctx.fillText('CORE.FTI', 10, 25);
+      ctx.textAlign = 'center';
+      ctx.fillText('CORE.FTI', canvas.width / 2, includeQR ? 15 : 25);
       
-      // Load and draw QR code image
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        // Center QR code
-        const qrSize = 120;
-        const qrX = (canvas.width - qrSize) / 2;
-        const qrY = 35;
-        ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
-        
-        // Draw FTI Code below QR
+      const wrapText = (context: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number, maxLines: number) => {
+        const words = text.split(' ');
+        let line = '';
+        let currentLine = 0;
+
+        for (let n = 0; n < words.length; n++) {
+          const testLine = line + words[n] + ' ';
+          const metrics = context.measureText(testLine);
+          if (metrics.width > maxWidth && n > 0) {
+            if (currentLine >= maxLines - 1) {
+              context.fillText(line.trim() + '...', x, y);
+              return;
+            } else {
+              context.fillText(line, x, y);
+              line = words[n] + ' ';
+              y += lineHeight;
+              currentLine++;
+            }
+          } else {
+            line = testLine;
+          }
+        }
+        context.fillText(line, x, y);
+      };
+
+      if (includeQR) {
+        // Load and draw QR code image
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          // Center QR code
+          const qrSize = 120;
+          const qrX = (canvas.width - qrSize) / 2;
+          const qrY = 28;
+          ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
+          
+          // Draw FTI Code below QR
+          ctx.fillStyle = '#000000';
+          ctx.font = 'bold 12px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(qrItem.id, canvas.width / 2, qrY + qrSize + 15);
+          
+          // Draw Item Name at bottom
+          ctx.fillStyle = '#333333';
+          ctx.font = '10px Arial';
+          wrapText(ctx, qrItem.name, canvas.width / 2, qrY + qrSize + 30, canvas.width - 20, 14, 3);
+          
+          // Convert to PNG and download
+          const link = document.createElement('a');
+          link.download = `label-${qrItem.id}.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+        };
+        img.onerror = () => {
+          showToast('Gagal menghasilkan gambar QR. Silakan coba lagi.', "error");
+        };
+        img.src = qrImageUrl;
+      } else {
         ctx.fillStyle = '#000000';
-        ctx.font = 'bold 16px monospace';
+        ctx.font = 'bold 20px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(qrItem.id, canvas.width / 2, qrY + qrSize + 20);
+        ctx.textBaseline = 'middle';
+        ctx.fillText(qrItem.id, canvas.width / 2, canvas.height / 2 - 10);
         
-        // Draw Item Name at bottom
+        ctx.textBaseline = 'alphabetic';
         ctx.fillStyle = '#333333';
-        ctx.font = '12px Arial';
-        ctx.fillText(qrItem.name, canvas.width / 2, qrY + qrSize + 45);
+        ctx.font = '16px Arial';
+        wrapText(ctx, qrItem.name, canvas.width / 2, canvas.height / 2 + 30, canvas.width - 40, 22, 4);
         
         // Convert to PNG and download
         const link = document.createElement('a');
         link.download = `label-${qrItem.id}.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
-      };
-      img.onerror = () => {
-        showToast('Gagal menghasilkan gambar QR. Silakan coba lagi.', "error");
-      };
-      img.src = qrImageUrl;
+      }
     }
   };
 
@@ -533,15 +581,17 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
     };
 
     const singleLabelHTML = `
-      <div style="width: 40mm; height: 25mm; padding: 2mm; box-sizing: border-box; border: 1px dashed #ccc; display: flex; flex-direction: column; overflow: hidden; margin: 5mm auto;">
-        <div style="display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start;">
-          <span style="font-size: 5pt; color: #666; font-weight: 600;">CORE.FTI</span>
+      <div style="width: 40mm; height: 25mm; padding: ${includeQR ? '0.5mm' : '1.5mm'} 2mm; box-sizing: border-box; border: 1px dashed #ccc; display: flex; flex-direction: column; justify-content: ${includeQR ? 'flex-start' : 'center'}; align-items: center; overflow: hidden; margin: 5mm auto; background-color: #fff;">
+        <div style="text-align: center; width: 100%; margin-bottom: ${includeQR ? '0.5mm' : '2mm'}; margin-top: 0;">
+          <span style="font-size: ${includeQR ? '5pt' : '6pt'}; color: #333; font-weight: 800; letter-spacing: 0.5px;">CORE.FTI</span>
         </div>
-        <div style="flex: 1; display: flex; align-items: center; justify-content: center; margin: 1mm 0;">
-          <img src="${getQRCodeURL(qrItem.id)}" alt="QR Code" style="width: 45px; height: 45px;" />
+        ${includeQR ? `
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; margin-bottom: 0.5mm;">
+          <img src="${getQRCodeURL(qrItem.id)}" alt="QR Code" style="width: 40px; height: 40px;" />
         </div>
-        <p style="margin: 0; font-weight: bold; font-size: 7pt; font-family: monospace; text-align: center; word-break: break-all;">${qrItem.id}</p>
-        <p style="margin: 1px 0 0 0; font-size: 5pt; text-align: center; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; max-height: 2.2em;">${qrItem.name}</p>
+        ` : ''}
+        <p style="margin: 0; font-weight: 900; font-size: ${includeQR ? '5.5pt' : '8pt'}; font-family: monospace; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; color: #000; line-height: 1; letter-spacing: -0.5px;">${qrItem.id}</p>
+        <p style="margin: ${includeQR ? '1px' : '2px'} 0 0 0; font-size: ${includeQR ? '4.5pt' : '6pt'}; text-align: center; line-height: 1.1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: ${includeQR ? '3' : '4'}; -webkit-box-orient: vertical; color: #222; font-weight: normal;">${qrItem.name}</p>
       </div>
     `;
 
@@ -596,15 +646,17 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
 
     // Single label in the same format as multiple print
     const singleLabelHTML = `
-      <div style="width: 40mm; height: 25mm; padding: 2mm; box-sizing: border-box; border: 1px dashed #ccc; display: flex; flex-direction: column; overflow: hidden; page-break-inside: avoid; float: left; margin: 1mm;">
-        <div style="display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start;">
-          <span style="font-size: 5pt; color: #666; font-weight: 600;">CORE.FTI</span>
+      <div style="width: 40mm; height: 25mm; padding: ${includeQR ? '0.5mm' : '1.5mm'} 2mm; box-sizing: border-box; border: 1px dashed #ccc; display: flex; flex-direction: column; justify-content: ${includeQR ? 'flex-start' : 'center'}; align-items: center; overflow: hidden; page-break-inside: avoid; float: left; margin: 1mm; background-color: #fff;">
+        <div style="text-align: center; width: 100%; margin-bottom: ${includeQR ? '0.5mm' : '2mm'}; margin-top: 0;">
+          <span style="font-size: ${includeQR ? '5pt' : '6pt'}; color: #333; font-weight: 800; letter-spacing: 0.5px;">CORE.FTI</span>
         </div>
-        <div style="flex: 1; display: flex; align-items: center; justify-content: center; margin: 1mm 0;">
-          <img src="${getQRCodeURL(qrItem.id)}" alt="QR Code" style="width: 45px; height: 45px;" />
+        ${includeQR ? `
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; margin-bottom: 0.5mm;">
+          <img src="${getQRCodeURL(qrItem.id)}" alt="QR Code" style="width: 40px; height: 40px;" />
         </div>
-        <p style="margin: 0; font-weight: bold; font-size: 7pt; font-family: monospace; text-align: center; word-break: break-all;">${qrItem.id}</p>
-        <p style="margin: 1px 0 0 0; font-size: 5pt; text-align: center; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; max-height: 2.2em;">${qrItem.name}</p>
+        ` : ''}
+        <p style="margin: 0; font-weight: 900; font-size: ${includeQR ? '5.5pt' : '8pt'}; font-family: monospace; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; color: #000; line-height: 1; letter-spacing: -0.5px;">${qrItem.id}</p>
+        <p style="margin: ${includeQR ? '1px' : '2px'} 0 0 0; font-size: ${includeQR ? '4.5pt' : '6pt'}; text-align: center; line-height: 1.1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: ${includeQR ? '3' : '4'}; -webkit-box-orient: vertical; color: #222; font-weight: normal;">${qrItem.name}</p>
       </div>
     `;
 
@@ -1186,6 +1238,10 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 flex-shrink-0 print-controls">
                     <h3 className="font-bold text-gray-900 dark:text-white">Cetak Label ({selectedItems.length} Barang)</h3>
                     <div className="flex items-center gap-4">
+                        <label className="flex items-center space-x-2 text-sm cursor-pointer">
+                            <input type="checkbox" checked={includeQR} onChange={(e) => setIncludeQR(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500" />
+                            <span className="text-gray-700 dark:text-gray-300">Sertakan QR Code</span>
+                        </label>
                         <div>
                             <label className="text-sm font-medium mr-2 dark:text-gray-300">Ukuran Kertas:</label>
                             <select value={paperSize} onChange={e => setPaperSize(e.target.value as any)} className="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm">
@@ -1205,7 +1261,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                     <div id="multi-label-print-area" className="bg-white shadow-lg mx-auto p-[5mm] box-border flex flex-wrap content-start gap-0" style={paperSize === 'A4' ? { width: '210mm', minHeight: '297mm' } : { width: '215mm', minHeight: '330mm' }}>
                         {items.filter(i => selectedItems.includes(i.id)).map(item => (
                             <div key={item.id} className="sticker-label" style={{ width: '40mm', height: '25mm', padding: '2mm', boxSizing: 'border-box', border: '1px dashed #ccc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', pageBreakInside: 'avoid' }}>
-                                <LabelComponent item={item} />
+                                <LabelComponent item={item} includeQR={includeQR} />
                             </div>
                         ))}
                     </div>
@@ -1301,16 +1357,20 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                  </button>
               </div>
               <div id="single-label-print-area" className="bg-white">
-                  <div className="p-6 flex flex-col items-center justify-center">
-                      <QRCode value={qrItem.id} size={150} level="M" />
-                      <p className="mt-4 font-bold text-lg text-gray-900 font-mono tracking-wide">{qrItem.id}</p>
-                      <p className="text-sm text-gray-600 text-center">{qrItem.name}</p>
-                      <p className="text-xs text-gray-500 mt-2 font-semibold">CORE.FTI</p>
+                  <div className="p-6 flex flex-col items-center justify-center min-h-[250px]">
+                      <p className={`text-gray-700 font-bold tracking-widest ${includeQR ? 'text-sm mb-4' : 'text-lg mb-6'}`}>CORE.FTI</p>
+                      {includeQR && <QRCode value={qrItem.id} size={150} level="M" />}
+                      <p className={`font-extrabold text-black font-mono tracking-tighter whitespace-nowrap overflow-hidden text-ellipsis w-full max-w-full text-center px-2 ${includeQR ? 'text-sm mt-4' : 'text-2xl mb-2'}`}>{qrItem.id}</p>
+                      <p className={`text-gray-800 text-center font-normal ${includeQR ? 'text-xs mt-1 line-clamp-3' : 'text-lg px-4 line-clamp-4'}`}>{qrItem.name}</p>
                   </div>
               </div>
               <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
                   {/* Paper Size Selector for Single Label */}
-                  <div className="mb-3 flex items-center justify-center">
+                    <div className="mb-3 flex items-center justify-center gap-4">
+                      <label className="flex items-center space-x-2 text-sm cursor-pointer">
+                          <input type="checkbox" checked={includeQR} onChange={(e) => setIncludeQR(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500" />
+                          <span className="text-gray-700 dark:text-gray-300">Sertakan QR Code</span>
+                      </label>
                       <label className="text-sm font-medium mr-2 dark:text-gray-300">Ukuran Kertas:</label>
                       <select 
                           value={singleLabelPaperSize} 

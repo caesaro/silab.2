@@ -208,7 +208,7 @@ const RoomForm: React.FC<RoomFormProps> = ({ initialData, isEditing, onSave, onC
               ) : formData.image ? (
                 <div className="flex flex-col items-center">
                   <img src={formData.image} alt="Preview" className="h-56 w-full object-cover rounded-lg shadow-sm mb-4 border border-gray-200 dark:border-gray-700" />
-                  <button type="button" onClick={() => setFormData({ ...formData, image: '', thumbnail: '', imageChanged: true } as any)} className="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg text-sm font-medium transition-colors">Hapus & Ganti Gambar</button>
+              <button type="button" onClick={() => setFormData({ ...formData, image: '', thumbnail: '', imageChanged: true } as any)} className="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg text-sm font-medium transition-colors">Hapus & Ganti Gambar</button>
                 </div>
               ) : (
                 <label className="cursor-pointer flex flex-col items-center py-6">
