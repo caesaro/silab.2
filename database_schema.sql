@@ -393,25 +393,7 @@ CREATE INDEX IF NOT EXISTS idx_user_tokens_expires_at ON user_tokens(expires_at)
 CREATE INDEX IF NOT EXISTS idx_user_tokens_device_id ON user_tokens(device_id);
 CREATE INDEX IF NOT EXISTS idx_user_tokens_refresh_token ON user_tokens(refresh_token);
 
--- 14. Tabel Database Connection Config
--- Menyimpan konfigurasi koneksi database
-CREATE TABLE db_config (
-    id SERIAL PRIMARY KEY,
-    host VARCHAR(100) NOT NULL DEFAULT '192.168.68.62',
-    port VARCHAR(10) NOT NULL DEFAULT '5432',
-    database_name VARCHAR(100) NOT NULL DEFAULT 'dbcorefti',
-    username VARCHAR(100) NOT NULL DEFAULT 'corefti',
-    password VARCHAR(255),
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Insert default database config
-INSERT INTO db_config (host, port, database_name, username, password, is_active) 
-VALUES ('192.168.68.62', '5432', 'dbcorefti', 'corefti', 'c0r3ft1', TRUE);
-
--- 15. Tabel Google SSO Config
+-- 14. Tabel Google SSO Config
 -- Menyimpan konfigurasi Google OAuth/SSO
 CREATE TABLE sso_config (
     id SERIAL PRIMARY KEY,

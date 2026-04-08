@@ -46,9 +46,6 @@ interface LabStaff {
   status: 'Aktif' | 'Non-Aktif';
 }
 
-// Sub-component for 360 Thumbnail in List View - REMOVED
-// Static gradient thumbs in RoomList.tsx for perf
-// Full Pannellum + activity overlay only in RoomDetail
 const getCategoryColor = (category?: string) => {
   switch (category) {
     case 'Laboratorium Komputer': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
@@ -333,9 +330,9 @@ useEffect(() => {
       const baseFacilities = ["AC", "CCTV", "Komputer", "Meja", "Kursi", "Stop Kontak", "Proyektor", "Smart TV", "Interactive TV", "TV", "Console Cisco", "Videowall", "Sound/Speaker", "Mic", "Podium", "Green Screen", "Peralatan Fotografi & Videografi", "Internet LAN"];
       baseFacilities.forEach(f => allFacs.add(f));
 
-      data.forEach(room => {
+      data.forEach((room: Room) => {
           if (room.facilities) {
-              room.facilities.forEach(fac => allFacs.add(fac));
+room.facilities.forEach((fac: string) => allFacs.add(fac));
           }
       });
       setAvailableFacilities(Array.from(allFacs).sort());
@@ -343,7 +340,7 @@ useEffect(() => {
       // Jika sedang membuka detail ruangan, update state selectedRoom agar status ketersediaannya ikut akurat
       setSelectedRoom(prev => {
           if (prev) {
-              const updatedRoom = data.find(r => r.id === prev.id);
+              const updatedRoom = data.find((r: Room) => r.id === prev.id);
               return updatedRoom || prev;
           }
           return prev;
@@ -543,7 +540,7 @@ useEffect(() => {
     setViewMode('form');
   };
 
-  const handleEdit = async (room: Room) => {
+const handleEdit = async (room: Room) => {
     setFormData({ ...room, image: highResCache[room.id] || '' });
     setIsEditing(true);
     setViewMode('form');
@@ -616,7 +613,6 @@ useEffect(() => {
     // Jangan kirim image & thumbnail jika tidak ada perubahan agar tidak menimpa di database
     if (!imageChanged && isEditing) {
       delete payload.image;
-      delete payload.thumbnail;
     }
 
     try {
@@ -1331,7 +1327,7 @@ useEffect(() => {
         collapsedFloors={collapsedFloors}
         toggleFloor={toggleFloor}
         canManage={canManage}
-        onRoomSelect={(room) => {
+onRoomSelect={(room: Room) => {
           setSelectedRoom(room);
           setViewMode('detail');
         }}

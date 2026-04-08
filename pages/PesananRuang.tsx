@@ -28,7 +28,6 @@ import {
   Layers,
 } from "lucide-react";
 import { api } from "../services/api";
-import html2canvas from "html2canvas";
 import BookingForm from "../components/BookingForm";
 import { useGoogleCalendar } from "../hooks/useGoogleCalendar";
 import { useRooms } from "../hooks/useRooms";
@@ -37,6 +36,8 @@ import RejectionModal from "../components/RejectionModal";
 import DeleteBookingModal from "../components/DeleteBookingModal";
 import BookingDetailModal from "../components/BookingDetailModal";
 import { formatDateID } from "../src/utils/formatters";
+import Pagination from "../components/Pagination";
+import { usePagination } from "../hooks/usePagination";
 
 declare global {
   interface Window {
@@ -270,7 +271,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
   const fetchData = async () => {
     try {
       const [bkRes, stRes] = await Promise.all([
-        api("/api/bookings"),
+        api("/api/bookings?exclude_file=true"),
         api("/api/staff"),
       ]);
       if (bkRes.ok) setBookings(await bkRes.json());
@@ -509,36 +510,71 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
     }
   };
 
-  const handleViewFile = async (e: React.MouseEvent, fileData: string) => {
+  const handleViewFile = async (e: React.MouseEvent, fileDataOrId: string) => {
     e.stopPropagation();
     try {
-      const res = await fetch(fileData);
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, "_blank");
+      if (fileDataOrId.startsWith("data:application/pdf")) {
+        const res = await fetch(fileDataOrId);
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, "_blank");
+        return;
+      }
+      
+      showToast("Sedang memuat file...", "info");
+      const res = await api(`/api/bookings/${fileDataOrId}/file`);
+      if (res.ok) {
+        const data = await res.json();
+        const fetchRes = await fetch(data.file);
+        const blob = await fetchRes.blob();
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, "_blank");
+      } else {
+        showToast("File tidak ditemukan.", "error");
+      }
     } catch (err) {
       showToast("Gagal membuka file proposal.", "error");
     }
   };
 
-  const handleShareImage = async () => {
+  const handlePrintProof = () => {
     if (!ticketRef.current || !selectedBooking) return;
-    try {
-      showToast("Sedang membuat gambar...", "info");
-      const canvas = await html2canvas(ticketRef.current, {
-        scale: 2,
-        backgroundColor: "#ffffff",
-      });
-      const image = canvas.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.href = image;
-      link.download = `Booking_${selectedBooking.userName}_${formatDateID(selectedBooking.date)}.png`;
-      link.click();
-      showToast("Gambar berhasil didownload!", "success");
-    } catch (error) {
-      console.error("Gagal membuat gambar", error);
-      showToast("Gagal membuat gambar.", "error");
-    }
+    showToast("Menyiapkan dokumen PDF...", "info");
+    setTimeout(() => {
+      if (ticketRef.current) {
+        const printContents = ticketRef.current.innerHTML;
+        const printWindow = window.open('', '_blank', 'width=900,height=1000');
+        if (printWindow) {
+          printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Bukti Peminjaman - ${selectedBooking.id}</title>
+                <script src="https://cdn.tailwindcss.com"></script>
+                <style>
+                    @page { size: A4 portrait; margin: 0; }
+                    body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
+                </style>
+            </head>
+            <body class="bg-white text-black font-sans">
+                <div style="width: 210mm; min-height: 297mm; padding: 20mm; margin: 0 auto; position: relative;">
+                    ${printContents}
+                </div>
+                <script>
+                    window.onload = function() {
+                        setTimeout(function() {
+                            window.print();
+                            window.close();
+                        }, 800);
+                    };
+                </script>
+            </body>
+            </html>
+          `);
+          printWindow.document.close();
+        }
+      }
+    }, 800);
   };
 
   const handleExportExcel = async () => {
@@ -659,6 +695,20 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
     return grp ?? [selectedBooking];
   }, [selectedBooking, allGroupedBookings]);
 
+  // Pagination
+  const {
+    currentPage,
+    setCurrentPage,
+    itemsPerPage,
+    setItemsPerPage,
+    paginatedData: currentGroups,
+    totalPages,
+  } = usePagination(groupedBookings, 10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus, filterRoom, filterDate, itemsPerPage, setCurrentPage]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -761,8 +811,8 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
 
             {/* ── Table Body ── */}
             <tbody>
-              {groupedBookings.length > 0 ? (
-                groupedBookings.map((group) => {
+              {currentGroups.length > 0 ? (
+                currentGroups.map((group) => {
                   const isExpanded = expandedGroups.has(group.key);
                   // A row is expandable if it represents more than one unique (room, schedule) cell
                   const hasDetails =
@@ -896,10 +946,10 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
 
                         {/* ── Dokumen ── */}
                         <td className="px-4 py-4">
-                          {group.master.proposalFile ? (
+                          {(group.master as any).hasFile ? (
                             <button
                               onClick={(e) =>
-                                handleViewFile(e, group.master.proposalFile!)
+                                handleViewFile(e, group.master.id)
                               }
                               className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 dark:hover:text-blue-300 hover:underline transition-colors"
                             >
@@ -1188,6 +1238,16 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
             </tbody>
           </table>
         </div>
+        <div className="print:hidden">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={groupedBookings.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={setItemsPerPage}
+          />
+        </div>
       </div>
 
       {/* Detail Modal */}
@@ -1203,7 +1263,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
         setEditTechData={setEditTechData}
         handleSaveTechData={handleSaveTechData}
         handleViewFile={handleViewFile}
-        handleShareImage={handleShareImage}
+        handlePrintProof={handlePrintProof}
         handleRejectClick={handleRejectClick}
         handleDeleteClick={handleDeleteClick}
         handleApproveClick={handleApproveClick}

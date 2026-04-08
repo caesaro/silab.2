@@ -74,6 +74,7 @@ export interface Loan {
   returnLocation?: string; // Lokasi pengembalian
   condition?: 'Baik' | 'Rusak Ringan' | 'Rusak Berat'; // Kondisi saat pengembalian
   actualReturnOfficer?: string;
+  nim?: string;
 }
 
 export interface ItemMovement {

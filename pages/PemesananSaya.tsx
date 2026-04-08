@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Booking, BookingStatus, Room } from '../types';
 import { Calendar, Clock, MapPin, Search, FileText, XCircle, AlertCircle, CheckCircle, Hourglass, Trash2, Download, Plus, X, Edit } from 'lucide-react';
 import { api } from '../services/api';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
+import QRCode from "react-qr-code";
 import nocLogo from "../src/assets/noc.png";
 import BookingForm from '../components/BookingForm';
 import ConfirmModal from '../components/ConfirmModal';
@@ -31,7 +30,7 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
 
   const fetchData = async () => {
       try {
-          const bkRes = await api('/api/bookings');
+          const bkRes = await api('/api/bookings?exclude_file=true');
           if (bkRes.ok) {
               const allBookings: Booking[] = await bkRes.json();
               setMyBookings(allBookings.filter(b => b.userId === userId));
@@ -107,12 +106,19 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
     }
   };
 
-  const handleViewFile = async (fileData: string) => {
+  const handleViewFile = async (bookingId: string) => {
       try {
-          const res = await fetch(fileData);
-          const blob = await res.blob();
-          const url = window.URL.createObjectURL(blob);
-          window.open(url, '_blank');
+          showToast("Sedang memuat file...", "info");
+          const res = await api(`/api/bookings/${bookingId}/file`);
+          if (res.ok) {
+              const data = await res.json();
+              const fetchRes = await fetch(data.file);
+              const blob = await fetchRes.blob();
+              const url = window.URL.createObjectURL(blob);
+              window.open(url, '_blank');
+          } else {
+              showToast("File tidak ditemukan.", "error");
+          }
       } catch (err) {
           showToast("Gagal membuka file.", "error");
       }
@@ -120,32 +126,44 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
 
   const handleDownloadProof = async (booking: Booking) => {
       setProofBooking(booking);
+      showToast("Menyiapkan dokumen PDF...", "info");
+      
       setTimeout(async () => {
           if (proofRef.current) {
-              try {
-                  showToast("Sedang membuat PDF...", "info");
-                  const canvas = await html2canvas(proofRef.current, { 
-                      scale: 2,
-                      backgroundColor: '#ffffff',
-                      useCORS: true 
-                  });
-                  const imgData = canvas.toDataURL('image/png');
-                  
-                  const pdf = new jsPDF('p', 'mm', 'a4');
-                  const pdfWidth = pdf.internal.pageSize.getWidth();
-                  const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-                  
-                  pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                  pdf.save(`Bukti_Peminjaman_${booking.id}.pdf`);
-                  showToast("Bukti peminjaman berhasil didownload", "success");
-              } catch (e) {
-                  console.error(e);
-                  showToast("Gagal membuat PDF", "error");
-              } finally {
-                  setProofBooking(null);
+              const printContents = proofRef.current.innerHTML;
+              const printWindow = window.open('', '_blank', 'width=900,height=1000');
+              if (printWindow) {
+                  printWindow.document.write(`
+                      <!DOCTYPE html>
+                      <html>
+                      <head>
+                          <title>Bukti Peminjaman - ${booking.id}</title>
+                          <script src="https://cdn.tailwindcss.com"></script>
+                          <style>
+                              @page { size: A4 portrait; margin: 0; }
+                              body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
+                          </style>
+                      </head>
+                      <body class="bg-white text-black font-sans">
+                          <div style="width: 210mm; min-height: 297mm; padding: 20mm; margin: 0 auto; position: relative;">
+                              ${printContents}
+                          </div>
+                          <script>
+                              window.onload = function() {
+                                  setTimeout(function() {
+                                      window.print();
+                                      window.close();
+                                  }, 800); // Tunggu tailwind & font selesai dirender
+                              };
+                          </script>
+                      </body>
+                      </html>
+                  `);
+                  printWindow.document.close();
               }
+              setProofBooking(null);
           }
-      }, 500);
+      }, 800); // Beri waktu sebentar agar render React (termasuk QRCode) selesai
   };
 
   const filteredBookings = myBookings.filter(b => 
@@ -234,7 +252,7 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
                             <span>Kontak: {booking.contactPerson}</span>
                             {booking.status === BookingStatus.REJECTED && booking.rejectionReason && (
                                 <span className="text-red-600 dark:text-red-400 font-medium mt-1 bg-red-50 dark:bg-red-900/20 p-1 rounded border border-red-100 dark:border-red-800">
-                                    Alasan Ditolak: {booking.rejectionReason}
+                                    Alasan: {booking.rejectionReason}
                                 </span>
                             )}
                         </div>
@@ -249,9 +267,9 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
                         </div>
                      </td>
                      <td className="px-6 py-4">
-                        {booking.proposalFile ? (
+                     {(booking as any).hasFile ? (
                            <button 
-                              onClick={() => handleViewFile(booking.proposalFile!)} 
+                           onClick={() => handleViewFile(booking.id)} 
                               className="flex items-center text-blue-600 hover:underline text-xs bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded w-fit"
                            >
                               <FileText className="w-3 h-3 mr-1" /> Lihat File
@@ -320,85 +338,124 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
       </div>
 
       <div className="absolute -left-[9999px] top-0">
-        <div ref={proofRef} className="w-[210mm] min-h-[297mm] bg-white p-12 font-sans text-gray-900 relative">
-            <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none z-0">
-                <img src={nocLogo} className="w-[500px] h-[500px] object-contain" />
-            </div>
-
+        <div ref={proofRef} className="w-full text-black">
             {proofBooking && (
                 <div className="relative z-10">
-                    <div className="flex items-center justify-between border-b-4 border-blue-900 pb-6 mb-8">
-                        <div className="flex items-center gap-4">
-                            <img src={nocLogo} alt="Logo" className="w-24 h-24 object-contain" />
-                            <div>
-                                <h1 className="text-2xl font-bold text-blue-900 uppercase tracking-wider">Fakultas Teknologi Informasi</h1>
-                                <h2 className="text-xl font-semibold text-gray-700">Universitas Kristen Satya Wacana</h2>
-                                <p className="text-sm text-gray-500 mt-1">Jl. Dr. O. Notohamidjojo No.1-10, Salatiga 50715</p>
-                            </div>
+                    {/* Kop Surat */}
+                    <div className="flex items-center border-b-4 border-double border-gray-900 pb-6 mb-8">
+                        <img src={nocLogo} alt="Logo" className="w-24 h-24 object-contain mr-6" />
+                        <div className="flex-1 text-center">
+                            <h2 className="text-xl font-bold uppercase tracking-wider text-gray-800">Universitas Kristen Satya Wacana</h2>
+                            <h1 className="text-2xl font-extrabold uppercase tracking-widest text-blue-900 mt-1">Fakultas Teknologi Informasi</h1>
+                            <p className="text-sm text-gray-600 mt-2">Jl. Dr. O. Notohamidjojo No.1-10, Blotongan, Salatiga 50715</p>
+                            <p className="text-sm text-gray-600">Email: fti.laboran@adm.uksw.edu | Telp: (0298) 321212</p>
                         </div>
-                        <div className="text-right">
-                            <h3 className="text-3xl font-bold text-gray-200">BUKTI PEMINJAMAN</h3>
-                            <p className="text-sm font-mono text-gray-400 mt-1">{proofBooking.id}</p>
-                        </div>
-                    </div>
-
-                    <div className="flex justify-end mb-8">
-                        <div className="px-6 py-2 bg-green-100 text-green-800 border border-green-200 rounded-lg font-bold text-lg uppercase tracking-widest">
-                            DISETUJUI
+                        <div className="w-24 h-24 flex items-center justify-center">
+                            <QRCode value={proofBooking.id} size={80} level="M" />
                         </div>
                     </div>
 
-                    <div className="space-y-8">
-                        <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
-                            <h4 className="text-sm font-bold text-gray-500 uppercase mb-4 border-b border-gray-200 pb-2">Detail Kegiatan</h4>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div>
-                                    <p className="text-xs text-gray-500 uppercase">Nama Kegiatan</p>
-                                    <p className="text-xl font-bold text-gray-900">{proofBooking.purpose}</p>
-                                </div>
-                            </div>
-                        </div>
+                    <div className="text-center mb-10">
+                        <h3 className="text-xl font-bold text-black underline underline-offset-4 mb-2">SURAT PERSETUJUAN PEMINJAMAN FASILITAS</h3>
+                        <p className="text-sm text-gray-600 font-mono">No. Reg: {proofBooking.id}</p>
+                    </div>
 
-                        <div className="grid grid-cols-2 gap-8">
-                            <div className="space-y-6">
-                                <div>
-                                    <h4 className="text-sm font-bold text-gray-500 uppercase mb-2">Peminjam</h4>
-                                    <p className="text-lg font-medium">{proofBooking.userName}</p>
-                                    <p className="text-sm text-gray-600">{proofBooking.userId}</p>
-                                </div>
-                                <div>
-                                    <h4 className="text-sm font-bold text-gray-500 uppercase mb-2">Penanggung Jawab</h4>
-                                    <p className="text-lg font-medium">{proofBooking.responsiblePerson}</p>
-                                </div>
-                                <div>
-                                    <h4 className="text-sm font-bold text-gray-500 uppercase mb-2">Kontak</h4>
-                                    <p className="text-lg font-medium">{proofBooking.contactPerson}</p>
-                                </div>
-                            </div>
+                    <div className="mb-6">
+                        <p className="text-gray-800 leading-relaxed text-justify mb-4">
+                            Berdasarkan permohonan peminjaman fasilitas yang diajukan pada sistem CORE.FTI, dengan ini Laboratorium Fakultas Teknologi Informasi UKSW menerangkan bahwa:
+                        </p>
+                    </div>
 
-                            <div className="space-y-6">
-                                <div>
-                                    <h4 className="text-sm font-bold text-gray-500 uppercase mb-2">Fasilitas / Ruangan</h4>
-                                    <p className="text-lg font-medium text-blue-700">{getRoomName(proofBooking.roomId)}</p>
-                                </div>
-                                <div>
-                                    <h4 className="text-sm font-bold text-gray-500 uppercase mb-2">Waktu Pelaksanaan</h4>
-                                    <p className="text-lg font-medium">{new Date(proofBooking.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                                    <p className="text-xl font-bold text-gray-900 mt-1">{proofBooking.startTime} - {proofBooking.endTime} WIB</p>
-                                </div>
-                            </div>
-                        </div>
+                    {/* Data Peminjam */}
+                    <div className="mb-8">
+                        <table className="w-full text-left border-collapse">
+                            <tbody>
+                                <tr>
+                                    <td className="py-2 w-1/3 font-semibold text-gray-700">Nama Peminjam</td>
+                                    <td className="py-2 w-4 text-center">:</td>
+                                    <td className="py-2 font-bold text-gray-900">{proofBooking.userName}</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-2 font-semibold text-gray-700">NIM / NIDN</td>
+                                    <td className="py-2 text-center">:</td>
+                                    <td className="py-2 text-gray-800">{proofBooking.userId}</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-2 font-semibold text-gray-700">Penanggung Jawab</td>
+                                    <td className="py-2 text-center">:</td>
+                                    <td className="py-2 text-gray-800">{proofBooking.responsiblePerson}</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-2 font-semibold text-gray-700">Kontak Person</td>
+                                    <td className="py-2 text-center">:</td>
+                                    <td className="py-2 text-gray-800">{proofBooking.contactPerson}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
 
-                    <div className="mt-20 pt-8 border-t border-gray-200 flex justify-between items-end">
+                    <div className="mb-6">
+                        <p className="text-gray-800 leading-relaxed text-justify mb-4">
+                            Telah <strong className="text-green-700">DISETUJUI</strong> untuk menggunakan fasilitas ruangan sebagai berikut:
+                        </p>
+                    </div>
+
+                    {/* Data Kegiatan & Ruangan */}
+                    <div className="mb-8">
+                        <table className="w-full text-left border-collapse">
+                            <tbody>
+                                <tr>
+                                    <td className="py-2 w-1/3 font-semibold text-gray-700">Nama Kegiatan</td>
+                                    <td className="py-2 w-4 text-center">:</td>
+                                    <td className="py-2 font-bold text-gray-900">{proofBooking.purpose}</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-2 font-semibold text-gray-700">Ruangan</td>
+                                    <td className="py-2 text-center">:</td>
+                                    <td className="py-2 font-bold text-blue-800">{getRoomName(proofBooking.roomId)}</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-2 font-semibold text-gray-700 items-start align-top">Waktu Pelaksanaan</td>
+                                    <td className="py-2 text-center align-top">:</td>
+                                    <td className="py-2 text-gray-800">
+                                        {(proofBooking as any).schedules && (proofBooking as any).schedules.length > 0 ? (
+                                            <ul className="list-disc ml-4 space-y-1">
+                                                {(proofBooking as any).schedules.map((sch: any, idx: number) => (
+                                                    <li key={idx}>
+                                                        <span className="font-semibold">{new Date(sch.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span> — Pukul {sch.startTime?.slice(0,5)} s.d {sch.endTime?.slice(0,5)} WIB
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <>
+                                                <span className="font-bold">{new Date(proofBooking.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span><br/>
+                                                Pukul {proofBooking.startTime?.slice(0,5)} s.d {proofBooking.endTime?.slice(0,5)} WIB
+                                            </>
+                                        )}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="mb-12">
+                        <p className="text-gray-800 leading-relaxed text-justify">
+                            Demikian surat persetujuan ini diterbitkan secara otomatis oleh sistem untuk dapat digunakan sebagaimana mestinya. Peminjam wajib menjaga kebersihan dan keamanan fasilitas yang digunakan.
+                        </p>
+                    </div>
+
+                    {/* Tanda Tangan */}
+                    <div className="flex justify-between items-end pt-8">
                         <div className="text-xs text-gray-400">
-                            <p>Dokumen ini dibuat secara otomatis oleh sistem CORE.FTI.</p>
-                            <p>Dicetak pada: {new Date().toLocaleString('id-ID')}</p>
+                            <p>Dokumen sah dicetak dari sistem CORE.FTI.</p>
+                            <p>Dicetak pada: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                         </div>
-                        <div className="text-center">
-                            <div className="h-20 w-40 mb-2"></div>
-                            <p className="text-sm font-bold text-gray-700 uppercase">Admin Laboratorium</p>
+                        <div className="text-center w-64">
+                            <p className="text-sm text-gray-800 mb-2">Salatiga, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                            <p className="text-sm font-bold text-gray-800 mb-16">Admin Laboratorium</p>
+                            <div className="border-b border-gray-400 w-full mb-2"></div>
+                            <p className="text-xs text-gray-500">Fakultas Teknologi Informasi</p>
                         </div>
-                    </div>
                     </div>
                 </div>
             )}

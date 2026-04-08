@@ -1,78 +1,67 @@
+import { Loan, Equipment, LabStaff } from '../types';
 import { API_BASE_URL } from '../config';
 
-// Flag untuk mencegah multiple logout triggers
-let isLoggingOut = false;
-
-interface ApiOptions extends RequestInit {
-  data?: any; // Shortcut untuk body yang otomatis di-stringify
-}
-
-export const api = async (endpoint: string, options: ApiOptions = {}) => {
-  const { data, headers, ...customConfig } = options;
-
-  // Default Config (Interceptor Request)
-  const config: RequestInit = {
-    ...customConfig,
-    headers: {
-      'Content-Type': 'application/json', // Default header
-      ...headers, // Bisa di-override jika perlu
-    },
+export const api = async (endpoint: string, options: RequestInit & { data?: any } = {}) => {
+  // Pastikan format endpoint selalu valid (diawali garis miring)
+  const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = `${API_BASE_URL}${formattedEndpoint}`;
+  
+  // Mengambil token JWT hasil login dari localStorage
+  const token = localStorage.getItem('authToken');
+  const customHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
   };
 
-  // Ambil token dari localStorage dan tambahkan ke header jika ada
-  const token = localStorage.getItem('authToken');
   if (token) {
-    (config.headers as any)['Authorization'] = `Bearer ${token}`;
+    customHeaders['Authorization'] = `Bearer ${token}`;
   }
 
-  // Auto-stringify body jika ada properti 'data'
-  if (data) {
-    if (data instanceof FormData) {
-      config.body = data;
-      // Hapus Content-Type agar browser yang mengaturnya (multipart/form-data boundary)
-      delete (config.headers as any)['Content-Type'];
-    } else {
-      config.body = JSON.stringify(data);
-    }
+  
+  const config: RequestInit = {
+    method: options.method || 'GET',
+    headers: {
+      ...customHeaders,
+      ...options.headers,
+    },
+    ...options,
+  };
+
+  // Handle POST/PUT data
+  if (options.data) {
+    config.body = JSON.stringify(options.data);
   }
 
-  // Eksekusi Fetch
   try {
-    // Jika API_BASE_URL localhost, gunakan relative path agar request via HP/Tailscale masuk ke Proxy Vite
-    const baseUrl = API_BASE_URL.includes('localhost') ? '' : API_BASE_URL;
-    const response = await fetch(`${baseUrl}${endpoint}`, config);
-
-    // --- Global Error Handling (Interceptor Response) ---
-    
-    // Cek jika status 401 (Unauthorized) atau 403 (Forbidden)
-    if (response.status === 401 || response.status === 403) {
-      // PENTING: Jangan logout jika error 401 berasal dari endpoint login 
-      // (karena itu berarti "Password Salah", bukan "Sesi Habis")
-      // Juga tidak logout untuk endpoint publik lainnya
-      const publicEndpoints = ['/login', '/register', '/set-password', '/settings/maintenance', '/logout'];
-      const isPublicEndpoint = publicEndpoints.some(ep => endpoint.includes(ep));
-      
-      if (!isPublicEndpoint && !isLoggingOut) {
-        // Set flag untuk mencegah multiple logout triggers
-        isLoggingOut = true;
-        console.warn('Sesi kadaluarsa atau tidak valid. Melakukan logout otomatis...');
-        localStorage.removeItem('isAuthenticated');
-        localStorage.removeItem('authToken'); // Hapus token yang tidak valid
-        localStorage.removeItem('userId');   // Hapus ID user yang invalid
-        localStorage.removeItem('userName'); // Bersihkan nama user
-        
-        // Redirect dengan delay kecil untuk allow pending requests selesai
-        setTimeout(() => {
-          window.location.href = '/'; // Redirect paksa ke halaman login
-        }, 100);
-      }
-    }
-
+    const response = await fetch(url, config);
     return response;
   } catch (error) {
-    console.error("API Network Error:", error);
-    // Lempar error agar bisa ditangkap di komponen jika perlu
-    // Tapi jangan otomatis logout karena ini bisa jadi jaringan sedang bermasalah
+    console.error(`API Error [${formattedEndpoint}]:`, error);
     throw error;
   }
 };
+
+// Convenience typed endpoints for loans
+export const loansApi = {
+  list: () => api('/api/loans'),
+  create: (data: { equipmentIds: string[], borrowerName: string, nim?: string, guarantee: string, borrowDate: string, borrowTime: string, borrowOfficer: string, location: string }) => 
+    api('/api/loans', { method: 'POST', data }),  
+  updateGroup: (transactionId: string, data: any) => 
+    api(`/api/loans/group/${transactionId}`, { method: 'PUT', data }),
+  returnBulk: (data: { loanIds: string[], returnDate: string, returnTime: string, returnOfficer: string, returnLocation: string, condition: string }) => 
+    api('/api/loans/return', { method: 'PUT', data }),
+  deleteGroup: (data: { loanIds: string[] }) => 
+    api('/api/loans/group', { method: 'DELETE', data }),
+};
+
+// Inventory endpoint
+export const inventoryApi = {
+  list: () => api('/api/inventory'),
+};
+
+// Staff endpoint  
+export const staffApi = {
+  list: () => api('/api/staff'),
+};
+
+export default api;
+

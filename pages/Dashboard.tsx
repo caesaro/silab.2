@@ -91,10 +91,12 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
 
   // Data states
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loans, setLoans] = useState<Loan[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [users, setUsers] = useState<AppUser[]>([]);
-  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [dashboardSummary, setDashboardSummary] = useState({
+    activeLoans: 0,
+    totalUsers: 0,
+    equipment: { total: 0, damaged: 0, good: 0, minor: 0, major: 0 }
+  });
   const [announcement, setAnnouncement] = useState<{active: boolean, message: string, type: string} | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -105,26 +107,22 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
         if (isUser) {
           // OPTIMASI: User biasa hanya butuh data pemesanan & pengumuman
           const [resBookings, resAnnounce] = await Promise.all([
-            api('/api/bookings'),
+            api('/api/bookings?exclude_file=true'),
             api('/api/settings/announcement')
           ]);
           if (resBookings.ok) setBookings(await resBookings.json());
           if (resAnnounce.ok) setAnnouncement(await resAnnounce.json());
         } else {
           // Admin dan Laboran butuh semua data statistik
-          const [resBookings, resLoans, resRooms, resUsers, resEquipment, resAnnounce] = await Promise.all([
-            api('/api/bookings'),
-            api('/api/loans'),
+          const [resBookings, resRooms, resSummary, resAnnounce] = await Promise.all([
+            api('/api/bookings?exclude_file=true'),
             api('/api/rooms?exclude_image=true'),
-            api('/api/users'),
-            api('/api/inventory'),
+            api('/api/dashboard/summary'),
             api('/api/settings/announcement')
           ]);
           if (resBookings.ok) setBookings(await resBookings.json());
-          if (resLoans.ok) setLoans(await resLoans.json());
           if (resRooms.ok) setRooms(await resRooms.json());
-          if (resUsers.ok) setUsers(await resUsers.json());
-          if (resEquipment.ok) setEquipment(await resEquipment.json());
+          if (resSummary.ok) setDashboardSummary(await resSummary.json());
           if (resAnnounce.ok) setAnnouncement(await resAnnounce.json());
         }
       } catch (error) {
@@ -152,7 +150,7 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
 
     const totalBookings = bookings.length;
     const pendingBookings = bookings.filter(b => b.status === BookingStatus.PENDING).length;
-    const activeLoans = loans.filter(l => l.status === 'Dipinjam').length;
+    const activeLoans = dashboardSummary.activeLoans;
     
     // Simple availability check
     const today = new Date().toLocaleDateString('en-CA');
@@ -163,12 +161,12 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
     );
     const availableRooms = rooms.length - bookedRoomIds.size;
     
-    const totalUsers = users.filter(u => u.role !== 'Admin').length;
-    const damagedEquipment = equipment.filter(e => e.condition !== 'Baik').length;
-    const totalEquipment = equipment.length;
+    const totalUsers = dashboardSummary.totalUsers;
+    const damagedEquipment = dashboardSummary.equipment.damaged;
+    const totalEquipment = dashboardSummary.equipment.total;
 
     return { totalBookings, pendingBookings, activeLoans, availableRooms, totalUsers, damagedEquipment, totalEquipment, myBookings, myPending, myApproved, myRejected };
-  }, [isUser, bookings, loans, rooms, users, equipment, LOGGED_IN_USER_ID]);
+  }, [isUser, bookings, rooms, dashboardSummary, LOGGED_IN_USER_ID]);
 
   // Calculate Chart Data
   const barData = useMemo(() => {
@@ -194,15 +192,12 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
 
   const equipmentConditionData = useMemo(() => {
       if (isUser) return []; // OPTIMASI: User tidak render chart ini
-      const good = equipment.filter(e => e.condition === 'Baik').length;
-      const minor = equipment.filter(e => e.condition === 'Rusak Ringan').length;
-      const major = equipment.filter(e => e.condition === 'Rusak Berat').length;
       return [
-          { name: 'Baik', value: good, color: '#22c55e' },
-          { name: 'Rusak Ringan', value: minor, color: '#f59e0b' },
-          { name: 'Rusak Berat', value: major, color: '#ef4444' },
+          { name: 'Baik', value: dashboardSummary.equipment.good, color: '#22c55e' },
+          { name: 'Rusak Ringan', value: dashboardSummary.equipment.minor, color: '#f59e0b' },
+          { name: 'Rusak Berat', value: dashboardSummary.equipment.major, color: '#ef4444' },
       ];
-  }, [equipment, isUser]);
+  }, [dashboardSummary, isUser]);
 
   // Helper for Announcement Banner
   const renderAnnouncement = () => {
@@ -439,7 +434,7 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
             <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Kesehatan Inventaris</h3>
               <div className="h-48 flex items-center justify-center">
-                {equipment.length > 0 ? (
+                {dashboardSummary.equipment.total > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie

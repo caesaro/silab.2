@@ -31,6 +31,8 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroup, setSelectedGroup] = useState<EventGroup | null>(null);
+  const [filterStatus, setFilterStatus] = useState<'All' | 'Mendatang' | 'Berlangsung' | 'Selesai'>('All');
+  const [filterRoom, setFilterRoom] = useState<string>('All');
   
   const [shareConfig, setShareConfig] = useState({
     title: true,
@@ -48,7 +50,7 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
     const fetchData = async () => {
       try {
         const [bkRes, rmRes] = await Promise.all([
-          api('/api/bookings'),
+          api('/api/bookings?exclude_file=true'),
           api('/api/rooms?exclude_image=true')
         ]);
         
@@ -84,19 +86,57 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
 
     return Array.from(map.entries()).map(([key, entries]) => {
       const roomIds = Array.from(new Set(entries.map(e => e.roomId)));
-      const rawSchedules = entries.flatMap(e => e.schedules?.length > 0 ? e.schedules : [{ date: e.date, startTime: e.startTime, endTime: e.endTime }]);
+      const rawSchedules = entries.flatMap((e: BookingWithTech) => {
+        if (e.schedules?.length) {
+          return e.schedules;
+        }
+        return [{
+          date: e.date ?? '',
+          startTime: e.startTime ?? '',
+          endTime: e.endTime ?? ''
+        }];
+      });
       
       // Hapus duplikasi jadwal (misal: 3 ruangan dipinjam di jam yang sama, maka cukup tampil 1 kali)
-      const uniqueSchedulesMap = new Map();
-      rawSchedules.forEach(s => {
-         const sKey = `${s.date}_${s.startTime}_${s.endTime}`;
-         if (!uniqueSchedulesMap.has(sKey)) uniqueSchedulesMap.set(sKey, s);
+      const uniqueSchedulesMap = new Map<string, any>();
+      rawSchedules.forEach((s: any) => {
+        if (!s || !s.date || !s.startTime || !s.endTime) return;
+        const sKey = `${s.date}_${s.startTime}_${s.endTime}`;
+        if (!uniqueSchedulesMap.has(sKey)) {
+          uniqueSchedulesMap.set(sKey, s);
+        }
       });
       const uniqueSchedules = Array.from(uniqueSchedulesMap.values()).sort((a: any, b: any) => {
-         return new Date(`${a.date}T${a.startTime}`).getTime() - new Date(`${b.date}T${b.startTime}`).getTime();
+        return new Date(`${a.date}T${a.startTime}`).getTime() - new Date(`${b.date}T${b.startTime}`).getTime();
       });
 
       return { key, master: entries[0], entries, roomIds, uniqueSchedules };
+    }).sort((a, b) => {
+      const now = new Date().getTime();
+      
+      // Waktu mulai adalah jadwal pertama, waktu selesai adalah jadwal terakhir (karena uniqueSchedules sudah di-sort)
+      const startA = a.uniqueSchedules.length > 0 ? new Date(`${a.uniqueSchedules[0].date}T${a.uniqueSchedules[0].startTime}`).getTime() : 0;
+      const endA = a.uniqueSchedules.length > 0 ? new Date(`${a.uniqueSchedules[a.uniqueSchedules.length - 1].date}T${a.uniqueSchedules[a.uniqueSchedules.length - 1].endTime}`).getTime() : 0;
+      
+      const startB = b.uniqueSchedules.length > 0 ? new Date(`${b.uniqueSchedules[0].date}T${b.uniqueSchedules[0].startTime}`).getTime() : 0;
+      const endB = b.uniqueSchedules.length > 0 ? new Date(`${b.uniqueSchedules[b.uniqueSchedules.length - 1].date}T${b.uniqueSchedules[b.uniqueSchedules.length - 1].endTime}`).getTime() : 0;
+      
+      // Status apakah event sudah berakhir
+      const isPastA = endA < now;
+      const isPastB = endB < now;
+
+      // Jika A sudah lewat dan B belum, prioritaskan B (B di atas)
+      if (isPastA && !isPastB) return 1;
+      // Jika A belum lewat dan B sudah lewat, prioritaskan A (A di atas)
+      if (!isPastA && isPastB) return -1;
+      
+      // Jika keduanya sudah lewat, urutkan dari yang paling baru saja selesai
+      if (isPastA && isPastB) {
+        return endB - endA;
+      }
+      
+      // Jika keduanya belum lewat (mendatang/berlangsung), urutkan dari yang waktu mulainya paling dekat dengan saat ini
+      return startA - startB;
     });
   }, [events, searchTerm]);
 
@@ -137,6 +177,25 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
     setShareConfig(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const displayedEvents = useMemo(() => {
+    return groupedEvents.filter(group => {
+      if (filterRoom !== 'All' && !group.roomIds.includes(filterRoom)) return false;
+      if (filterStatus === 'All') return true;
+      
+      const now = new Date().getTime();
+      const lastSchedule = group.uniqueSchedules[group.uniqueSchedules.length - 1];
+      const isPast = lastSchedule ? new Date(`${lastSchedule.date}T${lastSchedule.endTime}`).getTime() < now : false;
+      const isOngoing = group.uniqueSchedules.some((sch: any) => {
+          const start = new Date(`${sch.date}T${sch.startTime}`).getTime();
+          const end = new Date(`${sch.date}T${sch.endTime}`).getTime();
+          return now >= start && now <= end;
+      });
+      
+      const currentStatus = isPast ? 'Selesai' : isOngoing ? 'Berlangsung' : 'Mendatang';
+      return currentStatus === filterStatus;
+    });
+  }, [groupedEvents, filterStatus, filterRoom]);
+
   return (
     <div className="space-y-6">
        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -144,33 +203,77 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Daftar Acara</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm">Jadwal kegiatan dan acara di Fakultas Teknologi Informasi</p>
         </div>
-        <div className="relative w-full md:w-64">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input 
-                type="text" 
-                placeholder="Cari acara..." 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 w-full dark:text-white"
-            />
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            <div className="relative w-full sm:w-64">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input 
+                    type="text" 
+                    placeholder="Cari acara..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 w-full dark:text-white"
+                />
+            </div>
+            <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value as any)}
+                className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 dark:text-white cursor-pointer outline-none w-full sm:w-auto"
+            >
+                <option value="All">Semua Status</option>
+                <option value="Mendatang">Mendatang</option>
+                <option value="Berlangsung">Berlangsung</option>
+                <option value="Selesai">Selesai</option>
+            </select>
+            <select
+                value={filterRoom}
+                onChange={(e) => setFilterRoom(e.target.value)}
+                className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 dark:text-white cursor-pointer outline-none w-full sm:w-auto"
+            >
+                <option value="All">Semua Ruangan</option>
+                {rooms.map(room => (
+                    <option key={room.id} value={room.id}>{room.name}</option>
+                ))}
+            </select>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {groupedEvents.map(group => (
+        {displayedEvents.map(group => {
+            const now = new Date().getTime();
+            const lastSchedule = group.uniqueSchedules[group.uniqueSchedules.length - 1];
+            const isPast = lastSchedule ? new Date(`${lastSchedule.date}T${lastSchedule.endTime}`).getTime() < now : false;
+            
+            const isOngoing = group.uniqueSchedules.some((sch: any) => {
+                const start = new Date(`${sch.date}T${sch.startTime}`).getTime();
+                const end = new Date(`${sch.date}T${sch.endTime}`).getTime();
+                return now >= start && now <= end;
+            });
+
+            return (
             <div 
                 key={group.key} 
                 onClick={() => setSelectedGroup(group)}
-                className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 hover:shadow-md transition-all cursor-pointer group"
+                className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 hover:shadow-md transition-all cursor-pointer group ${isPast ? 'opacity-75' : ''}`}
             >
                 <div className="flex justify-between items-start mb-3">
-                    <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 p-2 rounded-lg">
+                    <div className={`p-2 rounded-lg ${isPast ? 'bg-gray-100 dark:bg-gray-700 text-gray-500' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'}`}>
                         <CalendarDays className="w-6 h-6" />
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                        <span className="text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-full">
-                            Confirmed
-                        </span>
+                        {isPast ? (
+                            <span className="text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 px-2 py-1 rounded-full border border-gray-200 dark:border-gray-600">
+                                Selesai
+                            </span>
+                        ) : isOngoing ? (
+                            <span className="text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded-full flex items-center border border-blue-200 dark:border-blue-800 shadow-sm">
+                                <span className="w-1.5 h-1.5 bg-blue-600 dark:bg-blue-400 rounded-full mr-1.5 animate-pulse"></span>
+                                Berlangsung
+                            </span>
+                        ) : (
+                            <span className="text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-full">
+                                Confirmed
+                            </span>
+                        )}
                         {group.roomIds.length > 1 && (
                             <span className="text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 px-2 py-0.5 rounded-full flex items-center">
                                 <Layers className="w-3 h-3 mr-1" /> {group.roomIds.length} Ruangan
@@ -200,16 +303,29 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
                     </div>
                 </div>
             </div>
-        ))}
-        {groupedEvents.length === 0 && (
+            );
+        })}
+        {displayedEvents.length === 0 && (
             <div className="col-span-full flex flex-col items-center justify-center py-20 text-center">
                 <div className="bg-gray-100 dark:bg-gray-800 p-6 rounded-full mb-4">
                     <CalendarDays className="w-12 h-12 text-gray-400" />
                 </div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Belum ada acara</h3>
-                <p className="text-gray-500 dark:text-gray-400 max-w-sm">
-                    Belum ada kegiatan yang dijadwalkan atau disetujui saat ini.
+                <p className="text-gray-500 dark:text-gray-400 max-w-sm mb-4">
+                    Belum ada kegiatan yang dijadwalkan atau sesuai dengan filter Anda saat ini.
                 </p>
+                {(searchTerm !== '' || filterStatus !== 'All' || filterRoom !== 'All') && (
+                    <button
+                        onClick={() => {
+                            setSearchTerm('');
+                            setFilterStatus('All');
+                            setFilterRoom('All');
+                        }}
+                        className="px-4 py-2 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors font-medium text-sm"
+                    >
+                        Reset Filter
+                    </button>
+                )}
             </div>
         )}
       </div>

@@ -521,7 +521,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
       });
     }
 
-    events.forEach((event) => {
+    events.forEach((event: GoogleEvent) => {
       const dateKey =
         event.start.date ||
         (event.start.dateTime ? event.start.dateTime.split("T")[0] : "Unknown");
@@ -567,7 +567,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
                     return (
                       <div
                         key={event.id}
-                        onClick={(e) => {
+                        onClick={(e: React.MouseEvent) => {
                           e.stopPropagation();
                           setSelectedEvent(event);
                         }}
@@ -632,7 +632,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
       return { top: `${top}%`, height: `${height}%` };
     };
 
-    const allDayEvents = events.filter((e) => e.start.date);
+    const allDayEvents = events.filter((e: GoogleEvent) => e.start.date);
 
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -677,14 +677,14 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
               {days.map((date) => {
                 const dateStr = date.toISOString().split("T")[0];
                 const dayEvents = allDayEvents.filter(
-                  (e) => e.start.date === dateStr,
-                );
+                  (e: { start: { date: string; }; }) => e.start.date === dateStr,
+              );
                 return (
                   <div
                     key={dateStr}
                     className="border-r border-gray-100 dark:border-gray-700 p-1 space-y-1"
                   >
-                    {dayEvents.map((event) => (
+                    {dayEvents.map((event: GoogleEvent) => (
                       <div
                         key={event.id}
                         onClick={() => setSelectedEvent(event)}
@@ -719,7 +719,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
           >
             {days.map((date, index) => {
               const dateStr = date.toISOString().split("T")[0];
-              const dayEvents = events.filter((e) =>
+              const dayEvents = events.filter((e: GoogleEvent) =>
                 e.start.dateTime?.startsWith(dateStr),
               );
               return (
@@ -734,7 +734,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
                       className="h-16 border-t border-gray-100 dark:border-gray-700"
                     ></div>
                   ))}
-                  {dayEvents.map((event) => {
+                  {dayEvents.map((event: GoogleEvent) => {
                     const { top, height } = calculateEventPosition(event);
                     return (
                       <div
@@ -968,7 +968,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
         >
           <div
             className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center pr-4">
@@ -1058,7 +1058,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
         >
           <div
             className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center pr-4">

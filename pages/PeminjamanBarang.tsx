@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Role, Loan, Equipment } from '../types';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Loan, Equipment, LabStaff, Role, ToastMessage } from '../types';
 import { Search, Filter, Plus, Check, X, Clock, Box, User, Save, Trash2, CreditCard, Eye, Calendar, QrCode, MapPin, Loader2, Edit } from 'lucide-react';
 import { api } from '../services/api';
 import QRScannerModal from '../components/QRScannerModal';
@@ -8,17 +8,63 @@ import { formatDateID } from '../src/utils/formatters';
 import SearchBar from '../components/SearchBar';
 import Pagination from '../components/Pagination';
 import { usePagination } from '../hooks/usePagination';
+import ToastContainer from '../components/ToastContainer';
 
-interface LoansProps {
-  role: Role;
-  showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void;
+interface FormData {
+  equipmentIds: string[];
+  borrowerName: string;
+  guarantee: string;
+  nim: string;
+  borrowDate: string;
+  borrowTime: string;
+  borrowOfficer: string;
+  location: string;
 }
 
-const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
+interface ReturnConfirmation {
+  loans: Loan[];
+  returnDate: string;
+  returnTime: string;
+  returnOfficer: string;
+  returnLocation: string;
+  condition: 'Baik' | 'Rusak Ringan' | 'Rusak Berat';
+}
+
+interface SelectedGroup {
+  key: string;
+  loans: Loan[];
+}
+
+const PeminjamanBarang: React.FC = () => {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
-  const [activeStaff, setActiveStaff] = useState<{id: string, nama: string}[]>([]);
+  const [activeStaff, setActiveStaff] = useState<LabStaff[]>([]);
+  const [toasts, setToasts] = useState<any[]>([]);
+  const [toastIdCounter, setToastIdCounter] = useState(0);
+
   const [filter, setFilter] = useState('All');
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' | 'warning', sticky = false) => {
+    const id = `toast-${toastIdCounter}`;
+  const newToast: any = {
+      id,
+      message,
+      type,
+      sticky
+    };
+    setToasts(prev => [...prev, newToast]);
+    setToastIdCounter(prev => prev + 1);
+
+    if (!sticky) {
+      setTimeout(() => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+      }, 5000);
+    }
+  }, [toastIdCounter]);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -154,8 +200,8 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
         const staffData = await staffRes.json();
         // Filter only active staff (status = 'Aktif')
         const activeStaffData = staffData
-          .filter((staff: any) => staff.status === 'Aktif')
-          .map((staff: any) => ({ id: staff.id, nama: staff.nama }));
+          .filter((staff: LabStaff) => staff.status === 'Aktif')
+          .map((staff: LabStaff) => staff);
         setActiveStaff(activeStaffData);
       }
     } catch (e) { console.error(e); }
@@ -174,10 +220,10 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
     }));
   };
 
-  const petugasOptions: SelectOption[] = activeStaff.map(staff => ({
-    value: staff.nama,
-    label: staff.nama
-  }));
+  const petugasOptions: SelectOption[] = activeStaff.map((staff: LabStaff) => ({
+    value: staff.name,
+    label: staff.name
+  })); 
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -439,7 +485,9 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
   }, [searchTerm, filter, startDate, endDate, itemsPerPage, setCurrentPage]);
 
   return (
-    <div className="space-y-6">
+    <>
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      <div className="space-y-6"> 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Peminjaman Barang</h1>
@@ -825,7 +873,7 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
                   disabled={isReturning}
                   className="mb-3 w-full py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isReturning && returnConfirmation?.loans.length > 1 ? (
+                  {isReturning && returnConfirmation && returnConfirmation.loans.length > 1 ? (
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Memproses...</>
                   ) : (
                     <><Check className="w-4 h-4 mr-2" /> Kembalikan Semua ({selectedGroup.loans.filter(l => l.status === 'Dipinjam').length} Barang)</>
@@ -928,7 +976,11 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
               <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
                 <p className="text-xs text-gray-500 dark:text-gray-400">Barang</p>
                 <p className="font-medium text-gray-900 dark:text-white">
-{returnConfirmation!.loans.length === 1 ? returnConfirmation!.loans[0].equipmentName : `${returnConfirmation!.loans.length} Barang Terpilih`}
+{(() => {
+  const rc = returnConfirmation!;
+  const loans = rc.loans;
+  return loans.length === 1 ? loans[0].equipmentName : `${loans.length} Barang Terpilih`;
+})()}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -936,8 +988,8 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Tanggal Kembali</label>
                   <input 
                     type="date" required
-                    value={returnConfirmation!.returnDate}
-                    onChange={e => setReturnConfirmation({...returnConfirmation!, returnDate: e.target.value})}
+                    value={returnConfirmation.returnDate}
+                    onChange={e => setReturnConfirmation({...returnConfirmation, returnDate: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -945,8 +997,8 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Jam Kembali</label>
                   <input 
                     type="time" required
-                    value={returnConfirmation!.returnTime}
-                    onChange={e => setReturnConfirmation({...returnConfirmation!, returnTime: e.target.value})}
+                    value={returnConfirmation.returnTime}
+                    onChange={e => setReturnConfirmation({...returnConfirmation, returnTime: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -954,8 +1006,8 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Petugas Pengembalian</label>
                   <SearchableSelect 
                     options={petugasOptions}
-                    value={returnConfirmation!.returnOfficer}
-                    onChange={(val) => setReturnConfirmation({...returnConfirmation!, returnOfficer: val})}
+                    value={returnConfirmation.returnOfficer}
+                    onChange={(val) => setReturnConfirmation({...returnConfirmation, returnOfficer: val})}
                     placeholder="-- Pilih Petugas --"
                     searchPlaceholder="Cari petugas..."
                     required
@@ -968,8 +1020,8 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
                   </label>
                   <input 
                     type="text" required
-                    value={returnConfirmation!.returnLocation}
-                    onChange={e => setReturnConfirmation({...returnConfirmation!, returnLocation: e.target.value})}
+                    value={returnConfirmation.returnLocation}
+                    onChange={e => setReturnConfirmation({...returnConfirmation, returnLocation: e.target.value})}
                     placeholder="Ruang / Rak pengembalian"
                     className="w-full pl-8 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
                   />
@@ -978,8 +1030,8 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Kondisi Barang</label>
                   <select 
                     required
-                    value={returnConfirmation!.condition}
-                    onChange={e => setReturnConfirmation({...returnConfirmation!, condition: e.target.value as any})}
+                    value={returnConfirmation.condition}
+                    onChange={e => setReturnConfirmation({...returnConfirmation, condition: e.target.value as any})}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="Baik">Baik</option>
@@ -992,7 +1044,7 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
             <div className="flex space-x-3">
               <button onClick={() => setReturnConfirmation(null)} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Batal</button>
               <button 
-                disabled={!returnConfirmation!.returnDate || !returnConfirmation!.returnTime || !returnConfirmation!.returnLocation || isReturning}
+                disabled={!returnConfirmation.returnDate || !returnConfirmation.returnTime || !returnConfirmation.returnLocation || isReturning}
                 onClick={confirmReturn}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
@@ -1004,6 +1056,7 @@ const PeminjamanBarang: React.FC<LoansProps> = ({ role, showToast }) => {
         </div>
       )}
     </div>
+    </>
   );
 };
 

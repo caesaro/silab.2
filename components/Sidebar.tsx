@@ -106,13 +106,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
                     }
                   }}
                   onMouseLeave={() => setHoveredItem(null)}
-                  className={`w-full flex items-center ${isCollapsed ? 'justify-center px-2' : 'px-4'} py-3 text-sm font-medium rounded-lg transition-all duration-300 ${
+                  className={`w-full flex items-center ${isCollapsed ? 'justify-center px-2' : 'px-4'} py-3 text-sm font-medium rounded-lg transition-all duration-300 group ${
                     isActive
                       ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-blue-50/50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400'
                   }`}
                 >
-                  <Icon className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'} ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'} transition-all duration-300`} />
+                  <Icon className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'} ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400'} transition-all duration-300`} />
                   {!isCollapsed && <span className="whitespace-nowrap overflow-hidden transition-all duration-300">{item.label}</span>}
                 </button>
               );
@@ -129,12 +129,21 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
           if (visibleItems.length === 0) return null;
 
           const isExpanded = expandedGroups.has(group.id);
+          const isActiveGroup = visibleItems.some(item => currentPage === item.id);
           const GroupIcon = group.id === 'jadwal' ? jadwalIcon : group.id === 'manajemen' ? manajemenIcon : group.id === 'transaksi' ? transaksiIcon : pengaturanIcon;
 
           return (
             <div key={group.id} className="mb-4">
               <button
                 onClick={() => {
+                  if (isCollapsed && onToggleCollapse) {
+                    onToggleCollapse(); // Otomatis lebarkan sidebar
+                    // Buka dropdown untuk kategori yang diklik
+                    const newExpanded = new Set(expandedGroups);
+                    newExpanded.add(group.id);
+                    setExpandedGroups(newExpanded);
+                    return;
+                  }
                   const newExpanded = new Set(expandedGroups);
                   if (isExpanded) {
                     newExpanded.delete(group.id);
@@ -150,13 +159,17 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
                   }
                 }}
                 onMouseLeave={() => setHoveredItem(null)}
-                className={`w-full flex items-center ${isCollapsed ? 'justify-center px-2' : 'px-4'} py-3 text-sm font-medium rounded-lg transition-all duration-300 hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                  'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                className={`w-full flex items-center ${isCollapsed ? 'justify-center px-2' : 'px-4'} py-3 text-sm font-medium rounded-lg transition-all duration-300 group ${
+                  isActiveGroup
+                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                    : isExpanded
+                      ? 'bg-blue-50/50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-blue-50/50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400'
                 }`}
               >
-                <GroupIcon className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'} text-blue-600 dark:text-blue-400 transition-all duration-300`} />
+                <GroupIcon className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'} ${isActiveGroup || isExpanded ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400'} transition-all duration-300`} />
                 {!isCollapsed && <span className="flex-1 text-left">{group.title}</span>}
-                <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                {!isCollapsed && <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />}
               </button>
               {isExpanded && !isCollapsed && (
                 <nav className="ml-8 space-y-1 mt-1">
@@ -167,13 +180,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
                       <button
                         key={item.id}
                         onClick={() => onNavigate(item.id)}
-                        className={`w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 ${
+                        className={`w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 group ${
                           isActive
                             ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 pl-4'
+                            : 'text-gray-600 dark:text-gray-400 hover:bg-blue-50/50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400'
                         }`}
                       >
-                        <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'} mr-3 flex-shrink-0`} />
+                        <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400'} mr-3 flex-shrink-0 transition-colors`} />
                         <span>{item.label}</span>
                       </button>
                     );

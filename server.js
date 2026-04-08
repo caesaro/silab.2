@@ -1,4 +1,4 @@
-﻿﻿import express from 'express';
+﻿﻿﻿﻿import express from 'express';
 import pg from 'pg';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -138,8 +138,6 @@ const createIndexes = async () => {
     
     // Rooms index
     'CREATE INDEX IF NOT EXISTS idx_rooms_name ON rooms(name)',
-    // Add thumbnail column
-    'ALTER TABLE rooms ADD COLUMN IF NOT EXISTS thumbnail_data BYTEA',
   ];
 
   try {
@@ -1290,23 +1288,6 @@ app.delete('/api/class-schedules/:id', async (req, res) => {
   }
 });
 
-// Delete All Class Schedules by Semester (Reset)
-app.delete('/api/class-schedules', async (req, res) => {
-  const { semester, academicYear } = req.body;
-  
-  if (!semester || !academicYear) {
-    return res.status(400).json({ error: 'Semester dan academic year wajib diisi.' });
-  }
-  
-  try {
-    await pool.query('DELETE FROM class_schedules WHERE semester = $1 AND academic_year = $2', [semester, academicYear]);
-    res.json({ success: true, message: 'Semua jadwal kelas semester tersebut telah dihapus.' });
-  } catch (err) {
-    console.error('Delete all class schedules error:', err);
-    res.status(500).json({ error: 'Gagal menghapus jadwal kelas.' });
-  }
-});
-
 // --- INVENTORY
 
 app.get('/api/inventory', async (req, res) => {
@@ -1527,15 +1508,6 @@ app.put('/api/item-movements/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/item-movements/:id', async (req, res) => {
-  try {
-    await pool.query('DELETE FROM item_movements WHERE id=$1', [req.params.id]);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: 'DB Error' });
-  }
-});
-
 // Undo Movement (Batalkan Perpindahan Terakhir)
 app.post('/api/item-movements/:id/undo', async (req, res) => {
   const { id } = req.params;
@@ -1673,7 +1645,7 @@ app.get('/api/room/:id', async (req, res) => {
 });
 
 app.post('/api/rooms', async (req, res) => {
-  const { id, name, category, description, capacity, pic, image, thumbnail, facilities, googleCalendarUrl, floor } = req.body;
+  const { id, name, category, description, capacity, pic, image, facilities, googleCalendarUrl, floor } = req.body;
   try {
     // Cari ID Staff berdasarkan nama (karena frontend mengirim nama)
     let picId = null;
@@ -1687,15 +1659,9 @@ app.post('/api/rooms', async (req, res) => {
         imageBuffer = Buffer.from(base64Data, 'base64');
     }
 
-    let thumbBuffer = null;
-    if (thumbnail && thumbnail.startsWith('data:image')) {
-        const base64Data = thumbnail.split(',')[1];
-        thumbBuffer = Buffer.from(base64Data, 'base64');
-    }
-
     await pool.query(
-      'INSERT INTO rooms (id, name, category, deskripsi, kapasitas, pic_id, image_data, thumbnail_data, fasilitas, google_calendar_url, lantai) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)',
-      [id, name, category, description, capacity, picId, imageBuffer, thumbBuffer, facilities || [], googleCalendarUrl, floor || 'FTI Lt. 4']
+      'INSERT INTO rooms (id, name, category, deskripsi, kapasitas, pic_id, image_data, fasilitas, google_calendar_url, lantai) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+      [id, name, category, description, capacity, picId, imageBuffer, facilities || [], googleCalendarUrl, floor || 'FTI Lt. 4']
     );
     res.json({ success: true });
   } catch (err) {
@@ -1704,32 +1670,8 @@ app.post('/api/rooms', async (req, res) => {
   }
 });
 
-app.post('/api/rooms/images', async (req, res) => {
-  const { roomIds } = req.body;
-
-  if (!Array.isArray(roomIds) || roomIds.length === 0) {
-    return res.status(400).json({ error: 'roomIds must be a non-empty array.' });
-  }
-
-  try {
-    const result = await pool.query(
-      'SELECT id, COALESCE(thumbnail_data, image_data) as image_data FROM rooms WHERE id = ANY($1::varchar[])',
-      [roomIds]
-    );
-
-    const images = result.rows.map(row => ({
-      id: row.id,
-      image: row.image_data ? `data:image/jpeg;base64,${row.image_data.toString('base64')}` : null,
-    }));
-
-    res.json(images);
-  } catch (err) {
-    res.status(500).json({ error: 'DB Error while fetching images' });
-  }
-});
-
 app.put('/api/rooms/:id', async (req, res) => {
-    const { name, category, description, capacity, pic, image, thumbnail, facilities, googleCalendarUrl, floor } = req.body;
+    const { name, category, description, capacity, pic, image, facilities, googleCalendarUrl, floor } = req.body;
     try {
       let picId = null;
       const staffRes = await pool.query("SELECT id FROM staff WHERE nama = $1", [pic]);
@@ -1746,16 +1688,6 @@ app.put('/api/rooms/:id', async (req, res) => {
           }
           updateQuery += `, image_data=$${paramIndex}`;
           params.push(imageBuffer);
-          paramIndex++;
-      }
-
-      if (thumbnail !== undefined) {
-          let thumbBuffer = null;
-          if (thumbnail && thumbnail.startsWith('data:image')) {
-              thumbBuffer = Buffer.from(thumbnail.split(',')[1], 'base64');
-          }
-          updateQuery += `, thumbnail_data=$${paramIndex}`;
-          params.push(thumbBuffer);
           paramIndex++;
       }
 
@@ -1974,12 +1906,45 @@ app.delete('/api/software/:id', async (req, res) => {
   }
 });
 
+// Endpoint Summary untuk Statistik Dashboard
+app.get('/api/dashboard/summary', verifyRole(['Admin', 'Laboran', 'Supervisor']), async (req, res) => {
+    try {
+        const [activeLoans, totalUsers, inventoryStats] = await Promise.all([
+            pool.query("SELECT COUNT(*) as count FROM loans WHERE status = 'Dipinjam'"),
+            pool.query("SELECT COUNT(*) as count FROM users WHERE role != 'Admin'"),
+            pool.query("SELECT kondisi, COUNT(*) as count FROM inventory GROUP BY kondisi")
+        ]);
+
+        let good = 0, minor = 0, major = 0, totalEq = 0;
+        inventoryStats.rows.forEach(row => {
+            const count = parseInt(row.count);
+            totalEq += count;
+            if (row.kondisi === 'Baik') good += count;
+            else if (row.kondisi === 'Rusak Ringan') minor += count;
+            else if (row.kondisi === 'Rusak Berat') major += count;
+        });
+
+        res.json({
+            activeLoans: parseInt(activeLoans.rows[0].count),
+            totalUsers: parseInt(totalUsers.rows[0].count),
+            equipment: { total: totalEq, damaged: minor + major, good, minor, major }
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Gagal mengambil summary dashboard.' });
+    }
+});
+
 // --- BOOKINGS (Tabel: bookings & booking_schedules) ---
 
 app.get('/api/bookings', async (req, res) => {
     try {
+        const excludeFile = req.query.exclude_file === 'true';
+        const columns = excludeFile 
+            ? 'b.id, b.room_id, b.user_id, b.penanggung_jawab, b.contact_person, b.keperluan, b.status, NULL as file_proposal, CASE WHEN b.file_proposal IS NOT NULL THEN true ELSE false END as has_file, b.tech_support_pic, b.tech_support_needs, b.rejection_reason, b.created_at, b.updated_at'
+            : 'b.*, CASE WHEN b.file_proposal IS NOT NULL THEN true ELSE false END as has_file';
+
         const result = await pool.query(`
-            SELECT b.*, u.nama as user_name, r.name as room_name, 
+            SELECT ${columns}, u.nama as user_name, r.name as room_name, 
                    (SELECT string_agg(s.nama, ', ') FROM staff s WHERE s.id = ANY(b.tech_support_pic)) as tech_pic_name,
                    (SELECT json_agg(json_build_object('date', bs2.schedule_date, 'startTime', bs2.start_time, 'endTime', bs2.end_time) ORDER BY bs2.schedule_date)
                     FROM booking_schedules bs2 
@@ -2005,12 +1970,28 @@ app.get('/api/bookings', async (req, res) => {
             schedules: row.all_schedules || [], // All schedules as array
             status: row.status,
             proposalFile: row.file_proposal ? `data:application/pdf;base64,${row.file_proposal.toString('base64')}` : null,
+            hasFile: row.has_file || (row.file_proposal ? true : false),
             techSupportPic: row.tech_support_pic || [], // Ensure array
             techSupportPicName: row.tech_pic_name, // Nama Staff untuk display
             techSupportNeeds: row.tech_support_needs,
             rejectionReason: row.rejection_reason
         }));
         res.json(bookings);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'DB Error' });
+    }
+});
+
+// Endpoint untuk On-Demand Fetching File Proposal
+app.get('/api/bookings/:id/file', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT file_proposal FROM bookings WHERE id = $1', [req.params.id]);
+        if (result.rows.length === 0 || !result.rows[0].file_proposal) {
+            return res.status(404).json({ error: 'File tidak ditemukan' });
+        }
+        const base64Data = `data:application/pdf;base64,${result.rows[0].file_proposal.toString('base64')}`;
+        res.json({ file: base64Data });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'DB Error' });
@@ -2824,22 +2805,6 @@ app.post('/api/settings/restore', upload.single('backupFile'), async (req, res) 
   }
 });
 
-// Endpoint Read Error Log (Legacy - from file)
-app.get('/api/settings/error-log', (req, res) => {
-  const logPath = path.join(process.cwd(), 'server.log'); // Mencari file server.log di root folder
-  
-  if (fs.existsSync(logPath)) {
-    try {
-      const logContent = fs.readFileSync(logPath, 'utf8');
-      res.json({ log: logContent });
-    } catch (err) {
-      res.status(500).json({ error: 'Gagal membaca file log.' });
-    }
-  } else {
-    res.json({ log: 'File log (server.log) tidak ditemukan di root folder. Pastikan server dijalankan dengan logging ke file.' });
-  }
-});
-
 // --- ERROR LOGS API (Database-based) ---
 
 // Get Error Logs with filtering
@@ -3107,81 +3072,6 @@ app.get('/api/error-logs/stats', async (req, res) => {
   }
 });
 
-// --- DATABASE CONFIG API ---
-
-// Get Database Config
-app.get('/api/settings/db-config', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM db_config WHERE is_active = TRUE LIMIT 1');
-    if (result.rows.length === 0) {
-      return res.json({ host: '', port: '', database_name: '', username: '', password: '' });
-    }
-    const config = result.rows[0];
-    res.json({
-      host: config.host,
-      port: config.port,
-      database: config.database_name,
-      username: config.username,
-      password: config.password
-    });
-  } catch (err) {
-    console.error('Get DB config error:', err);
-    res.status(500).json({ error: 'Gagal mengambil konfigurasi database.' });
-  }
-});
-
-// Save Database Config
-app.post('/api/settings/db-config', async (req, res) => {
-  const { host, port, database, username, password } = req.body;
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    
-    // Deactivate all existing configs
-    await client.query('UPDATE db_config SET is_active = FALSE');
-    
-    // Insert new config
-    await client.query(
-      'INSERT INTO db_config (host, port, database_name, username, password, is_active) VALUES ($1, $2, $3, $4, $5, TRUE)',
-      [host, port, database, username, password]
-    );
-    
-    await client.query('COMMIT');
-    res.json({ success: true, message: 'Konfigurasi database berhasil disimpan.' });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Save DB config error:', err);
-    res.status(500).json({ error: 'Gagal menyimpan konfigurasi database.' });
-  } finally {
-    client.release();
-  }
-});
-
-// Test Database Connection
-app.post('/api/settings/db-config/test', async (req, res) => {
-  const { host, port, database, username, password } = req.body;
-  
-  // Create a temporary pool to test connection
-  const testPool = new Pool({
-    host,
-    port: parseInt(port),
-    database,
-    user: username,
-    password,
-    connectionTimeoutMillis: 5000
-  });
-  
-  try {
-    const result = await testPool.query('SELECT NOW()');
-    await testPool.end();
-    res.json({ success: true, message: 'Koneksi berhasil!' });
-  } catch (err) {
-    await testPool.end();
-    console.error('Test DB connection error:', err);
-    res.status(500).json({ error: 'Koneksi gagal. Periksa kembali parameter.' });
-  }
-});
-
 // --- SSO CONFIG API ---
 
 // Get SSO Config
@@ -3250,77 +3140,6 @@ app.get('/api/sso-users', verifyRole(['Admin']), async (req, res) => {
   } catch (err) {
     console.error('Get SSO users error:', err);
     res.status(500).json({ error: 'Gagal mengambil data pengguna SSO.' });
-  }
-});
-
-// Add New SSO User
-app.post('/api/sso-users', async (req, res) => {
-  const { email, name } = req.body;
-  try {
-    // Check if email already exists
-    const existing = await pool.query('SELECT id FROM sso_users WHERE email = $1', [email]);
-    if (existing.rows.length > 0) {
-      return res.status(400).json({ error: 'Email sudah terdaftar.' });
-    }
-
-    const id = `SSO-${Date.now()}`;
-    await pool.query(
-      'INSERT INTO sso_users (id, email, name, status) VALUES ($1, $2, $3, $4)',
-      [id, email, name, 'Aktif']
-    );
-    res.json({ success: true, id });
-  } catch (err) {
-    console.error('Add SSO user error:', err);
-    res.status(500).json({ error: 'Gagal menambah pengguna SSO.' });
-  }
-});
-
-// Update SSO User
-app.put('/api/sso-users/:id', async (req, res) => {
-  const { id } = req.params;
-  const { email, name } = req.body;
-  try {
-    // Check if email is used by another user
-    const existing = await pool.query('SELECT id FROM sso_users WHERE email = $1 AND id != $2', [email, id]);
-    if (existing.rows.length > 0) {
-      return res.status(400).json({ error: 'Email sudah digunakan pengguna lain.' });
-    }
-
-    await pool.query(
-      'UPDATE sso_users SET email = $1, name = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
-      [email, name, id]
-    );
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Update SSO user error:', err);
-    res.status(500).json({ error: 'Gagal update pengguna SSO.' });
-  }
-});
-
-// Toggle SSO User Status
-app.put('/api/sso-users/:id/status', async (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body;
-  try {
-    await pool.query(
-      'UPDATE sso_users SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-      [status, id]
-    );
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Update SSO user status error:', err);
-    res.status(500).json({ error: 'Gagal update status pengguna SSO.' });
-  }
-});
-
-// Delete SSO User
-app.delete('/api/sso-users/:id', async (req, res) => {
-  try {
-    await pool.query('DELETE FROM sso_users WHERE id = $1', [req.params.id]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Delete SSO user error:', err);
-    res.status(500).json({ error: 'Gagal menghapus pengguna SSO.' });
   }
 });
 

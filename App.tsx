@@ -274,7 +274,7 @@ const App: React.FC = () => {
               allowedRoles={[Role.ADMIN, Role.LABORAN, 'Supervisor' as Role]} 
               onNavigate={setCurrentPage}
             >
-              <PeminjamanBarang role={currentRole} showToast={showToast} />
+              <PeminjamanBarang/>
             </ProtectedRoute>
           );
         case 'laboran-management':

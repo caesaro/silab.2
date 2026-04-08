@@ -30,25 +30,8 @@ const RoomForm: React.FC<RoomFormProps> = ({ initialData, isEditing, onSave, onC
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
-        
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 400; // Resolusi thumbnail lebih rendah untuk performa
-          const scaleSize = MAX_WIDTH / img.width;
-          canvas.width = MAX_WIDTH;
-          canvas.height = img.height * scaleSize;
-          
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          }
-          const thumbnail = canvas.toDataURL('image/jpeg', 0.4); // Kualitas 40% sudah cukup untuk thumbnail
-          
-          setFormData(prev => ({ ...prev, image: result, thumbnail: thumbnail, imageChanged: true } as any));
-          setIsImageProcessing(false);
-        };
-        img.src = result;
+        setFormData(prev => ({ ...prev, image: result, imageChanged: true } as any));
+        setIsImageProcessing(false);
       };
       reader.readAsDataURL(file);
     }
@@ -204,11 +187,11 @@ const RoomForm: React.FC<RoomFormProps> = ({ initialData, isEditing, onSave, onC
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Upload Gambar 360°</label>
             <div className="border-2 border-dashed border-gray-300 dark:border-gray-500 rounded-xl p-8 text-center hover:bg-white dark:hover:bg-gray-800 transition-all group relative overflow-hidden bg-gray-50/50 dark:bg-gray-800/50">
               {isImageProcessing ? (
-                <div className="flex flex-col items-center text-blue-600"><Loader2 className="w-10 h-10 animate-spin mb-3" /><span className="text-sm font-semibold">Memproses resolusi...</span></div>
+                <div className="flex flex-col items-center text-blue-600"><Loader2 className="w-10 h-10 animate-spin mb-3" /><span className="text-sm font-semibold">Memuat gambar...</span></div>
               ) : formData.image ? (
                 <div className="flex flex-col items-center">
                   <img src={formData.image} alt="Preview" className="h-56 w-full object-cover rounded-lg shadow-sm mb-4 border border-gray-200 dark:border-gray-700" />
-              <button type="button" onClick={() => setFormData({ ...formData, image: '', thumbnail: '', imageChanged: true } as any)} className="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg text-sm font-medium transition-colors">Hapus & Ganti Gambar</button>
+              <button type="button" onClick={() => setFormData({ ...formData, image: '', imageChanged: true } as any)} className="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg text-sm font-medium transition-colors">Hapus & Ganti Gambar</button>
                 </div>
               ) : (
                 <label className="cursor-pointer flex flex-col items-center py-6">

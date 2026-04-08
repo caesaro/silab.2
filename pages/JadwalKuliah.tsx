@@ -6,7 +6,6 @@ import { TableSkeleton } from '../components/Skeleton';
 import SearchableSelect, { SelectOption } from '../components/SearchableSelect';
 import SearchBar from '../components/SearchBar';
 import { useGoogleCalendar } from '../hooks/useGoogleCalendar';
-import ExcelJS from 'exceljs';
 
 declare global {
   interface Window {
@@ -53,7 +52,7 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
   const [formData, setFormData] = useState({
     courseCode: '',
     courseName: '',
-    classGroup: '',
+    classGroup: '-',
     dayOfWeek: 'Senin',
     startTime: '08:00',
     endTime: '10:00',
@@ -129,8 +128,11 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
 
   useEffect(() => {
     fetchSchedules();
-    fetchRooms();
   }, [filterSemester, filterAcademicYear]);
+
+  useEffect(() => {
+    fetchRooms();
+  }, []);
 
   const filteredSchedules = schedules.filter(schedule => {
     const matchesSearch = 
@@ -147,7 +149,7 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
       setFormData({
         courseCode: schedule.courseCode,
         courseName: schedule.courseName,
-        classGroup: schedule.classGroup,
+        classGroup: schedule.classGroup || '-',
         dayOfWeek: schedule.dayOfWeek,
         startTime: schedule.startTime,
         endTime: schedule.endTime,
@@ -163,7 +165,7 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
       setFormData({
         courseCode: '',
         courseName: '',
-        classGroup: '',
+        classGroup: '-',
         dayOfWeek: 'Senin',
         startTime: '08:00',
         endTime: '10:00',
@@ -179,13 +181,13 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
   };
 
   const handleDownloadTemplate = async () => {
+    const ExcelJS = (await import('exceljs')).default;
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Template Jadwal Kuliah');
 
     worksheet.columns = [
       { header: 'courseCode', key: 'courseCode', width: 15 },
       { header: 'courseName', key: 'courseName', width: 30 },
-      { header: 'classGroup', key: 'classGroup', width: 15 },
       { header: 'dayOfWeek', key: 'dayOfWeek', width: 15 },
       { header: 'startTime', key: 'startTime', width: 15 },
       { header: 'endTime', key: 'endTime', width: 15 },
@@ -200,7 +202,6 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
     worksheet.addRow({
       courseCode: "TI401",
       courseName: "Jaringan Komputer",
-      classGroup: "A",
       dayOfWeek: "Senin",
       startTime: "08:00",
       endTime: "10:00",
@@ -230,6 +231,7 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
     reader.onload = async (event) => {
       const buffer = event.target?.result as ArrayBuffer;
       try {
+        const ExcelJS = (await import('exceljs')).default;
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(buffer);
         const worksheet = workbook.getWorksheet(1);
@@ -293,7 +295,7 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
               newSchedules.push({
                 courseCode: rowData.courseCode,
                 courseName: rowData.courseName,
-                classGroup: rowData.classGroup || 'A',
+                classGroup: '-',
                 dayOfWeek: rowData.dayOfWeek || 'Senin',
                 startTime: rowData.startTime || '08:00',
                 endTime: rowData.endTime || '10:00',
@@ -345,7 +347,7 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
                     const semesterEnd = new Date(schedule.endDate);
                     semesterEnd.setUTCHours(23, 59, 59, 999);
                     const untilStr = semesterEnd.toISOString().replace(/[-:.]/g, '').substring(0, 15) + 'Z';
-                    const eventResource = { summary: `[KULIAH] ${schedule.courseName} (${schedule.classGroup})`, location: room.name, description: `Mata Kuliah: ${schedule.courseName}\nKode: ${schedule.courseCode}\nDosen: ${schedule.lecturerName || '-'}\nSemester: ${schedule.semester} ${schedule.academicYear}\n\nDiinput via CORE.FTI`, start: { dateTime: startDateTime.toISOString(), timeZone: userTimeZone }, end: { dateTime: endDateTime.toISOString(), timeZone: userTimeZone }, recurrence: [`RRULE:FREQ=WEEKLY;UNTIL=${untilStr}`] };
+                    const eventResource = { summary: `${schedule.courseCode} ${schedule.courseName}-${schedule.lecturerName || ''}`, location: room.name, description: `Mata Kuliah: ${schedule.courseName}\nKode: ${schedule.courseCode}\nDosen: ${schedule.lecturerName || '-'}\nSemester: ${schedule.semester} ${schedule.academicYear}\n\nDiinput via CORE.FTI`, start: { dateTime: startDateTime.toISOString(), timeZone: userTimeZone }, end: { dateTime: endDateTime.toISOString(), timeZone: userTimeZone }, recurrence: [`RRULE:FREQ=WEEKLY;UNTIL=${untilStr}`] };
                     await googleApi.createEvent(calendarId, eventResource);
                   }
                 }
@@ -420,44 +422,62 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
           fetchSchedules();
           
           // Update integrasi Google Calendar
-          const room = rooms.find(r => r.id === formData.roomId);
-          if (room && room.googleCalendarUrl && googleApi.isGapiInitialized && googleApi.isAuthenticated) {
+          if (!googleApi.isGapiInitialized) {
+            showToast('Google API belum siap, jadwal tersimpan namun sinkronisasi Calendar gagal.', 'warning');
+          } else if (!googleApi.isAuthenticated) {
+            googleApi.login();
+            showToast('Mohon login ke Google untuk mensinkronkan perubahan ini ke Calendar.', 'info');
+          } else {
             if (!formData.startDate || !formData.endDate) {
               showToast('Tanggal periode mulai & selesai wajib diisi untuk sinkronisasi Calendar!', 'warning');
-              return;
-            }
-            const calendarId = getCalendarId(room.googleCalendarUrl);
-            if (calendarId) {
-              try {
-                // Hapus event lama
-                const q = `[KULIAH] ${editingSchedule.courseName} (${editingSchedule.classGroup})`;
-                const response = await window.gapi.client.calendar.events.list({ calendarId, q });
-                if (response.result.items && response.result.items.length > 0) {
-                  await googleApi.deleteEvent(calendarId, response.result.items[0].id);
+            } else {
+              // 1. Hapus event lama dari ruangan lama
+              const oldRoom = rooms.find(r => r.id === editingSchedule.roomId);
+              if (oldRoom && oldRoom.googleCalendarUrl) {
+                const oldCalendarId = getCalendarId(oldRoom.googleCalendarUrl);
+                if (oldCalendarId) {
+                  try {
+                    const q = `${editingSchedule.courseCode} ${editingSchedule.courseName}-${editingSchedule.lecturerName || ''}`;
+                    const response = await window.gapi.client.calendar.events.list({ calendarId: oldCalendarId, q });
+                    if (response.result.items && response.result.items.length > 0) {
+                      await googleApi.deleteEvent(oldCalendarId, response.result.items[0].id);
+                    }
+                  } catch (e) {
+                    console.error("Gagal hapus event lama di GCal", e);
+                  }
                 }
-                // Buat event baru
-                const dayMap: Record<string, number> = { 'Minggu': 0, 'Senin': 1, 'Selasa': 2, 'Rabu': 3, 'Kamis': 4, 'Jumat': 5, 'Sabtu': 6 };
-                const targetDay = dayMap[formData.dayOfWeek] ?? 1;
-                const semesterStart = new Date(formData.startDate);
-                let distance = targetDay - semesterStart.getDay();
-                if (distance < 0) distance += 7;
-                const firstClassDate = new Date(semesterStart);
-                firstClassDate.setDate(semesterStart.getDate() + distance);
-                const dateStr = firstClassDate.toISOString().split('T')[0];
-                const startDateTime = new Date(`${dateStr}T${formData.startTime}:00`);
-                const endDateTime = new Date(`${dateStr}T${formData.endTime}:00`);
-                const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                                // Format UNTIL (Batas waktu repetisi Google Calendar)
-                const semesterEnd = new Date(formData.endDate);
-                semesterEnd.setUTCHours(23, 59, 59, 999);
-                const untilStr = semesterEnd.toISOString().replace(/[-:.]/g, '').substring(0, 15) + 'Z';
+              }
 
-                const eventResource = { summary: `[KULIAH] ${formData.courseName} (${formData.classGroup})`, location: room.name, description: `Mata Kuliah: ${formData.courseName}\nKode: ${formData.courseCode}\nDosen: ${formData.lecturerName || '-'}\nSemester: ${formData.semester} ${formData.academicYear}\n\nDiinput via CORE.FTI`, start: { dateTime: startDateTime.toISOString(), timeZone: userTimeZone }, end: { dateTime: endDateTime.toISOString(), timeZone: userTimeZone }, recurrence: [`RRULE:FREQ=WEEKLY;UNTIL=${untilStr}`] };
-                await googleApi.createEvent(calendarId, eventResource);
-                showToast('Jadwal di Google Calendar juga telah diperbarui.', 'info');
-              } catch (e) {
-                console.error(e);
-                showToast('Gagal memperbarui jadwal di Google Calendar.', 'error');
+              // 2. Buat event baru di ruangan baru (atau ruangan yang sama tapi jam/hari berubah)
+              const newRoom = rooms.find(r => r.id === formData.roomId);
+              if (newRoom && newRoom.googleCalendarUrl) {
+                const newCalendarId = getCalendarId(newRoom.googleCalendarUrl);
+                if (newCalendarId) {
+                  try {
+                    const dayMap: Record<string, number> = { 'Minggu': 0, 'Senin': 1, 'Selasa': 2, 'Rabu': 3, 'Kamis': 4, 'Jumat': 5, 'Sabtu': 6 };
+                    const targetDay = dayMap[formData.dayOfWeek] ?? 1;
+                    const semesterStart = new Date(formData.startDate);
+                    let distance = targetDay - semesterStart.getDay();
+                    if (distance < 0) distance += 7;
+                    const firstClassDate = new Date(semesterStart);
+                    firstClassDate.setDate(semesterStart.getDate() + distance);
+                    const dateStr = firstClassDate.toISOString().split('T')[0];
+                    const startDateTime = new Date(`${dateStr}T${formData.startTime}:00`);
+                    const endDateTime = new Date(`${dateStr}T${formData.endTime}:00`);
+                    const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                    
+                    const semesterEnd = new Date(formData.endDate);
+                    semesterEnd.setUTCHours(23, 59, 59, 999);
+                    const untilStr = semesterEnd.toISOString().replace(/[-:.]/g, '').substring(0, 15) + 'Z';
+
+                    const eventResource = { summary: `${formData.courseCode} ${formData.courseName}-${formData.lecturerName || ''}`, location: newRoom.name, description: `Mata Kuliah: ${formData.courseName}\nKode: ${formData.courseCode}\nDosen: ${formData.lecturerName || '-'}\nSemester: ${formData.semester} ${formData.academicYear}\n\nDiinput via CORE.FTI`, start: { dateTime: startDateTime.toISOString(), timeZone: userTimeZone }, end: { dateTime: endDateTime.toISOString(), timeZone: userTimeZone }, recurrence: [`RRULE:FREQ=WEEKLY;UNTIL=${untilStr}`] };
+                    await googleApi.createEvent(newCalendarId, eventResource);
+                    showToast('Jadwal di Google Calendar telah disinkronkan.', 'info');
+                  } catch (e) {
+                    console.error("Gagal buat event baru di GCal", e);
+                    showToast('Gagal membuat jadwal di Google Calendar ruangan.', 'error');
+                  }
+                }
               }
             }
           }
@@ -500,7 +520,7 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
                   const semesterEnd = new Date(formData.endDate);
                   semesterEnd.setUTCHours(23, 59, 59, 999);
                   const untilStr = semesterEnd.toISOString().replace(/[-:.]/g, '').substring(0, 15) + 'Z';
-                  const eventResource = { summary: `[KULIAH] ${formData.courseName} (${formData.classGroup})`, location: room.name, description: `Mata Kuliah: ${formData.courseName}\nKode: ${formData.courseCode}\nDosen: ${formData.lecturerName || '-'}\nSemester: ${formData.semester} ${formData.academicYear}\n\nDiinput via CORE.FTI`, start: { dateTime: startDateTime.toISOString(), timeZone: userTimeZone }, end: { dateTime: endDateTime.toISOString(), timeZone: userTimeZone }, recurrence: [`RRULE:FREQ=WEEKLY;UNTIL=${untilStr}`] };
+                  const eventResource = { summary: `${formData.courseCode} ${formData.courseName}-${formData.lecturerName || ''}`, location: room.name, description: `Mata Kuliah: ${formData.courseName}\nKode: ${formData.courseCode}\nDosen: ${formData.lecturerName || '-'}\nSemester: ${formData.semester} ${formData.academicYear}\n\nDiinput via CORE.FTI`, start: { dateTime: startDateTime.toISOString(), timeZone: userTimeZone }, end: { dateTime: endDateTime.toISOString(), timeZone: userTimeZone }, recurrence: [`RRULE:FREQ=WEEKLY;UNTIL=${untilStr}`] };
                   const success = await googleApi.createEvent(calendarId, eventResource);
                   if (success) showToast('Berhasil disinkronkan ke Google Calendar ruangan!', 'success');
                 }
@@ -530,7 +550,7 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
             const calendarId = getCalendarId(room.googleCalendarUrl);
             if (calendarId) {
               try {
-                const q = `[KULIAH] ${scheduleToDelete.courseName} (${scheduleToDelete.classGroup})`;
+                const q = `${scheduleToDelete.courseCode} ${scheduleToDelete.courseName}-${scheduleToDelete.lecturerName || ''}`;
                 const response = await window.gapi.client.calendar.events.list({ calendarId, q });
                 const events = response.result.items;
                 if (events && events.length > 0) {
@@ -666,7 +686,6 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <span className="text-xs font-bold text-blue-600 dark:text-blue-400">{schedule.courseCode}</span>
-                        <span className="text-xs text-gray-500 ml-2">({schedule.classGroup})</span>
                       </div>
                       <div className="flex space-x-1">
                         <button onClick={() => handleOpenModal(schedule)} className="p-1 text-blue-600 hover:bg-blue-100 rounded dark:hover:bg-blue-900/30">
@@ -722,27 +741,15 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
                  </button>
               </div>
               <form onSubmit={handleSave} className="p-3 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto flex-1">
-                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Kode Matakuliah</label>
-                        <input 
-                            type="text" required 
-                            value={formData.courseCode} 
-                            onChange={e => setFormData({...formData, courseCode: e.target.value.toUpperCase()})}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 font-mono"
-                            placeholder="TI401"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Kelompok</label>
-                        <input 
-                            type="text" required 
-                            value={formData.classGroup} 
-                            onChange={e => setFormData({...formData, classGroup: e.target.value.toUpperCase()})}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                            placeholder="A"
-                        />
-                    </div>
+                 <div>
+                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Kode Matakuliah</label>
+                     <input 
+                         type="text" required 
+                         value={formData.courseCode} 
+                         onChange={e => setFormData({...formData, courseCode: e.target.value.toUpperCase()})}
+                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 font-mono"
+                         placeholder="Contoh: DC502"
+                     />
                  </div>
                  
                  <div>

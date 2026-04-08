@@ -13,7 +13,7 @@ import {
   Save,
   FileText,
   Download,
-  Share2,
+  Printer,
   AlertTriangle,
   Trash2,
   XCircle,
@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import nocLogo from "../src/assets/noc.png";
 import { formatDateID } from "../src/utils/formatters";
+import QRCode from "react-qr-code";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pure helpers  (defined outside the component to avoid re-creation on render)
@@ -116,7 +117,7 @@ const BookingDetailModal = ({
   setEditTechData,
   handleSaveTechData,
   handleViewFile,
-  handleShareImage,
+  handlePrintProof,
   handleRejectClick,
   handleDeleteClick,
   handleApproveClick,
@@ -544,7 +545,7 @@ const BookingDetailModal = ({
           <div className="border-t border-gray-100 px-6 py-4 dark:border-gray-700">
             <div
               className={`flex items-center justify-between rounded-xl border p-4 transition-colors ${
-                selectedBooking.proposalFile
+                (selectedBooking as any).hasFile
                   ? "border-blue-100 bg-blue-50 dark:border-blue-800/60 dark:bg-blue-900/20"
                   : "border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700/30"
               }`}
@@ -553,7 +554,7 @@ const BookingDetailModal = ({
               <div className="flex items-center gap-3">
                 <div
                   className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${
-                    selectedBooking.proposalFile
+                    (selectedBooking as any).hasFile
                       ? "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400"
                       : "bg-gray-200 text-gray-400 dark:bg-gray-600"
                   }`}
@@ -565,7 +566,7 @@ const BookingDetailModal = ({
                     Surat Permohonan.pdf
                   </p>
                   <p className="text-xs text-gray-400">
-                    {selectedBooking.proposalFile
+                    {(selectedBooking as any).hasFile
                       ? "Dokumen PDF tersedia"
                       : "Belum ada dokumen yang diunggah"}
                   </p>
@@ -573,10 +574,10 @@ const BookingDetailModal = ({
               </div>
 
               {/* Open button */}
-              {selectedBooking.proposalFile && (
+              {(selectedBooking as any).hasFile && (
                 <button
                   onClick={(e: React.MouseEvent) =>
-                    handleViewFile(e, selectedBooking.proposalFile!)
+                    handleViewFile(e, selectedBooking.id)
                   }
                   className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-600 shadow-sm transition-colors hover:bg-blue-50 dark:border-blue-700 dark:bg-gray-800 dark:text-blue-400 dark:hover:bg-blue-900/30"
                 >
@@ -587,99 +588,132 @@ const BookingDetailModal = ({
             </div>
           </div>
 
-          {/* ── Hidden ticket markup — used only for html2canvas image export ── */}
+          {/* ── Hidden ticket markup — used only for print export ── */}
           <div className="absolute -left-[9999px] top-0">
-            <div
-              ref={ticketRef}
-              className="w-[600px] rounded-xl border border-gray-200 bg-white p-8 font-sans"
-            >
-              {/* Ticket header */}
-              <div className="mb-6 flex items-center justify-between border-b-2 border-gray-800 pb-4">
-                <div className="flex items-center gap-4">
-                  <img
-                    src={nocLogo}
-                    alt="Logo"
-                    className="h-16 w-16 object-contain"
-                  />
-                  <div>
-                    <h1 className="text-2xl font-bold text-gray-900">
-                      CORE.FTI
-                    </h1>
-                    <p className="text-sm text-gray-600">
-                      Fakultas Teknologi Informasi - UKSW
-                    </p>
-                  </div>
-                </div>
-                <span className="rounded-full border border-green-200 bg-green-100 px-3 py-1 text-sm font-bold text-green-800">
-                  APPROVED
-                </span>
-              </div>
+            <div ref={ticketRef} className="w-full text-black">
+                <div className="relative z-10">
+                    {/* Kop Surat */}
+                    <div className="flex items-center border-b-4 border-double border-gray-900 pb-6 mb-8">
+                        <img src={nocLogo} alt="Logo" className="w-24 h-24 object-contain mr-6" />
+                        <div className="flex-1 text-center">
+                            <h2 className="text-xl font-bold uppercase tracking-wider text-gray-800">Universitas Kristen Satya Wacana</h2>
+                            <h1 className="text-2xl font-extrabold uppercase tracking-widest text-blue-900 mt-1">Fakultas Teknologi Informasi</h1>
+                            <p className="text-sm text-gray-600 mt-2">Jl. Dr. O. Notohamidjojo No.1-10, Blotongan, Salatiga 50715</p>
+                            <p className="text-sm text-gray-600">Email: fti.laboran@adm.uksw.edu | Telp: (0298) 321212</p>
+                        </div>
+                        <div className="w-24 h-24 flex items-center justify-center">
+                            <QRCode value={selectedBooking.id} size={80} level="M" />
+                        </div>
+                    </div>
 
-              {/* Ticket body */}
-              <div className="space-y-6">
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                  <h2 className="mb-1 text-lg font-bold text-gray-800">
-                    {selectedBooking.purpose}
-                  </h2>
-                  <p className="text-sm text-gray-600">
-                    Peminjam: {selectedBooking.userName} (
-                    {selectedBooking.userId})
-                  </p>
-                </div>
+                    <div className="text-center mb-10">
+                        <h3 className="text-xl font-bold text-black underline underline-offset-4 mb-2">SURAT PERSETUJUAN PEMINJAMAN FASILITAS</h3>
+                        <p className="text-sm text-gray-600 font-mono">No. Reg: {selectedBooking.id}</p>
+                    </div>
 
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <p className="mb-1 text-xs font-bold uppercase text-gray-500">
-                      Ruangan
-                    </p>
-                    <p className="text-lg font-medium text-gray-900">
-                      {ticketRoomName}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="mb-1 text-xs font-bold uppercase text-gray-500">
-                      Waktu
-                    </p>
-                    <p className="text-lg font-medium text-gray-900">
-                      {formatDateID(selectedBooking.date)}
-                    </p>
-                    <p className="text-md text-gray-700">
-                      {selectedBooking.startTime} – {selectedBooking.endTime}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="mb-1 text-xs font-bold uppercase text-gray-500">
-                      Penanggung Jawab
-                    </p>
-                    <p className="text-md font-medium text-gray-900">
-                      {selectedBooking.responsiblePerson}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {selectedBooking.contactPerson}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="mb-1 text-xs font-bold uppercase text-gray-500">
-                      Technical Support
-                    </p>
-                    <p className="text-md font-medium text-gray-900">
-                      {selectedBooking.techSupportPicName || "—"}
-                    </p>
-                  </div>
-                </div>
+                    <div className="mb-6">
+                        <p className="text-gray-800 leading-relaxed text-justify mb-4">
+                            Berdasarkan permohonan peminjaman fasilitas yang diajukan pada sistem CORE.FTI, dengan ini Laboratorium Fakultas Teknologi Informasi UKSW menerangkan bahwa:
+                        </p>
+                    </div>
 
-                <div className="mt-4 border-t border-gray-200 pt-4">
-                  <p className="mb-1 text-xs font-bold uppercase text-gray-500">
-                    Catatan Kebutuhan
-                  </p>
-                  <p className="text-sm italic text-gray-700">
-                    {selectedBooking.techSupportNeeds ||
-                      "Tidak ada kebutuhan khusus."}
-                  </p>
+                    {/* Data Peminjam */}
+                    <div className="mb-8">
+                        <table className="w-full text-left border-collapse">
+                            <tbody>
+                                <tr>
+                                    <td className="py-2 w-1/3 font-semibold text-gray-700">Nama Peminjam</td>
+                                    <td className="py-2 w-4 text-center">:</td>
+                                    <td className="py-2 font-bold text-gray-900">{selectedBooking.userName}</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-2 font-semibold text-gray-700">NIM / NIDN</td>
+                                    <td className="py-2 text-center">:</td>
+                                    <td className="py-2 text-gray-800">{selectedBooking.userId}</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-2 font-semibold text-gray-700">Penanggung Jawab</td>
+                                    <td className="py-2 text-center">:</td>
+                                    <td className="py-2 text-gray-800">{selectedBooking.responsiblePerson}</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-2 font-semibold text-gray-700">Kontak Person</td>
+                                    <td className="py-2 text-center">:</td>
+                                    <td className="py-2 text-gray-800">{selectedBooking.contactPerson}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="mb-6">
+                        <p className="text-gray-800 leading-relaxed text-justify mb-4">
+                            Telah <strong className="text-green-700">DISETUJUI</strong> untuk menggunakan fasilitas ruangan sebagai berikut:
+                        </p>
+                    </div>
+
+                    {/* Data Kegiatan & Ruangan */}
+                    <div className="mb-8">
+                        <table className="w-full text-left border-collapse">
+                            <tbody>
+                                <tr>
+                                    <td className="py-2 w-1/3 font-semibold text-gray-700">Nama Kegiatan</td>
+                                    <td className="py-2 w-4 text-center">:</td>
+                                    <td className="py-2 font-bold text-gray-900">{selectedBooking.purpose}</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-2 font-semibold text-gray-700 items-start align-top">Ruangan & Waktu</td>
+                                    <td className="py-2 text-center align-top">:</td>
+                                    <td className="py-2 text-gray-800">
+                                        <ul className="list-disc ml-4 space-y-1">
+                                            {group.map((b: any, bIdx: number) => {
+                                               const scheds = b.schedules?.length > 0 ? b.schedules : [{ date: b.date, startTime: b.startTime, endTime: b.endTime }];
+                                               return scheds.map((sch: any, idx: number) => (
+                                                 <li key={`${bIdx}-${idx}`}>
+                                                    <span className="font-bold text-blue-800">{getRoomName(b.roomId)}</span> —{" "}
+                                                    <span className="font-semibold">{new Date(sch.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>,{" "}
+                                                    Pukul {sch.startTime?.slice(0,5)} s.d {sch.endTime?.slice(0,5)} WIB
+                                                 </li>
+                                               ));
+                                            })}
+                                        </ul>
+                                    </td>
+                                </tr>
+                                {(selectedBooking.techSupportPicName || selectedBooking.techSupportNeeds) && (
+                                <tr>
+                                    <td className="items-start align-top py-2 font-semibold text-gray-700">Dukungan Teknis</td>
+                                    <td className="align-top py-2 text-center">:</td>
+                                    <td className="py-2 text-gray-800">
+                                        {selectedBooking.techSupportPicName && <div>PIC: {selectedBooking.techSupportPicName}</div>}
+                                        {selectedBooking.techSupportNeeds && <div>Kebutuhan: {selectedBooking.techSupportNeeds}</div>}
+                                    </td>
+                                </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="mb-12">
+                        <p className="text-gray-800 leading-relaxed text-justify">
+                            Demikian surat persetujuan ini diterbitkan secara otomatis oleh sistem untuk dapat digunakan sebagaimana mestinya. Peminjam wajib menjaga kebersihan dan keamanan fasilitas yang digunakan.
+                        </p>
+                    </div>
+
+                    {/* Tanda Tangan */}
+                    <div className="flex justify-between items-end pt-8">
+                        <div className="text-xs text-gray-400">
+                            <p>Dokumen sah dicetak dari sistem CORE.FTI.</p>
+                            <p>Dicetak pada: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                        </div>
+                        <div className="text-center w-64">
+                            <p className="text-sm text-gray-800 mb-2">Salatiga, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                            <p className="text-sm font-bold text-gray-800 mb-16">Admin Laboratorium</p>
+                            <div className="border-b border-gray-400 w-full mb-2"></div>
+                            <p className="text-xs text-gray-500">Fakultas Teknologi Informasi</p>
+                        </div>
+                    </div>
                 </div>
-              </div>
-            </div>
           </div>
+        </div>
         </div>
 
         {/* ══════════════════════════════════════════════════════════════════
@@ -699,11 +733,11 @@ const BookingDetailModal = ({
           {selectedBooking.status === BookingStatus.APPROVED && (
             <>
               <button
-                onClick={handleShareImage}
+                onClick={handlePrintProof}
                 className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
               >
-                <Share2 className="h-4 w-4" />
-                Share Gambar
+                <Printer className="h-4 w-4" />
+                Cetak Bukti
               </button>
 
               <button
