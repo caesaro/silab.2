@@ -200,8 +200,16 @@ const PeminjamanBarang: React.FC = () => {
         const staffData = await staffRes.json();
         // Filter only active staff (status = 'Aktif')
         const activeStaffData = staffData
-          .filter((staff: LabStaff) => staff.status === 'Aktif')
-          .map((staff: LabStaff) => staff);
+          .filter((staff: any) => staff.status === 'Aktif')
+          .map((staff: any) => ({
+            id: staff.id,
+            name: staff.nama,
+            nim: staff.identifier,
+            email: staff.email,
+            phone: staff.telepon,
+            jabatan: staff.jabatan,
+            status: staff.status
+          }));
         setActiveStaff(activeStaffData);
       }
     } catch (e) { console.error(e); }

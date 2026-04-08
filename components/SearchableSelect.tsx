@@ -33,10 +33,13 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const filteredOptions = options.filter(opt => 
-    opt.label.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (opt.subLabel && opt.subLabel.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredOptions = options.filter(opt => {
+    const safeLabel = opt.label || '';
+    const safeSubLabel = opt.subLabel || '';
+    const safeSearchTerm = searchTerm || '';
+    return safeLabel.toLowerCase().includes(safeSearchTerm.toLowerCase()) || 
+           safeSubLabel.toLowerCase().includes(safeSearchTerm.toLowerCase());
+  });
 
   const selectedOption = options.find(opt => opt.value === value);
 
