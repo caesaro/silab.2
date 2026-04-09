@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Role, Room } from '../types';
-import { Search, Plus, Filter, Edit, Trash2, X, Check, RefreshCw, Loader2, Users, BookOpen, Calendar, Clock, MapPin, Download, FileSpreadsheet, AlertTriangle } from 'lucide-react';
+import { Search, Plus, Filter, Edit, Trash2, X, Check, RefreshCw, Loader2, Users, BookOpen, Calendar, Clock, MapPin, Download, FileSpreadsheet, AlertTriangle, LogIn, LogOut } from 'lucide-react';
 import { api } from '../services/api';
 import { TableSkeleton } from '../components/Skeleton';
 import SearchableSelect, { SelectOption } from '../components/SearchableSelect';
@@ -809,13 +809,20 @@ const handleDownloadTemplate = async () => {
         </div>
         <div className="flex flex-wrap gap-2">
           {canManage && googleApi.isGapiInitialized && !googleApi.isAuthenticated && (
-            <button onClick={() => googleApi.login()} className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium flex items-center shadow-sm transition-all hover:scale-105">
-              <Calendar className="w-4 h-4 mr-2" /> Login Google Calendar
+            <button onClick={() => googleApi.login()} className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors shadow-sm">
+              <LogIn className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Login Google</span>
             </button>
           )}
           {canManage && googleApi.isAuthenticated && (
-            <div className="px-3 py-2 bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/30 dark:border-green-800 dark:text-green-400 rounded-lg text-sm font-medium flex items-center shadow-sm">
-              <Check className="w-4 h-4 mr-2" /> Google Calendar Terhubung
+            <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg shadow-sm">
+              <Check className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+              <span className="text-sm font-medium text-green-700 dark:text-green-300 max-w-[150px] truncate">
+                {googleApi.googleUserEmail || "Terhubung"}
+              </span>
+              <button onClick={() => googleApi.logout()} className="p-1 hover:bg-green-100 dark:hover:bg-green-900/40 rounded transition-colors" title="Logout Google Calendar">
+                <LogOut className="w-4 h-4 text-green-600 dark:text-green-400" />
+              </button>
             </div>
           )}
           <button onClick={handleDownloadTemplate} className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium flex items-center shadow-sm transition-all hover:scale-105">
