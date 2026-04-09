@@ -108,9 +108,7 @@ const PeminjamanBarang: React.FC = () => {
         return;
       }
 
-      // Add to form data if not exists
       setFormData(prev => {
-        // Check for duplicates in other rows (except the row being edited)
         const isDuplicate = prev.equipmentIds.some((id, idx) => 
           id === decodedText && (scanningRowIndex === null || idx !== scanningRowIndex)
         );
@@ -123,10 +121,8 @@ const PeminjamanBarang: React.FC = () => {
         const newIds = [...prev.equipmentIds];
 
         if (scanningRowIndex !== null) {
-          // Update specific row
           newIds[scanningRowIndex] = decodedText;
         } else {
-          // Global scan mode: fill first empty slot or add new
           if (newIds.length === 1 && newIds[0] === '') {
             newIds[0] = decodedText;
           } else {
@@ -137,11 +133,6 @@ const PeminjamanBarang: React.FC = () => {
         showToast(`Ditambahkan: ${item.name}`, "success");
         return { ...prev, equipmentIds: newIds };
       });
-
-      // Close scanner only if scanning for a specific row
-      if (scanningRowIndex !== null) {
-        handleCloseScanner();
-      }
     } else {
       showToast(`ID ${decodedText} tidak ditemukan`, "error");
     }
@@ -833,6 +824,7 @@ const PeminjamanBarang: React.FC = () => {
         onClose={handleCloseScanner}
         onScanSuccess={onScanSuccess}
         title="Scan QR Code Barang"
+        closeOnSuccess={scanningRowIndex !== null}
       />
 
       {/* Detail Modal */}

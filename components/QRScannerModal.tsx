@@ -1,98 +1,119 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Camera, QrCode, Loader2 } from 'lucide-react';
-
-// Simple file input fallback (no dropzone)
-// No dynamic imports needed - simplified version
+import { X, QrCode, Loader2, AlertCircle, Camera, Upload } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
 
 interface QRScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onScanSuccess: (decodedText: string) => void;
   title?: string;
+  closeOnSuccess?: boolean;
 }
 
 const QRScannerModal: React.FC<QRScannerModalProps> = ({
   isOpen,
   onClose,
   onScanSuccess,
-  title = "Scan QR Code"
+  title = "Scan QR Code",
+  closeOnSuccess = false
 }) => {
   const [isScanning, setIsScanning] = useState(false);
-  const [scanResult, setScanResult] = useState<string>('');
   const [error, setError] = useState('');
+  const [hasCamPermission, setHasCamPermission] = useState(false);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Simple file input for image upload fallback
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const img = new Image();
-      img.onload = () => {
-        // Canvas decode fallback for image
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx?.drawImage(img, 0, 0);
-        
-        // Simple QR detection pattern matching (basic fallback)
-        const imageData = ctx?.getImageData(0, 0, canvas.width, canvas.height);
-        // For now, use filename or prompt user to type ID
-        const fallbackId = file.name.replace(/\.[^/.]+$/, '').toUpperCase();
-        onScanSuccess(fallbackId);
-        setScanResult(fallbackId);
-        setError('');
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      };
-      img.src = URL.createObjectURL(file);
+  const stopScanner = useCallback(async () => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop().then(() => {
+          scannerRef.current?.clear();
+        }).catch(console.warn);
+      } catch (e) {
+        console.warn('Scanner cleanup:', e);
+      }
+      scannerRef.current = null;
     }
-  };
-
-  const startScanner = useCallback(async () => {
-    if (!videoRef.current) return;
-    
-    try {
-      setIsScanning(true);
-      setError('');
-      
-      // Simulate QR scanning with manual input fallback
-      // Real implementation would use ZXing or jsQR
-      setTimeout(() => {
-        // Simulate successful scan for demo
-        const demoId = 'FTI-TEST-001';
-        onScanSuccess(demoId);
-        setScanResult(demoId);
-      }, 2000);
-      
-    } catch (err: any) {
-      setError(err.name === 'NotAllowedError' 
-        ? 'Kamera diblokir. Izinkan akses kamera di browser settings.' 
-        : 'Gagal memulai scanner: ' + (err.message || 'Unknown error'));
-    }
-  }, [onScanSuccess]);
-
-  const stopScanner = useCallback(() => {
     setIsScanning(false);
-    setScanResult('');
+    setError('');
+    setHasCamPermission(false);
   }, []);
 
-      // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      stopScanner();
-    };
-  }, [stopScanner]);
+  // Close handler - FORCE camera stop
+  const handleClose = useCallback(async () => {
+    await stopScanner();
+    onClose();
+  }, [stopScanner, onClose]);
 
+  const startScanner = useCallback(async () => {
+    try {
+      setError('');
+      setIsScanning(true);
+      
+      const html5QrCode = new Html5Qrcode('scanner-container');
+      scannerRef.current = html5QrCode;
+
+      // Prefer rear camera
+      const cameras = await Html5Qrcode.getCameras();
+      if (cameras.length === 0) {
+        throw new Error('No cameras found');
+      }
+
+      const rearCam = cameras[cameras.length - 1];
+      
+      await html5QrCode.start(
+        rearCam.id,
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
+          disableFlip: false
+        },
+        (decodedText: string) => {
+          onScanSuccess(decodedText);
+          if (closeOnSuccess) {
+            handleClose();
+          }
+        },
+        (err: string) => {
+          // No QR found - continue scanning
+        }
+      ).catch((err: any) => {
+        if (err?.name === 'NotAllowedError') {
+          setError('Camera access denied. Allow in browser settings.');
+        } else {
+          setError('Failed to start scanner: ' + err?.message || 'Unknown error');
+        }
+        setHasCamPermission(false);
+      });
+      
+      setHasCamPermission(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to initialize scanner');
+      console.error('Scanner init error:', err);
+    }
+  }, [onScanSuccess, closeOnSuccess, handleClose]);
+
+  const handleImageUpload = useCallback((file: File) => {
+    if (!scannerRef.current) return;
+    
+    scannerRef.current.scanFile(file, true)
+      .then(decodedText => {
+        onScanSuccess(decodedText);
+        if (closeOnSuccess) {
+          handleClose();
+        }
+      })
+      .catch(err => {
+        setError('No QR code found in image');
+      });
+  }, [onScanSuccess, closeOnSuccess, handleClose]);
+
+  // Lifecycle
   useEffect(() => {
     if (isOpen) {
-      // Reset state when modal opens
-      setError('');
-      setScanResult('');
-      setIsScanning(false);
-      
-      // Auto-start scanner after short delay
+      // Delay to ensure modal mounted
       const timer = setTimeout(startScanner, 300);
       return () => clearTimeout(timer);
     } else {
@@ -100,11 +121,18 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
     }
   }, [isOpen, startScanner, stopScanner]);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopScanner();
+    };
+  }, [stopScanner]);
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700">
         
         {/* Header */}
         <div className="p-6 pb-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
@@ -120,8 +148,9 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-all"
+            aria-label="Close scanner"
           >
             <X className="w-6 h-6" />
           </button>
@@ -130,115 +159,108 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
         {/* Scanner Area */}
         <div className="flex-1 relative flex items-center justify-center p-6 bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-800">
           
+          <div 
+            id="scanner-container" 
+            className="w-full max-w-md aspect-square rounded-xl shadow-2xl bg-gray-900 overflow-hidden"
+          />
+
+          {/* Scan overlay */}
+          {!error && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
+              <div className="w-64 h-64 border-4 border-blue-400/50 rounded-2xl p-4 bg-white/30 dark:bg-black/30 backdrop-blur-sm shadow-2xl animate-pulse">
+                <div className="w-full h-full border-4 border-blue-500 rounded-xl bg-gradient-to-b from-blue-400/20 to-transparent" />
+              </div>
+              <p className="absolute bottom-12 text-center text-white text-lg font-semibold drop-shadow-2xl">
+                Scan QR Code
+              </p>
+              <p className="absolute bottom-6 text-white/90 text-sm font-medium drop-shadow-lg text-center max-w-xs">
+                Arahkan kamera ke QR code di area biru
+              </p>
+            </div>
+          )}
+
+          {/* Error state */}
           {error ? (
-            /* Error State */
-            <div className="text-center space-y-4">
-              <div className="w-20 h-20 mx-auto bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center">
-                <Camera className="w-10 h-10 text-red-500 dark:text-red-400" />
+            <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/50 rounded-xl">
+              <div className="text-center space-y-4 p-8 max-w-sm">
+                <div className="w-20 h-20 mx-auto bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center">
+                  <AlertCircle className="w-10 h-10 text-red-500 dark:text-red-400" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Scanner Error</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{error}</p>
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={startScanner}
+                    className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
+                  >
+                    Coba Kamera Lagi
+                  </button>
+                  <label className="flex-1 px-6 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-blue-400 dark:hover:border-blue-500 transition-colors cursor-pointer bg-white dark:bg-gray-800 flex flex-col items-center justify-center text-sm font-medium">
+                    <Camera className="w-5 h-5 mb-1 text-gray-500" />
+                    Upload Foto
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleImageUpload(file);
+                          e.target.value = '';
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
               </div>
-              <div>
-                <h4 className="font-semibold text-gray-900 dark:text-white text-lg mb-2">Scanner Error</h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">{error}</p>
+            </div>
+          ) : !hasCamPermission && !isScanning ? (
+            <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/30 rounded-xl backdrop-blur-sm">
+              <div className="text-center space-y-3 p-8">
+                <Loader2 className="w-16 h-16 text-blue-400 animate-spin mx-auto" />
+                <p className="text-white text-lg font-semibold drop-shadow-lg">Memulai Scanner</p>
+                <p className="text-white/80 text-sm drop-shadow">Menunggu akses kamera...</p>
               </div>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl p-8 hover:border-blue-400 dark:hover:border-blue-500 transition-colors cursor-pointer bg-white dark:bg-gray-800"
-              >
+            </div>
+          ) : null}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900/50 flex items-center gap-3">
+          {error && (
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center">
+                <Upload className="w-4 h-4 mr-1" />
+                Upload Gambar QR
+              </label>
+              <label className="w-full p-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-blue-400 dark:hover:border-blue-500 transition-colors cursor-pointer bg-white dark:bg-gray-800 flex items-center justify-center">
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
-                  onChange={handleImageUpload}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handleImageUpload(file);
+                      e.target.value = '';
+                    }
+                  }}
                   className="hidden"
                 />
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Upload gambar QR code
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">PNG, JPG, max 5MB</p>
-              </button>
+                <div className="text-center text-sm">
+                  <Camera className="w-6 h-6 mx-auto mb-1 text-gray-500" />
+                  <p className="font-medium text-gray-700 dark:text-gray-300">Klik untuk upload foto QR</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">PNG, JPG hingga 5MB</p>
+                </div>
+              </label>
             </div>
-            
-          ) : scanResult ? (
-            /* Success State */
-            <div className="text-center space-y-4 p-8">
-              <div className="w-20 h-20 mx-auto bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
-                <QrCode className="w-10 h-10 text-green-500 dark:text-green-400" />
-              </div>
-              <div>
-                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">QR Code Terdeteksi!</h4>
-                <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 font-mono text-sm text-gray-900 dark:text-white min-h-[60px] flex items-center justify-center break-all">
-                  {scanResult}
-                </div>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={onClose}
-                  className="flex-1 px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-all text-sm"
-                >
-                  Tutup
-                </button>
-                <button
-                  onClick={() => {
-                    onScanSuccess(scanResult);
-                    onClose();
-                  }}
-                  className="flex-1 px-6 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 shadow-lg hover:shadow-xl transition-all text-sm"
-                >
-                  Gunakan ID Ini
-                </button>
-              </div>
-            </div>
-            
-          ) : (
-            /* Scanner Active */
-            <>
-              {isScanning && (
-                <div className="absolute inset-0 flex items-center justify-center z-10">
-                  <div className="w-full max-w-sm aspect-video bg-black/20 rounded-2xl flex flex-col items-center justify-center p-6 space-y-3">
-                    <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
-                    <p className="text-white text-sm font-medium">Memulai kamera...</p>
-                  </div>
-                </div>
-              )}
-              
-              <video
-                ref={videoRef}
-                className="w-full max-w-sm aspect-video rounded-xl shadow-2xl object-cover bg-gray-900"
-                playsInline
-              />
-              
-              <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2">
-                <div className="w-48 h-48 border-4 border-blue-400/30 rounded-2xl flex items-center justify-center p-2 bg-white/20 backdrop-blur-sm">
-                  <div className="w-full h-full border-4 border-blue-400 rounded-xl animate-pulse" />
-                </div>
-              </div>
-            </>
           )}
-        </div>
-
-        {/* Footer Controls */}
-        <div className="p-4 pt-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex items-center gap-3">
-          {error ? (
-            <button
-              onClick={() => setError('')}
-              className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-all text-sm flex items-center justify-center"
-            >
-              Coba Kamera Lagi
-            </button>
-          ) : !scanResult ? (
-            <button
-              onClick={stopScanner}
-              disabled={!isScanning}
-              className="px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors flex items-center ml-auto"
-            >
-              <Camera className="w-4 h-4 mr-1.5" />
-              Stop Scanner
-            </button>
-          ) : null}
-          
           <button
-            onClick={onClose}
-            className="px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+            onClick={handleClose}
+            className="px-6 py-3 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors ml-auto"
           >
             Batal
           </button>
@@ -249,4 +271,3 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
 };
 
 export default QRScannerModal;
-

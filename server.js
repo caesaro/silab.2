@@ -1,4 +1,4 @@
-﻿﻿﻿﻿import express from 'express';
+﻿﻿import express from 'express';
 import pg from 'pg';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -1288,6 +1288,22 @@ app.delete('/api/class-schedules/:id', async (req, res) => {
   } catch (err) {
     console.error('Delete class schedule error:', err);
     res.status(500).json({ error: 'Gagal menghapus jadwal kelas.' });
+  }
+});
+
+// Delete Class Schedules Bulk
+app.delete('/api/class-schedules', async (req, res) => {
+  const { semester, academicYear } = req.query;
+  if (!semester || !academicYear) {
+    return res.status(400).json({ error: 'Semester dan Tahun Akademik diperlukan.' });
+  }
+  
+  try {
+    await pool.query('DELETE FROM class_schedules WHERE semester = $1 AND academic_year = $2', [semester, academicYear]);
+    res.json({ success: true, message: 'Jadwal kelas berhasil dihapus.' });
+  } catch (err) {
+    console.error('Delete bulk class schedule error:', err);
+    res.status(500).json({ error: 'Gagal menghapus jadwal kelas secara massal.' });
   }
 });
 

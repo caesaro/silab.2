@@ -67,7 +67,7 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
     startTime: '08:00',
     endTime: '10:00',
     semester: 'Ganjil',
-    academicYear: '2024/2025',
+    academicYear: '',
     roomId: '',
     lecturerName: '',
     startDate: '', // Tanggal mulai periode semester
@@ -91,10 +91,17 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
 
   const [bulkFormData, setBulkFormData] = useState({
     semester: 'Ganjil' as 'Ganjil' | 'Antara' | 'Genap',
-    academicYear: '2024/2025',
+    academicYear: '',
     startDate: '',
     endDate: ''
   });
+
+  // Bulk Delete Modal State
+  const [bulkDeleteModal, setBulkDeleteModal] = useState<{
+    isOpen: boolean;
+    semester: string;
+    academicYear: string;
+  }>({ isOpen: false, semester: 'Ganjil', academicYear: '' });
 
   // Google Calendar API
   const googleApi = useGoogleCalendar(role, showToast);
@@ -200,7 +207,7 @@ const JadwalKuliah: React.FC<ClassScheduleManagementProps> = ({ role, showToast 
         startTime: '08:00',
         endTime: '10:00',
         semester: filterSemester || 'Ganjil',
-        academicYear: filterAcademicYear || (academicYears.length > 0 ? academicYears[0] : '2024/2025'),
+        academicYear: filterAcademicYear || (academicYears.length > 0 ? academicYears[0] : ''),
         roomId: '',
         lecturerName: '',
         startDate: '',
@@ -468,7 +475,7 @@ const handleDownloadTemplate = async () => {
               startTime: times.startTime || '08:00',
               endTime: times.endTime || '10:00',
               semester: semester || 'Ganjil',
-              academicYear: academicYear || '2024/2025',
+              academicYear: academicYear || '',
               roomId: matchedRoomId,
               lecturerName,
               startDate,
@@ -738,6 +745,51 @@ const handleDownloadTemplate = async () => {
     }
   };
 
+  const handleBulkDelete = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Check Google admin auth
+    if (!googleApi.isAuthenticated) {
+      googleApi.login();
+      showToast('Login akun Google admin terlebih dahulu untuk melakukan hapus semua jadwal.', 'warning');
+      return;
+    }
+    
+    if (!bulkDeleteModal.semester || !bulkDeleteModal.academicYear) {
+      showToast('Semester dan Tahun Akademik harus diisi.', 'warning');
+      return;
+    }
+
+    if (!window.confirm(`Yakin ingin menghapus SEMUA jadwal untuk Semester ${bulkDeleteModal.semester} Tahun Akademik ${bulkDeleteModal.academicYear}?
+
+⚠️  Pastikan sudah login akun Google admin!`)) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.append('semester', bulkDeleteModal.semester);
+      params.append('academicYear', bulkDeleteModal.academicYear);
+      
+      const res = await api(`/api/class-schedules?${params.toString()}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        showToast('Semua jadwal berhasil dihapus!', 'success');
+        setBulkDeleteModal(prev => ({ ...prev, isOpen: false }));
+        fetchSchedules();
+      } else {
+        showToast('Gagal menghapus jadwal.', 'error');
+      }
+    } catch (error) {
+      showToast('Terjadi kesalahan saat menghapus jadwal.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Group schedules by day for display
   const groupedByDay = days.reduce((acc, day) => {
     acc[day] = filteredSchedules.filter(s => s.dayOfWeek === day);
@@ -773,6 +825,16 @@ const handleDownloadTemplate = async () => {
             <FileSpreadsheet className="w-4 h-4 mr-2" /> Import
             <input type="file" accept=".xlsx" className="hidden" onChange={handleExcelUpload} />
           </label>
+{canManage && (
+            <button 
+              onClick={() => setBulkDeleteModal({ isOpen: true, semester: filterSemester || 'Ganjil', academicYear: filterAcademicYear || (academicYears.length > 0 ? academicYears[0] : '') })} 
+              disabled={!googleApi.isAuthenticated}
+              className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium flex items-center shadow-sm transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              title={!googleApi.isAuthenticated ? "Login Google admin terlebih dahulu" : ""}
+            >
+              <Trash2 className="w-4 h-4 mr-2" /> Hapus Semua
+            </button>
+          )}
           <button onClick={() => handleOpenModal()} className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center shadow-sm transition-all hover:scale-105">
              <Plus className="w-4 h-4 mr-2" /> Tambah Jadwal
           </button>
@@ -1014,19 +1076,17 @@ const handleDownloadTemplate = async () => {
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tahun Akademik</label>
-                        <input 
-                            type="text" required 
-                            list="academic-years-list"
-                            value={formData.academicYear}
-                            onChange={e => setFormData({...formData, academicYear: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                            placeholder="Contoh: 2024/2025"
-                        />
-                        <datalist id="academic-years-list">
-                            {academicYears.map(ay => (
-                              <option key={ay} value={ay} />
-                            ))}
-                        </datalist>
+                     <select 
+                         required 
+                         value={formData.academicYear}
+                         onChange={e => setFormData({...formData, academicYear: e.target.value})}
+                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
+                     >
+                         <option value="">-- Pilih Tahun --</option>
+                         {academicYears.map(ay => (
+                           <option key={ay} value={ay}>{ay}</option>
+                         ))}
+                     </select>
                     </div>
                  </div>
                  
@@ -1123,14 +1183,17 @@ const handleDownloadTemplate = async () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tahun Akademik Default</label>
-                  <input 
-                      type="text" required 
-                      list="academic-years-list"
+                  <select 
+                      required 
                       value={bulkFormData.academicYear}
                       onChange={e => setBulkFormData({...bulkFormData, academicYear: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-                      placeholder="Contoh: 2024/2025"
-                  />
+                  >
+                      <option value="">-- Pilih Tahun --</option>
+                      {academicYears.map(ay => (
+                        <option key={ay} value={ay}>{ay}</option>
+                      ))}
+                  </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -1194,6 +1257,66 @@ const handleDownloadTemplate = async () => {
                 <button onClick={conflictModal.onConfirm} className="px-4 py-2 text-sm bg-yellow-600 text-white hover:bg-yellow-700 rounded-lg shadow-md flex items-center">Ya, Lanjutkan</button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {bulkDeleteModal.isOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20 flex justify-between items-center">
+              <h3 className="font-bold text-red-800 dark:text-red-400 flex items-center">
+                <Trash2 className="w-5 h-5 mr-2" /> Hapus Jadwal Massal
+              </h3>
+              <button onClick={() => setBulkDeleteModal(prev => ({ ...prev, isOpen: false }))} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleBulkDelete} className="p-6 space-y-4">
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mb-4 text-sm text-yellow-800 dark:text-yellow-400">
+                <p className="font-bold mb-1">⚠️ Perhatian!</p>
+                <p className="text-yellow-700 dark:text-yellow-500">Tindakan ini akan menghapus permanen <b>seluruh</b> data jadwal kelas di database pada semester dan tahun akademik yang dipilih.</p>
+                <p className="text-yellow-700 dark:text-yellow-500 mt-1">
+                  {googleApi.isAuthenticated ? (
+                    '✅ Sudah login akun Google admin.'
+                  ) : (
+                    '❌ Login akun Google admin diperlukan sebelum hapus semua jadwal.'
+                  )}
+                </p>
+                <p className="mt-2 text-xs italic text-yellow-700 dark:text-yellow-500">* Event di Google Calendar tidak akan terhapus otomatis.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Semester</label>
+                <select 
+                    value={bulkDeleteModal.semester}
+                    onChange={e => setBulkDeleteModal({...bulkDeleteModal, semester: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
+                    required
+                >
+                    {semesters.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tahun Akademik</label>
+                <select 
+                    required 
+                    value={bulkDeleteModal.academicYear}
+                    onChange={e => setBulkDeleteModal({...bulkDeleteModal, academicYear: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
+                >
+                    <option value="">-- Pilih Tahun --</option>
+                    {academicYears.map(ay => (
+                      <option key={ay} value={ay}>{ay}</option>
+                    ))}
+                </select>
+              </div>
+              <div className="pt-4 flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 mt-4">
+                <button type="button" onClick={() => setBulkDeleteModal(prev => ({ ...prev, isOpen: false }))} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Batal</button>
+                <button type="submit" disabled={isLoading} className="px-4 py-2 text-sm bg-red-600 text-white hover:bg-red-700 rounded-lg flex items-center shadow-md disabled:opacity-50">
+                  {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />} Hapus Semua
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

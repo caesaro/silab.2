@@ -328,14 +328,10 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
         
         return { ...prev, inventoryIds: newIds, fromLocation: item.location || prev.fromLocation };
       });
-      
-      if (scanningRowIndex !== null) {
-        setIsScannerOpen(false);
-      }
       setScanningRowIndex(null);
       showToast(`Ditambahkan: ${item.name}`, "success");
     } else {
-      showToast(`Barang dengan ID ${decodedText} tidak ditemukan.`, "error");
+      showToast(`ID ${decodedText} tidak ditemukan`, "error");
     }
   };
 
@@ -808,6 +804,7 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
         onClose={() => setIsScannerOpen(false)}
         onScanSuccess={handleScanSuccess}
         title="Scan QR Code Barang"
+        closeOnSuccess={scanningRowIndex !== null}
       />
     </div>
   );
