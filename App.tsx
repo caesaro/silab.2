@@ -237,8 +237,10 @@ const AppContent: React.FC = () => {
     const keys = ['isAuthenticated', 'currentRole', 'userName', 'authToken', 'userId', 'refreshToken'];
     keys.forEach(key => {
       localStorage.removeItem(key);
-      sessionStorage.removeItem(key);
     });
+    
+    // Secara langsung menghapus seluruh data yang ada di sessionStorage
+    sessionStorage.clear();
   };
 
   const handleLogout = async () => {
@@ -356,36 +358,109 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const TIMEOUT_MS = 60 * 60 * 1000; // 60 Menit (1 Jam)
-    let timeoutId: NodeJS.Timeout;
+    const TIMEOUT_MS = 60 * 60 * 1000; // 60 Menit
+    
+    // Catat aktivitas di storage agar dibaca oleh semua tab
+    localStorage.setItem('lastActivity', Date.now().toString());
+    let intervalId: NodeJS.Timeout;
+    let lastSyncTime = Date.now();
 
-    const triggerLogout = () => {
-      showToast("Sesi Anda berakhir karena tidak aktif selama 1 jam.", "warning");
-      handleLogout();
+    const updateActivity = () => {
+      const now = Date.now();
+      
+      // THROTTLING: Hanya tulis ke localStorage maksimal 1 kali setiap 5 detik
+      // Mencegah disk I/O dan CPU Overhead yang berlebihan
+      if (now - lastSyncTime > 5000) {
+        localStorage.setItem('lastActivity', now.toString());
+        lastSyncTime = now;
+      }
     };
 
-    const resetTimer = () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(triggerLogout, TIMEOUT_MS);
+    const checkInactivity = () => {
+      const lastActivityStr = localStorage.getItem('lastActivity');
+      const lastActivity = lastActivityStr ? parseInt(lastActivityStr, 10) : Date.now();
+
+      if (Date.now() - lastActivity >= TIMEOUT_MS) {
+        showToast("Sesi Anda berakhir karena tidak aktif selama 1 jam.", "warning");
+        handleLogout();
+      }
     };
+
+    // Cek inaktivitas setiap 1 menit (jauh lebih ringan di CPU dibanding me-reset setTimeout setiap mousemove)
+    intervalId = setInterval(checkInactivity, 60000);
 
     // Daftar event aktivitas user yang akan mereset timer
     const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
     
-    // Pasang event listener
-    events.forEach(event => window.addEventListener(event, resetTimer));
-    
-    // Mulai timer awal
-    resetTimer();
+    // Pasang event listener dengan opsi passive: true agar frame rendering scroll tetap mulus
+    events.forEach(event => window.addEventListener(event, updateActivity, { passive: true }));
 
     // Bersihkan saat unmount atau logout
     return () => {
-      clearTimeout(timeoutId);
-      events.forEach(event => window.removeEventListener(event, resetTimer));
+      clearInterval(intervalId);
+      events.forEach(event => window.removeEventListener(event, updateActivity));
     };
   }, [isAuthenticated]);
 
+  // --- SILENT REFRESH TOKEN (Tiap 15 Menit) ---
+  useEffect(() => {
+    // Hanya jalankan jika user sedang dalam state login
+    if (!isAuthenticated) return;
 
+    const refreshAuthToken = async () => {
+      const refreshToken = getStorageItem('refreshToken');
+      const deviceId = localStorage.getItem('deviceId');
+
+      // Jika tidak ada data refresh token / device ID, abaikan
+      if (!refreshToken || !deviceId) return;
+
+      try {
+        const res = await api('/api/auth/refresh', {
+          method: 'POST',
+          data: { refreshToken, deviceId }
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.token) {
+            // Timpa token lama dengan yang baru di storage yang sedang aktif
+            const storage = sessionStorage.getItem('authToken') ? sessionStorage : localStorage;
+            storage.setItem('authToken', data.token);
+          }
+        } else if (res.status === 401 || res.status === 403) {
+          // Jika refresh token ditolak (misal: dicabut dari perangkat lain / expired)
+          showToast("Sesi tidak valid atau telah dicabut. Silakan login kembali.", "warning", true);
+          handleLogout();
+        }
+      } catch (error) {
+        console.error('Gagal melakukan silent refresh token:', error);
+      }
+    };
+
+    const REFRESH_INTERVAL = 15 * 60 * 1000; // 15 menit dalam milidetik
+    const intervalId = setInterval(refreshAuthToken, REFRESH_INTERVAL);
+
+    // Bersihkan interval ketika komponen dilepas (unmount) atau user logout
+    return () => clearInterval(intervalId);
+  }, [isAuthenticated]);
+
+  // --- CROSS-TAB LOGOUT SYNC ---
+  useEffect(() => {
+    const syncLogout = (e: StorageEvent) => {
+      // Jika auth status dihapus dari localStorage (karena tab lain menekan tombol logout)
+      if (e.key === 'isAuthenticated' && e.newValue !== 'true') {
+        setIsAuthenticated(false);
+        setCurrentRole('User' as Role);
+        setUserName('User');
+        sessionStorage.clear(); // Bersihkan juga memori sessionStorage pada tab ini
+        navigate('/login');
+        showToast('Anda telah logout dari tab lain.', 'info');
+      }
+    };
+
+    window.addEventListener('storage', syncLogout);
+    return () => window.removeEventListener('storage', syncLogout);
+  }, [navigate]);
 
   // Render Global Loader
   if (isLoading) {

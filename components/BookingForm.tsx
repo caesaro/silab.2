@@ -427,7 +427,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
 
     setIsSubmitting(true);
     try {
-      const userId = localStorage.getItem("userId") ?? "GUEST";
+      const userId = sessionStorage.getItem("userId") || localStorage.getItem("userId") || "GUEST";
 
       // ── Edit mode (single booking update) ─────────────────────────────────
       if (initialData?.id) {

@@ -183,7 +183,7 @@ const verifyToken = (req, res, next) => {
   // Path di sini tidak perlu '/api' karena middleware ini sudah di-mount pada '/api'.
   // req.path akan menjadi '/login', bukan '/api/login'.
   // Updated public paths to include sso-config (used on login page)
-  const publicPaths = ['/login', '/register', '/set-password', '/settings/maintenance', '/logout', '/settings/sso-config'];
+  const publicPaths = ['/login', '/register', '/set-password', '/settings/maintenance', '/logout', '/settings/sso-config', '/auth/refresh'];
   if (publicPaths.some(path => req.path.startsWith(path)) || req.path === '/') {
     return next();
   }

@@ -92,7 +92,7 @@ const Profile: React.FC<ProfileProps> = ({ role, showToast, onNavigate }) => {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const userId = localStorage.getItem('userId');
+      const userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
       if (!userId) return;
 
       try {
@@ -118,7 +118,7 @@ const Profile: React.FC<ProfileProps> = ({ role, showToast, onNavigate }) => {
     };
 
     const fetchAccountInfo = async () => {
-      const userId = localStorage.getItem('userId');
+      const userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
       if (!userId) return;
 
       setIsLoadingStats(true);
