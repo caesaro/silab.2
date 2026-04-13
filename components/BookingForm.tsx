@@ -99,7 +99,7 @@ const MultiRoomSelect: React.FC<MultiRoomSelectProps> = ({
         onClick={() => setIsOpen((v) => !v)}
         onKeyDown={(e) => e.key === "Enter" && setIsOpen((v) => !v)}
         className={`
-          w-full min-h-[42px] px-3 py-2 flex flex-wrap gap-1.5 items-center
+          w-full min-h-10.5 px-3 py-2 flex flex-wrap gap-1.5 items-center
           bg-white dark:bg-gray-900
           border border-gray-300 dark:border-gray-600 rounded-lg
           cursor-pointer shadow-sm
@@ -136,7 +136,7 @@ const MultiRoomSelect: React.FC<MultiRoomSelectProps> = ({
           })
         )}
         <ChevronDown
-          className={`w-4 h-4 text-gray-400 ml-auto flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`w-4 h-4 text-gray-400 ml-autoshrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
         />
       </div>
 
@@ -144,7 +144,7 @@ const MultiRoomSelect: React.FC<MultiRoomSelectProps> = ({
       {isOpen && (
         <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl max-h-64 flex flex-col overflow-hidden">
           {/* Search bar */}
-          <div className="p-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex-shrink-0">
+          <div className="p-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50shrink-0">
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input
@@ -183,14 +183,14 @@ const MultiRoomSelect: React.FC<MultiRoomSelectProps> = ({
                       checked={checked}
                       readOnly
                       tabIndex={-1}
-                      className="w-4 h-4 accent-blue-600 flex-shrink-0 pointer-events-none"
+                      className="w-4 h-4 accent-blue-600shrink-0 pointer-events-none"
                     />
                     <span
                       className={`flex-1 text-sm truncate ${checked ? "text-blue-700 dark:text-blue-300 font-medium" : "text-gray-700 dark:text-gray-200"}`}
                     >
                       {room.name}
                     </span>
-                    <span className="text-xs text-gray-400 flex-shrink-0">
+                    <span className="text-xs text-gray-400shrink-0">
                       Kap.&nbsp;{room.capacity}
                     </span>
                   </div>
@@ -201,7 +201,7 @@ const MultiRoomSelect: React.FC<MultiRoomSelectProps> = ({
 
           {/* Selection summary footer */}
           {selectedIds.length > 0 && (
-            <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex-shrink-0">
+            <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50shrink-0">
               <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">
                 {selectedIds.length} ruangan dipilih
               </p>
@@ -724,13 +724,13 @@ const BookingForm: React.FC<BookingFormProps> = ({
                         type="button"
                         onClick={() => removeSchedule(block.id, schedule.id)}
                         title="Hapus baris jadwal ini"
-                        className="flex-shrink-0 p-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors mb-px"
+                        className="shrink-0 p-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors mb-px"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     ) : (
                       /* Spacer to keep alignment consistent */
-                      <div className="flex-shrink-0 w-10 sm:mb-px hidden sm:block" />
+                      <div className="shrink-0 w-10 sm:mb-px hidden sm:block" />
                     )}
                   </div>
                 ))}

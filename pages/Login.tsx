@@ -837,7 +837,7 @@ const Login: React.FC<LoginProps> = ({
                     Verifikasi Keamanan
                   </label>
                   <div className="flex items-center gap-3">
-                    <div className="flex-shrink-0 bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 font-mono text-lg font-bold tracking-widest select-none text-gray-800 dark:text-gray-200">
+                    <div className="shrink-0 bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 font-mono text-lg font-bold tracking-widest select-none text-gray-800 dark:text-gray-200">
                       {captcha.num1} + {captcha.num2} = ?
                     </div>
                     <button

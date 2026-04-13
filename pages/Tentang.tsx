@@ -13,7 +13,7 @@ const Tentang: React.FC = () => {
 
       {/* Section 1: About the Project */}
       <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+        <div className="bg-linear-to-r from-blue-600 to-indigo-600 px-6 py-4">
           <div className="flex items-center space-x-3">
             <Info className="w-6 h-6 text-white" />
             <h2 className="text-xl font-bold text-white">Tentang Proyek</h2>
@@ -76,7 +76,7 @@ const Tentang: React.FC = () => {
 
       {/* Section 2: About Laboran FTI UKSW */}
       <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-4">
+        <div className="bg-linear-to-r from-emerald-600 to-teal-600 px-6 py-4">
           <div className="flex items-center space-x-3">
             <Users className="w-6 h-6 text-white" />
             <h2 className="text-xl font-bold text-white">Tentang Laboran FTI UKSW (Sarpras)</h2>
@@ -104,25 +104,25 @@ const Tentang: React.FC = () => {
             <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Tugas & Tanggung Jawab:</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <div className="w-6 h-6 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <div className="w-6 h-6 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center shrink-0 mt-0.5">
                   <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold">1</span>
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-300">Mengelola peminjaman ruangan dan peralatan laboratorium</p>
               </div>
               <div className="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <div className="w-6 h-6 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <div className="w-6 h-6 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center shrink-0 mt-0.5">
                   <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold">2</span>
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-300">Memastikan peralatan laboratorium dalam kondisi siap pakai</p>
               </div>
               <div className="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <div className="w-6 h-6 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <div className="w-6 h-6 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center shrink-0 mt-0.5">
                   <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold">3</span>
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-300">Memberikan dukungan teknis untuk kegiatan praktikum dan acara fakultas</p>
               </div>
               <div className="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <div className="w-6 h-6 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <div className="w-6 h-6 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center shrink-0 mt-0.5">
                   <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold">4</span>
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-300">Mengelola inventaris dan spesifikasi software laboratorium</p>
@@ -153,7 +153,7 @@ const Tentang: React.FC = () => {
 
       {/* Section 3: About Developers */}
       <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="bg-gradient-to-r from-violet-600 to-purple-600 px-6 py-4">
+        <div className="bg-linear-to-r from-violet-600 to-purple-600 px-6 py-4">
           <div className="flex items-center space-x-3">
             <Code className="w-6 h-6 text-white" />
             <h2 className="text-xl font-bold text-white">Tentang Pengembang</h2>
@@ -171,7 +171,7 @@ const Tentang: React.FC = () => {
             {/* Developer 1 */}
             <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6 border border-gray-200 dark:border-gray-600">
               <div className="flex items-start space-x-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-violet-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
+                <div className="w-16 h-16 bg-linear-to-br from-violet-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
                   RF
                 </div>
                 <div className="flex-1">
@@ -217,7 +217,7 @@ const Tentang: React.FC = () => {
             {/* Developer 2 */}
             <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6 border border-gray-200 dark:border-gray-600">
               <div className="flex items-start space-x-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
+                <div className="w-16 h-16 bg-linear-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
                   RN
                 </div>
                 <div className="flex-1">

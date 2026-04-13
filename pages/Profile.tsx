@@ -266,7 +266,7 @@ const Profile: React.FC<ProfileProps> = ({ role, showToast, onNavigate }) => {
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Header / Cover */}
       <div className="relative rounded-xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="h-40 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 opacity-90"></div>
+        <div className="h-40 bg-linear-to-r from-blue-600 via-indigo-600 to-purple-600 opacity-90"></div>
         <div className="px-6 pb-6">
           <div className="relative flex flex-col sm:flex-row sm:items-end -mt-16 mb-4">
             <div className="relative group" onClick={() => isEditing && fileInputRef.current?.click()}>
@@ -612,7 +612,7 @@ const Profile: React.FC<ProfileProps> = ({ role, showToast, onNavigate }) => {
       {/* Crop Modal */}
       {isCropModalOpen && tempImage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col h-[500px]">
+           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col h-125">
               <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
                  <h3 className="font-bold text-gray-900 dark:text-white">Sesuaikan Foto Profil</h3>
                  <button onClick={() => { setIsCropModalOpen(false); setTempImage(null); }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">

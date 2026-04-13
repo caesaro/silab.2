@@ -423,7 +423,7 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
             <select 
               value={filterInventory}
               onChange={(e) => setFilterInventory(e.target.value)}
-              className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 max-w-[200px]"
+              className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 max-w-50"
             >
               <option value="All">Semua Barang</option>
               {equipment.map(item => (

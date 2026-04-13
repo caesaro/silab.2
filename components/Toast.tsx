@@ -95,15 +95,15 @@ const ToastItem = ({ toast, removeToast, isDarkMode }: { toast: ToastMessage; re
       className={`
         toast-item
         pointer-events-auto flex items-start p-4 rounded-lg border shadow-lg 
-        transition-all duration-300 min-w-[300px] max-w-md relative overflow-hidden
+        transition-all duration-300 min-w-75 max-w-md relative overflow-hidden
         ${isExiting ? 'animate-slide-out' : 'animate-slide-in'}
         ${styles[toast.type]}
       `}
     >
-      <div className="flex-shrink-0 mr-3 mt-0.5">
+      <div className="shrink-0 mr-3 mt-0.5">
         {icons[toast.type]}
       </div>
-      <div className="flex-1 text-sm font-medium break-words">
+      <div className="flex-1 text-sm font-medium wrap-break-words">
         {toast.message}
       </div>
       <button

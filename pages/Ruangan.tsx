@@ -776,7 +776,7 @@ const handleEdit = async (room: Room) => {
             <Skeleton className="h-8 w-48 mb-4" />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col h-[400px]">
+                <div key={i} className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col h-100">
                   <Skeleton className="h-48 w-full rounded-none" />
                   <div className="p-5 flex-1 flex flex-col">
                     <Skeleton className="h-6 w-3/4 mb-3" />
@@ -1028,7 +1028,7 @@ const handleEdit = async (room: Room) => {
                           </div>
 
                           <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
-                              <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white flex items-center justify-between flex-shrink-0">
+                              <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white flex items-center justify-between shrink-0">
                                   <span className="flex items-center"><Calendar className="w-5 h-5 mr-2 text-blue-500"/> Jadwal Ruangan</span>
                                   {isGapiReady && (
                                      <button onClick={fetchRoomEvents} className="text-gray-500 hover:text-blue-500" title="Refresh">
@@ -1038,7 +1038,7 @@ const handleEdit = async (room: Room) => {
                               </h3>
                               
                               {selectedRoom.googleCalendarUrl ? ( 
-                                <div className="min-h-[250px] max-h-[400px] overflow-y-auto pr-1">
+                                <div className="min-h-62.5 max-h-100 overflow-y-auto pr-1">
                                     {calendarEvents.length > 0 ? (
                                         <div className="space-y-3">
                                             {calendarEvents.map(event => (

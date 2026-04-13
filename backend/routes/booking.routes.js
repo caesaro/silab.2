@@ -11,10 +11,25 @@ const upload = multer({ dest: 'uploads/' });
 // Endpoint Summary untuk Statistik Dashboard
 router.get('/dashboard/summary', verifyRole(['Admin', 'Laboran', 'Supervisor']), async (req, res) => {
     try {
-        const [activeLoans, totalUsers, inventoryStats] = await Promise.all([
+        const [activeLoans, totalUsers, inventoryStats, bookingStats, roomStats, recentBookings] = await Promise.all([
             pool.query("SELECT COUNT(*) as count FROM loans WHERE status = 'Dipinjam'"),
             pool.query("SELECT COUNT(*) as count FROM users WHERE role != 'Admin'"),
-            pool.query("SELECT kondisi, COUNT(*) as count FROM inventory GROUP BY kondisi")
+            pool.query("SELECT kondisi, COUNT(*) as count FROM inventory GROUP BY kondisi"),
+            pool.query("SELECT status, COUNT(*) as count FROM bookings GROUP BY status"),
+            pool.query(`
+                SELECT r.name, COUNT(b.id) as count 
+                FROM rooms r 
+                LEFT JOIN bookings b ON r.id = b.room_id 
+                GROUP BY r.id, r.name
+            `),
+            pool.query(`
+                SELECT b.id, b.keperluan as purpose, b.status, b.created_at as date, 
+                       u.nama as "userName",
+                       (SELECT start_time::text FROM booking_schedules bs WHERE bs.booking_id = b.id ORDER BY schedule_date ASC LIMIT 1) as "startTime"
+                FROM bookings b
+                JOIN users u ON b.user_id = u.id
+                ORDER BY b.created_at DESC LIMIT 5
+            `)
         ]);
 
         let good = 0, minor = 0, major = 0, totalEq = 0;
@@ -26,13 +41,68 @@ router.get('/dashboard/summary', verifyRole(['Admin', 'Laboran', 'Supervisor']),
             else if (row.kondisi === 'Rusak Berat') major += count;
         });
 
+        let totalBookings = 0, pending = 0, approved = 0, rejected = 0;
+        bookingStats.rows.forEach(row => {
+            const count = parseInt(row.count);
+            totalBookings += count;
+            if (row.status === 'Pending') pending = count;
+            else if (row.status === 'Disetujui') approved = count;
+            else if (row.status === 'Ditolak') rejected = count;
+        });
+
         res.json({
             activeLoans: parseInt(activeLoans.rows[0].count),
             totalUsers: parseInt(totalUsers.rows[0].count),
-            equipment: { total: totalEq, damaged: minor + major, good, minor, major }
+            equipment: { total: totalEq, damaged: minor + major, good, minor, major },
+            bookings: { total: totalBookings, pending, approved, rejected },
+            roomStats: roomStats.rows.map(r => ({ name: r.name.split(' ').slice(0, 2).join(' '), bookings: parseInt(r.count) })),
+            recentBookings: recentBookings.rows.map(b => ({
+                ...b,
+                startTime: b.startTime ? b.startTime.substring(0, 5) : '-'
+            }))
         });
     } catch (err) {
         res.status(500).json({ error: 'Gagal mengambil summary dashboard.' });
+    }
+});
+
+// Endpoint Summary khusus untuk User (Mahasiswa/Dosen)
+router.get('/dashboard/user-summary', async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const [bookingStats, recentBookings] = await Promise.all([
+            pool.query("SELECT status, COUNT(*) as count FROM bookings WHERE user_id = $1 GROUP BY status", [userId]),
+            pool.query(`
+                SELECT b.id, b.keperluan as purpose, b.status, b.created_at as date, 
+                       u.nama as "userName",
+                       (SELECT start_time::text FROM booking_schedules bs WHERE bs.booking_id = b.id ORDER BY schedule_date ASC LIMIT 1) as "startTime"
+                FROM bookings b
+                JOIN users u ON b.user_id = u.id
+                WHERE b.user_id = $1
+                ORDER BY b.created_at DESC LIMIT 5
+            `, [userId])
+        ]);
+
+        let totalBookings = 0, pending = 0, approved = 0, rejected = 0;
+        bookingStats.rows.forEach(row => {
+            const count = parseInt(row.count);
+            totalBookings += count;
+            if (row.status === 'Pending') pending = count;
+            else if (row.status === 'Disetujui') approved = count;
+            else if (row.status === 'Ditolak') rejected = count;
+        });
+
+        res.json({
+            bookings: { total: totalBookings, pending, approved, rejected },
+            recentBookings: recentBookings.rows.map(b => ({
+                ...b,
+                startTime: b.startTime ? b.startTime.substring(0, 5) : '-'
+            }))
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Gagal mengambil summary user.' });
     }
 });
 

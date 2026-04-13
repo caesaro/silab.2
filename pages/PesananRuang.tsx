@@ -762,7 +762,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
             <select
               value={filterRoom}
               onChange={(e) => setFilterRoom(e.target.value)}
-              className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer max-w-[140px] truncate"
+              className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer max-w-35 truncate"
               title="Filter Ruangan"
             >
               <option value="All">Semua Ruang</option>
@@ -900,7 +900,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
                         {/* ── Peminjam ── */}
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0">
                               {group.master.userName.charAt(0).toUpperCase()}
                             </div>
                             <div>
@@ -915,7 +915,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
                         </td>
 
                         {/* ── Keperluan ── */}
-                        <td className="px-4 py-4 max-w-[180px]">
+                        <td className="px-4 py-4 max-w-45">
                           <p
                             className="text-sm text-gray-800 dark:text-gray-200 line-clamp-2 leading-snug"
                             title={group.master.purpose}
@@ -932,14 +932,14 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
                           <div className="flex flex-wrap gap-1.5">
                             {/* Room pill: show name if only one, else count */}
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 whitespace-nowrap">
-                              <MapPin className="w-3 h-3 flex-shrink-0" />
+                              <MapPin className="w-3 h-3 shrink-0" />
                               {group.roomCount === 1
                                 ? getRoomName(group.master.roomId)
                                 : `${group.roomCount} Ruangan`}
                             </span>
                             {/* Schedule pill */}
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 whitespace-nowrap">
-                              <Calendar className="w-3 h-3 flex-shrink-0" />
+                              <Calendar className="w-3 h-3 shrink-0" />
                               {group.totalSchedules} Jadwal
                             </span>
                           </div>
@@ -1042,7 +1042,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
                             <div className="overflow-hidden">
                               <div className="mx-6 mb-4 mt-1 rounded-xl border border-blue-200 dark:border-blue-800/60 overflow-hidden shadow-sm">
                                 {/* Sub-table header bar */}
-                                <div className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 border-b border-blue-100 dark:border-blue-800/60">
+                                <div className="flex items-center justify-between px-4 py-2.5 bg-linear-to-r from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 border-b border-blue-100 dark:border-blue-800/60">
                                   <h4 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-blue-700 dark:text-blue-300">
                                     <Layers className="w-3.5 h-3.5" />
                                     Detail Ruangan &amp; Jadwal
@@ -1104,7 +1104,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
                                         <td className="px-4 py-2.5">
                                           {row.isFirst ? (
                                             <span className="inline-flex items-center gap-1.5 font-semibold text-gray-800 dark:text-gray-200">
-                                              <MapPin className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                                              <MapPin className="w-3 h-3 text-blue-500 shrink-0" />
                                               {getRoomName(row.booking.roomId)}
                                               {row.schedCount > 1 && (
                                                 <span className="ml-0.5 font-normal text-gray-400">
@@ -1123,7 +1123,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
                                         {/* Date */}
                                         <td className="px-4 py-2.5">
                                           <span className="inline-flex items-center gap-1 text-gray-700 dark:text-gray-300">
-                                            <Calendar className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                                            <Calendar className="w-3 h-3 text-gray-400 shrink-0" />
                                             {formatDateID(row.date)}
                                           </span>
                                         </td>
@@ -1131,7 +1131,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
                                         {/* Start time */}
                                         <td className="px-4 py-2.5">
                                           <span className="inline-flex items-center gap-1 font-mono text-gray-700 dark:text-gray-300">
-                                            <Clock className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                                            <Clock className="w-3 h-3 text-gray-400 shrink-0" />
                                             {row.startTime?.slice(0, 5)}
                                           </span>
                                         </td>
@@ -1313,7 +1313,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
       {isBookingModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-3xl overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up max-h-[90vh] flex flex-col">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 flex-shrink-0">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 shrink-0">
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center text-base">
                 <Plus className="w-5 h-5 mr-2 text-blue-600" />
                 Buat Pesanan Ruangan

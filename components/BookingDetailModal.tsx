@@ -91,7 +91,7 @@ const InfoRow: React.FC<{
   value?: string;
 }> = ({ icon, label, value }) => (
   <div className="flex items-start gap-3">
-    <div className="mt-0.5 flex-shrink-0 text-gray-400">{icon}</div>
+    <div className="mt-0.5 shrink-0 text-gray-400">{icon}</div>
     <div>
       <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
         {label}
@@ -155,10 +155,10 @@ const BookingDetailModal = ({
             MODAL HEADER
             Shows title, room/schedule summary chip, status badge, close.
         ══════════════════════════════════════════════════════════════════ */}
-        <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-700 dark:bg-gray-800">
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-700 dark:bg-gray-800">
           {/* Left cluster */}
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/40">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/40">
               <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
@@ -211,7 +211,7 @@ const BookingDetailModal = ({
 
               {/* Avatar + name + ID */}
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 font-bold text-sm text-white shadow-sm">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-blue-500 to-indigo-600 font-bold text-sm text-white shadow-sm">
                   {selectedBooking.userName?.charAt(0)?.toUpperCase() ?? "?"}
                 </div>
                 <div>
@@ -383,7 +383,7 @@ const BookingDetailModal = ({
                     /* View mode */
                     <div className="space-y-2">
                       <div className="flex gap-2">
-                        <span className="w-16 flex-shrink-0 pt-0.5 text-xs text-gray-400">
+                        <span className="w-16 shrink-0 pt-0.5 text-xs text-gray-400">
                           PIC
                         </span>
                         <span className="text-xs font-medium text-gray-800 dark:text-gray-200">
@@ -391,7 +391,7 @@ const BookingDetailModal = ({
                         </span>
                       </div>
                       <div className="flex gap-2">
-                        <span className="w-16 flex-shrink-0 pt-0.5 text-xs text-gray-400">
+                        <span className="w-16 shrink-0 pt-0.5 text-xs text-gray-400">
                           Alat
                         </span>
                         <span className="whitespace-pre-wrap text-xs text-gray-700 dark:text-gray-300">
@@ -448,10 +448,10 @@ const BookingDetailModal = ({
                     className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700"
                   >
                     {/* ── Room card header ── */}
-                    <div className="flex items-center justify-between border-b border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 dark:border-blue-800/60 dark:from-blue-950/40 dark:to-indigo-950/40">
+                    <div className="flex items-center justify-between border-b border-blue-100 bg-linear-to-r from-blue-50 to-indigo-50 px-4 py-3 dark:border-blue-800/60 dark:from-blue-950/40 dark:to-indigo-950/40">
                       {/* Room name */}
                       <span className="flex items-center gap-2 text-sm font-semibold text-blue-900 dark:text-blue-200">
-                        <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-blue-500" />
+                        <MapPin className="h-3.5 w-3.5 shrink-0 text-blue-500" />
                         {getRoomName(booking.roomId)}
                         {/* Ordinal badge when multiple rooms in the group */}
                         {totalRooms > 1 && (
@@ -503,7 +503,7 @@ const BookingDetailModal = ({
                               {/* Date */}
                               <td className="px-3 py-2.5">
                                 <span className="inline-flex items-center gap-1.5 text-gray-700 dark:text-gray-300">
-                                  <Calendar className="h-3 w-3 flex-shrink-0 text-gray-400" />
+                                  <Calendar className="h-3 w-3 shrink-0 text-gray-400" />
                                   {formatDateID(s.date)}
                                 </span>
                               </td>
@@ -511,7 +511,7 @@ const BookingDetailModal = ({
                               {/* Start time */}
                               <td className="px-3 py-2.5">
                                 <span className="inline-flex items-center gap-1 font-mono text-gray-700 dark:text-gray-300">
-                                  <Clock className="h-3 w-3 flex-shrink-0 text-gray-400" />
+                                  <Clock className="h-3 w-3 shrink-0 text-gray-400" />
                                   {s.startTime?.slice(0, 5)}
                                 </span>
                               </td>
@@ -553,7 +553,7 @@ const BookingDetailModal = ({
               {/* File info */}
               <div className="flex items-center gap-3">
                 <div
-                  className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
                     (selectedBooking as any).hasFile
                       ? "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400"
                       : "bg-gray-200 text-gray-400 dark:bg-gray-600"
@@ -589,7 +589,7 @@ const BookingDetailModal = ({
           </div>
 
           {/* ── Hidden ticket markup — used only for print export ── */}
-          <div className="absolute -left-[9999px] top-0">
+          <div className="absolute -left-9999px top-0">
             <div ref={ticketRef} className="w-full text-black">
                 <div className="relative z-10">
                     {/* Kop Surat */}
@@ -720,7 +720,7 @@ const BookingDetailModal = ({
             MODAL FOOTER — Action buttons
             Ordered left-to-right: Tutup → secondary → destructive → status
         ══════════════════════════════════════════════════════════════════ */}
-        <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2 border-t border-gray-200 bg-gray-50/80 px-6 py-4 dark:border-gray-700 dark:bg-gray-800/60">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-gray-200 bg-gray-50/80 px-6 py-4 dark:border-gray-700 dark:bg-gray-800/60">
           {/* Always shown */}
           <button
             onClick={() => setSelectedBooking(null)}

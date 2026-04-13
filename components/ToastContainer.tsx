@@ -47,22 +47,22 @@ const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, removeToast }) 
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-[10000] space-y-2">
+    <div className="fixed top-4 right-4 z-10000 space-y-2">
       {toasts.map(toast => (
         <div
           key={toast.id}
-          className={`max-w-sm p-4 rounded-xl shadow-2xl border transform transition-all duration-300 animate-in slide-in-from-top-4 fade-in duration-300 border-l-4 flex items-start gap-3 ${getColors(toast.type)}`}
+          className={`max-w-sm p-4 rounded-xl shadow-2xl border transform transition-all duration-300 animate-in slide-in-from-top-4 fade-in border-l-4 flex items-start gap-3 ${getColors(toast.type)}`}
         >
-          <div className="flex-shrink-0 mt-0.5">
+          <div className="shrink-0 mt-0.5">
             {getIcon(toast.type)}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium leading-5 break-words">{toast.message}</p>
+            <p className="text-sm font-medium leading-5 wrap-break-words">{toast.message}</p>
           </div>
           {!toast.sticky && (
             <button
               onClick={() => removeToast(toast.id)}
-              className="flex-shrink-0 ml-2 -mr-1 p-1 text-white/80 hover:text-white rounded-full hover:bg-white/20 transition-colors"
+              className="shrink-0 ml-2 -mr-1 p-1 text-white/80 hover:text-white rounded-full hover:bg-white/20 transition-colors"
               aria-label="Close toast"
             >
               <X className="w-4 h-4" />

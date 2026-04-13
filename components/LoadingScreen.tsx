@@ -3,7 +3,7 @@ import nocLogo from "../src/assets/noc.png";
 
 const LoadingScreen: React.FC = () => {
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 transition-colors duration-500">
+    <div className="fixed inset-0 z-60 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 transition-colors duration-500">
       <div className="relative flex items-center justify-center mb-8">
         {/* Decorative Background Blur */}
         <div className="absolute w-32 h-32 bg-blue-500/20 rounded-full blur-xl animate-pulse"></div>

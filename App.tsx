@@ -67,7 +67,7 @@ const NotFound = lazyWithReload(() => import('./pages/NotFound'));
 
 // Loading fallback component
 const PageLoader = () => (
-  <div className="flex items-center justify-center h-full min-h-[400px]">
+  <div className="flex items-center justify-center h-full min-h-100">
     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
   </div>
 );
@@ -551,7 +551,7 @@ const AppContent: React.FC = () => {
                 announcement.type === 'warning' ? 'bg-yellow-100 border-yellow-200 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-300' :
                 'bg-red-100 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300'
               }`}>
-                <Megaphone className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" />
+                <Megaphone className="w-5 h-5 mr-3 mt-0.5 shrink-0" />
                 <p className="text-sm font-medium">{announcement.message}</p>
               </div>
             )}

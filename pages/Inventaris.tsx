@@ -802,7 +802,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
 
          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-stretch lg:items-center mb-6">
 
-           <div className="flex lg:flex-1 lg:min-w-[300px] min-w-[200px] sm:min-w-[250px]">
+           <div className="flex lg:flex-1 lg:min-w-75 min-w-50 sm:min-w-62.5">
              <SearchBar 
                 value={searchTerm}
                 onChange={setSearchTerm}
@@ -811,13 +811,13 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
              />
            </div>
            
-           <div className="flex flex-row gap-3 items-center lg:flex-shrink-0 flex-shrink">
+           <div className="flex flex-row gap-3 items-center lg:shrink-0 shrink">
                <div className="flex items-center gap-2">
                    <Filter className="w-4 h-4 text-gray-400 hidden sm:block" />
                    <select 
                       value={filterCategory}
                       onChange={(e) => setFilterCategory(e.target.value)}
-                      className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 outline-none max-w-[150px]"
+                      className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 outline-none max-w-37.5"
                    >
                        <option value="All">Semua Kategori</option>
                        {categories.map(cat => (
@@ -851,7 +851,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
 
                     <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-400 font-semibold border-b border-gray-200 dark:border-gray-700 print:bg-gray-200 print:text-black">
                         <tr>
-                            <th className="px-4 py-4 w-12 print:hidden flex-shrink-0">
+                            <th className="px-4 py-4 w-12 print:hidden shrink-0">
                                 <input 
                                     type="checkbox"
                                     className="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 w-4 h-4"
@@ -885,7 +885,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700 print:divide-gray-400">
                         {currentItems.length > 0 ? currentItems.map(item => (
                             <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer" onClick={() => setViewDetailItem(item)}>
-                                <td className="px-4 py-3 print:hidden flex-shrink-0 w-12" onClick={(e) => e.stopPropagation()}>
+                                <td className="px-4 py-3 print:hidden shrink-0 w-12" onClick={(e) => e.stopPropagation()}>
                                     <input 
                                         type="checkbox"
                                         className="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 w-4 h-4 mx-auto"
@@ -1195,7 +1195,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
             `}</style>
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-5xl lg:max-w-6xl h-[90vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up print-content-wrapper">
 
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 flex-shrink-0 print-controls">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 shrink-0 print-controls">
                     <h3 className="font-bold text-gray-900 dark:text-white">Cetak Label ({selectedItems.length} Barang)</h3>
                     <div className="flex items-center gap-4">
                         <label className="flex items-center space-x-2 text-sm cursor-pointer">
@@ -1329,7 +1329,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                     <X className="w-5 h-5" />
                  </button>
               </div>
-              <div id="single-label-print-area" className="bg-gray-100 dark:bg-gray-900 flex items-center justify-center p-4 min-h-[250px]">
+              <div id="single-label-print-area" className="bg-gray-100 dark:bg-gray-900 flex items-center justify-center p-4 min-h-62.5">
                   {/* The dynamic LabelComponent provides a live preview */}
                   <div className="transform scale-[1.5] origin-center">
                       <LabelComponent item={qrItem} includeQR={includeQR} labelSize={labelSize} />

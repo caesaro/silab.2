@@ -536,7 +536,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
 
   const MonthView = () => (
     <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-      <div className="grid grid-cols-7 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200 dark:border-gray-700">
+      <div className="grid grid-cols-7 bg-linear-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200 dark:border-gray-700">
         {/* Use the shared DAY_LABELS + getDowColour tokens (same as DayWeekView) */}
         {DAY_LABELS.map((label, idx) => (
           <div
@@ -552,7 +552,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
           <div
             key={idx}
             onClick={() => handleDayClick(day)}
-            className={`min-h-[120px] border-b border-r border-gray-100 dark:border-gray-700 p-2 transition-colors ${!day.isCurrentMonth ? "bg-gray-50/50 dark:bg-gray-900/30" : "hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer"}`}
+            className={`min-h-30 border-b border-r border-gray-100 dark:border-gray-700 p-2 transition-colors ${!day.isCurrentMonth ? "bg-gray-50/50 dark:bg-gray-900/30" : "hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer"}`}
           >
             {day.isCurrentMonth && (
               <>
@@ -576,10 +576,10 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
                       >
                         <div className="flex items-center">
                           {isOverlapping && (
-                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 mr-1.5 flex-shrink-0" />
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 mr-1.5 shrink-0" />
                           )}
                           {event.start.dateTime && (
-                            <span className="font-mono text-[10px] mr-1 opacity-75 flex-shrink-0">
+                            <span className="font-mono text-[10px] mr-1 opacity-75 shrink-0">
                               {new Date(
                                 event.start.dateTime,
                               ).toLocaleTimeString("id-ID", {
@@ -636,10 +636,10 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
 
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="flex sticky top-0 z-10 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex sticky top-0 z-10 bg-linear-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200 dark:border-gray-700">
           {/* Spacer inherits the gradient from its parent — only border-r is needed,
               upgraded to border-gray-200 so it visually matches the column cell borders. */}
-          <div className="w-16 flex-shrink-0 border-r border-gray-200 dark:border-gray-700" />
+          <div className="w-16 shrink-0 border-r border-gray-200 dark:border-gray-700" />
           <div
             className="flex-1 grid"
             style={{
@@ -665,7 +665,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
 
         {allDayEvents.length > 0 && (
           <div className="flex border-b border-gray-200 dark:border-gray-700">
-            <div className="w-16 flex-shrink-0 border-r border-gray-100 dark:border-gray-700 text-center py-1">
+            <div className="w-16 shrink-0 border-r border-gray-100 dark:border-gray-700 text-center py-1">
               <span className="text-xs text-gray-400">All-day</span>
             </div>
             <div
@@ -701,7 +701,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
         )}
 
         <div className="flex overflow-auto max-h-[70vh]">
-          <div className="w-16 flex-shrink-0 text-right pr-2 -mt-2">
+          <div className="w-16 shrink-0 text-right pr-2 -mt-2">
             {timeSlots.map((time) => (
               <div
                 key={time}
@@ -858,8 +858,8 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
               <div className="flex items-center">
                 {isAuthenticated ? (
                   <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                    <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
-                    <span className="text-xs text-green-700 dark:text-green-300 font-medium max-w-[150px] truncate">
+                    <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" />
+                    <span className="text-xs text-green-700 dark:text-green-300 font-medium max-w-37.5 truncate">
                       {googleUserEmail || "Terhubung"}
                     </span>
                     <button
@@ -912,7 +912,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
-                  <span className="px-4 text-base font-bold text-gray-900 dark:text-white capitalize min-w-[200px] text-center select-none">
+                  <span className="px-4 text-base font-bold text-gray-900 dark:text-white capitalize min-w-50 text-center select-none">
                     {formatDateHeader()}
                   </span>
                   <button
@@ -963,7 +963,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
 
       {selectedDayDetail && (
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
           onClick={() => setSelectedDayDetail(null)}
         >
           <div
@@ -972,7 +972,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
           >
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center pr-4">
-                <CalendarIcon className="w-5 h-5 mr-2 text-blue-600 flex-shrink-0" />
+                <CalendarIcon className="w-5 h-5 mr-2 text-blue-600 shrink-0" />
                 {new Date(selectedDayDetail.fullDate).toLocaleDateString(
                   "id-ID",
                   {
@@ -1053,7 +1053,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
 
       {selectedEvent && (
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
           onClick={() => setSelectedEvent(null)}
         >
           <div
@@ -1062,7 +1062,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
           >
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center pr-4">
-                <CalendarIcon className="w-5 h-5 mr-2 text-blue-600 flex-shrink-0" />
+                <CalendarIcon className="w-5 h-5 mr-2 text-blue-600 shrink-0" />
                 Detail Kegiatan
               </h3>
               <button
@@ -1074,7 +1074,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
             </div>
             <div className="p-6 space-y-4">
               <div className="flex items-start">
-                <Type className="w-5 h-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
+                <Type className="w-5 h-5 text-gray-400 mr-3 mt-0.5 shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
                     Nama Kegiatan
@@ -1086,7 +1086,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
               </div>
 
               <div className="flex items-start">
-                <Clock className="w-5 h-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
+                <Clock className="w-5 h-5 text-gray-400 mr-3 mt-0.5 shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
                     Waktu
@@ -1103,7 +1103,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
               </div>
 
               <div className="flex items-start">
-                <AlignLeft className="w-5 h-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
+                <AlignLeft className="w-5 h-5 text-gray-400 mr-3 mt-0.5 shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
                     Deskripsi
@@ -1151,7 +1151,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
       )}
 
       {isAddEventModalOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4">
+        <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-full sm:max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up max-h-[90vh] flex flex-col">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center">
@@ -1319,7 +1319,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
       )}
 
       {isDeleteModalOpen && eventToDelete && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-10000 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20">
               <h3 className="font-bold text-red-800 dark:text-red-400 flex items-center">
@@ -1425,7 +1425,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
       )}
 
       {isEditEventModalOpen && selectedEvent && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4">
+        <div className="fixed inset-0 z-10000 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-full sm:max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up max-h-[90vh] flex flex-col">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center">

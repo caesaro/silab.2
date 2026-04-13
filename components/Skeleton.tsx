@@ -34,7 +34,7 @@ export const TableSkeleton: React.FC = () => {
         <div className="divide-y divide-gray-200 dark:divide-gray-700">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="p-4 flex items-center space-x-4">
-               <Skeleton className="w-10 h-10 rounded-full flex-shrink-0" />
+               <Skeleton className="w-10 h-10 rounded-full shrink-0" />
                <div className="flex-1 space-y-2">
                   <Skeleton className="h-4 w-1/3" />
                   <Skeleton className="h-3 w-1/4" />

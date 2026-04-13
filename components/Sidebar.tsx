@@ -71,7 +71,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
 
   return (
     <aside className={`${isOpen ? 'translate-x-0' : '-translate-x-full'} fixed md:relative md:translate-x-0 z-40 ${isCollapsed ? 'md:w-20' : 'md:w-64'} w-64 h-screen transition-all duration-300 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 print:hidden flex flex-col`}>
-      <div className={`p-6 border-b border-gray-200 dark:border-gray-700 flex items-center ${isCollapsed ? 'justify-center p-4' : 'space-x-3'} flex-shrink-0 min-h-[5rem] transition-all duration-300`}>
+      <div className={`p-6 border-b border-gray-200 dark:border-gray-700 flex items-center ${isCollapsed ? 'justify-center p-4' : 'space-x-3'} shrink-0 min-h-20 transition-all duration-300`}>
         <img
           src={nocLogo}
           alt="NOC Logo"
@@ -172,7 +172,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
                 {!isCollapsed && <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />}
               </button>
               {isExpanded && !isCollapsed && (
-                <nav className="ml-8 space-y-1 mt-1">
+                <nav className="ml-6 pl-2 space-y-1 mt-1 border-l-2 border-gray-100 dark:border-gray-700">
                   {visibleItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = currentPage === item.id;
@@ -186,7 +186,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
                             : 'text-gray-600 dark:text-gray-400 hover:bg-blue-50/50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400'
                         }`}
                       >
-                        <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400'} mr-3 flex-shrink-0 transition-colors`} />
+                        <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400'} mr-3 shrink-0 transition-colors`} />
                         <span>{item.label}</span>
                       </button>
                     );
@@ -197,18 +197,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
           );
         })}
 
-      </div>
-
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
-        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'px-2'} py-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg transition-all duration-300`}>
-          <Shield className={`w-8 h-8 text-blue-600 p-1.5 bg-blue-100 rounded-full ${isCollapsed ? '' : 'mr-3'} transition-all duration-300`} />
-          {!isCollapsed && (
-            <div className="overflow-hidden whitespace-nowrap transition-all duration-300">
-              <p className="text-sm font-medium text-gray-900 dark:text-white">Role Saat Ini</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{currentRole}</p>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Toggle Button (Desktop Only) */}

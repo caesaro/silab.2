@@ -338,7 +338,7 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
         </div>
       </div>
 
-      <div className="absolute -left-[9999px] top-0">
+      <div className="absolute -left-9999px top-0">
         <div ref={proofRef} className="w-full text-black">
             {proofBooking && (
                 <div className="relative z-10">
@@ -466,7 +466,7 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
       {isBookingModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-3xl overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up max-h-[90vh] flex flex-col">
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 flex-shrink-0">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 shrink-0">
                  <h3 className="font-bold text-gray-900 dark:text-white flex items-center text-base">
                     <Plus className="w-5 h-5 mr-2 text-blue-600" />
                     {editingBooking ? 'Edit Pesanan Ruangan' : 'Buat Pesanan Ruangan'}

@@ -28,13 +28,13 @@ const getColorClasses = (color: string) => {
 const StatCard: React.FC<{ title: string; value: string; icon: React.ElementType; color: string; onClick?: () => void; subtext?: string }> = ({ title, value, icon: Icon, color, onClick, subtext }) => {
   const { bg, text } = getColorClasses(color);
   return (
-    <div onClick={onClick} className={`bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 ${onClick ? 'cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]' : ''}`}>
+    <div onClick={onClick} className={`bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 ${onClick ? 'cursor-pointer hover:shadow-md transition-all hover:scale-[1.02] group' : ''}`}>
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{title}</p>
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{value}</h3>
         </div>
-        <div className={`p-3 rounded-lg ${bg}`}>
+        <div className={`p-3 rounded-lg ${bg} ${onClick ? 'group-hover:scale-110 transition-transform' : ''}`}>
           <Icon className={`w-6 h-6 ${text}`} />
         </div>
       </div>
@@ -102,102 +102,108 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
   
   // Get logged in user ID from storage (set after successful login)
   const LOGGED_IN_USER_ID = sessionStorage.getItem('userId') || localStorage.getItem('userId') || '';
+  const userName = sessionStorage.getItem('userName') || localStorage.getItem('userName') || 'Pengguna';
 
   // Data states
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [recentBookings, setRecentBookings] = useState<any[]>([]);
   const [dashboardSummary, setDashboardSummary] = useState({
     activeLoans: 0,
     totalUsers: 0,
-    equipment: { total: 0, damaged: 0, good: 0, minor: 0, major: 0 }
+    equipment: { total: 0, damaged: 0, good: 0, minor: 0, major: 0 },
+    bookings: { total: 0, pending: 0, approved: 0, rejected: 0 },
+    roomStats: [] as any[]
   });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const abortController = new AbortController();
+    const signal = abortController.signal;
+
     const fetchData = async () => {
       setIsLoading(true);
       try {
         if (isUser) {
-          // OPTIMASI: User biasa hanya butuh data pemesanan
-          const [resBookings] = await Promise.all([
-            api('/api/bookings?exclude_file=true')
+          // OPTIMASI: User biasa HANYA memanggil data agregasi khusus miliknya
+          const [resSummary] = await Promise.all([
+            api('/api/dashboard/user-summary', { signal })
           ]);
-          if (resBookings.ok) setBookings(await resBookings.json());
+          if (resSummary.ok) {
+            const data = await resSummary.json();
+            setDashboardSummary(prev => ({ ...prev, bookings: data.bookings }));
+            setRecentBookings(data.recentBookings || []);
+          }
         } else {
-          // Admin dan Laboran butuh semua data statistik
-          const [resBookings, resRooms, resSummary] = await Promise.all([
-            api('/api/bookings?exclude_file=true'),
-            api('/api/rooms?exclude_image=true'),
-            api('/api/dashboard/summary')
+          // Admin dan Laboran HANYA memanggil data agregasi (sangat ringan)
+          const [resSummary] = await Promise.all([
+            api('/api/dashboard/summary', { signal })
           ]);
-          if (resBookings.ok) setBookings(await resBookings.json());
-          if (resRooms.ok) setRooms(await resRooms.json());
-          if (resSummary.ok) setDashboardSummary(await resSummary.json());
+          if (resSummary.ok) {
+            const data = await resSummary.json();
+            setDashboardSummary(data);
+            setRecentBookings(data.recentBookings || []);
+          }
         }
-      } catch (error) {
-        console.error("Gagal mengambil data dashboard:", error);
+      } catch (error: any) {
+        if (error.name !== 'AbortError') {
+          console.error("Gagal mengambil data dashboard:", error);
+        }
       } finally {
-        setIsLoading(false);
+        if (!signal.aborted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchData();
+
+    return () => {
+      abortController.abort();
+    };
   }, [isUser]);
 
   // Calculate Statistics Dynamically
   const stats = useMemo(() => {
-    // User Specific Stats (Dihitung untuk semua role karena Admin juga bisa pinjam)
-    const myBookings = bookings.filter(b => b.userId === LOGGED_IN_USER_ID);
-    const myPending = myBookings.filter(b => b.status === BookingStatus.PENDING).length;
-    const myApproved = myBookings.filter(b => b.status === BookingStatus.APPROVED).length;
-    const myRejected = myBookings.filter(b => b.status === BookingStatus.REJECTED).length;
-
     // OPTIMASI: Hentikan kalkulasi berat jika role adalah User
     if (isUser) {
-      return { totalBookings: 0, pendingBookings: 0, activeLoans: 0, availableRooms: 0, totalUsers: 0, damagedEquipment: 0, totalEquipment: 0, myBookings, myPending, myApproved, myRejected };
+      return { 
+        totalBookings: 0, pendingBookings: 0, activeLoans: 0, availableRooms: 0, totalUsers: 0, damagedEquipment: 0, totalEquipment: 0,
+        myTotal: dashboardSummary.bookings.total,
+        myPending: dashboardSummary.bookings.pending,
+        myApproved: dashboardSummary.bookings.approved,
+        myRejected: dashboardSummary.bookings.rejected
+      };
     }
 
-    const totalBookings = bookings.length;
-    const pendingBookings = bookings.filter(b => b.status === BookingStatus.PENDING).length;
+    const totalBookings = dashboardSummary.bookings.total;
+    const pendingBookings = dashboardSummary.bookings.pending;
     const activeLoans = dashboardSummary.activeLoans;
-    
-    // Simple availability check
-    const today = new Date().toLocaleDateString('en-CA');
-    const bookedRoomIds = new Set(
-        bookings
-            .filter(b => b.date === today && b.status === BookingStatus.APPROVED)
-            .map(b => b.roomId)
-    );
-    const availableRooms = rooms.length - bookedRoomIds.size;
+    const availableRooms = 0; // (Dihapus karena tidak dipakai pada UI)
     
     const totalUsers = dashboardSummary.totalUsers;
     const damagedEquipment = dashboardSummary.equipment.damaged;
     const totalEquipment = dashboardSummary.equipment.total;
 
-    return { totalBookings, pendingBookings, activeLoans, availableRooms, totalUsers, damagedEquipment, totalEquipment, myBookings, myPending, myApproved, myRejected };
-  }, [isUser, bookings, rooms, dashboardSummary, LOGGED_IN_USER_ID]);
+    return { totalBookings, pendingBookings, activeLoans, availableRooms, totalUsers, damagedEquipment, totalEquipment };
+  }, [isUser, dashboardSummary]);
 
   // Calculate Chart Data
   const barData = useMemo(() => {
       if (isUser) return []; // OPTIMASI: User tidak render chart ini
-      return rooms.map(room => ({
-          name: room.name.split(' ').slice(0, 2).join(' '), // Shorten name for display
-          bookings: bookings.filter(b => b.roomId === room.id).length
-      }));
-  }, [rooms, bookings, isUser]);
+      return dashboardSummary.roomStats;
+  }, [dashboardSummary.roomStats, isUser]);
 
   const pieData = useMemo(() => {
       if (isUser) return []; // OPTIMASI: User tidak render chart ini
-      const approved = bookings.filter(b => b.status === BookingStatus.APPROVED).length;
-      const pending = bookings.filter(b => b.status === BookingStatus.PENDING).length;
-      const rejected = bookings.filter(b => b.status === BookingStatus.REJECTED).length;
+      const { approved, pending, rejected } = dashboardSummary.bookings;
 
       return [
           { name: 'Disetujui', value: approved, color: '#22c55e' },
           { name: 'Pending', value: pending, color: '#f59e0b' },
           { name: 'Ditolak', value: rejected, color: '#ef4444' },
       ];
-  }, [bookings, isUser]);
+  }, [dashboardSummary.bookings, isUser]);
 
   const equipmentConditionData = useMemo(() => {
       if (isUser) return []; // OPTIMASI: User tidak render chart ini
@@ -219,7 +225,9 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard Saya</h1>
-            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Selamat datang di CORE.FTI</p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+              Selamat datang, <span className="font-semibold text-gray-700 dark:text-gray-300">{userName}</span>!
+            </p>
           </div>
           <div className="text-sm bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full">
             {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -230,28 +238,28 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard 
                 title="Total Pengajuan" 
-                value={stats.myBookings.length.toString()} 
+value={stats.myTotal?.toString() || '0'}
                 icon={FileText} 
                 color="bg-blue-500" 
             onClick={() => onNavigate?.('pemesanan-saya')}
             />
             <StatCard 
                 title="Menunggu" 
-                value={stats.myPending.toString()} 
+value={stats.myPending?.toString() || '0'}
                 icon={Clock} 
                 color="bg-yellow-500" 
             onClick={() => onNavigate?.('pemesanan-saya')}
             />
             <StatCard 
                 title="Disetujui" 
-                value={stats.myApproved.toString()} 
+value={stats.myApproved?.toString() || '0'}
                 icon={CheckCircle} 
                 color="bg-green-500" 
             onClick={() => onNavigate?.('pemesanan-saya')}
             />
              <StatCard 
                 title="Ditolak" 
-                value={stats.myRejected.toString()} 
+value={stats.myRejected?.toString() || '0'}
                 icon={XCircle} 
                 color="bg-red-500" 
             onClick={() => onNavigate?.('pemesanan-saya')}
@@ -268,7 +276,7 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
                     </button>
                 </div>
                 <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                    {stats.myBookings.slice(0, 5).map((booking) => (
+                    {recentBookings.map((booking) => (
                         <div key={booking.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-center justify-between">
                             <div className="flex items-center space-x-4">
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${booking.status === BookingStatus.PENDING ? 'bg-yellow-100 text-yellow-600' : booking.status === BookingStatus.APPROVED ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
@@ -284,8 +292,17 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
                             </span>
                         </div>
                     ))}
-                    {stats.myBookings.length === 0 && (
-                        <div className="p-8 text-center text-gray-500">Belum ada riwayat pengajuan.</div>
+                    {dashboardSummary.bookings.total === 0 && (
+                        <div className="p-8 flex flex-col items-center justify-center text-center">
+                            <FileText className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" />
+                            <p className="text-gray-500 dark:text-gray-400 mb-4 text-sm">Belum ada riwayat pengajuan.</p>
+                            <button 
+                              onClick={() => onNavigate?.('ruangan')} 
+                              className="px-4 py-2 bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-lg text-sm font-medium hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                            >
+                                Buat Pengajuan Sekarang
+                            </button>
+                        </div>
                     )}
                 </div>
             </div>
@@ -309,8 +326,8 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard {role}</h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Ringkasan aktivitas laboratorium</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Halo, {userName}!</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Ringkasan aktivitas laboratorium untuk {role}</p>
         </div>
         <div className="text-sm bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full">
           Hari ini: {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -359,7 +376,7 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
         <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col">
           <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Statistik Penggunaan Ruangan</h3>
           <div className="flex-1 min-h-75">
-            {bookings.length > 0 ? (
+        {dashboardSummary.roomStats.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={barData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
@@ -369,7 +386,14 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
                     contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
                     cursor={{ fill: 'transparent' }}
                   />
-                  <Bar dataKey="bookings" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
+                  <Bar 
+                    dataKey="bookings" 
+                    fill="#3b82f6" 
+                    radius={[4, 4, 0, 0]} 
+                    barSize={40} 
+                    onClick={() => onNavigate?.('pesanan-ruang')}
+                    style={{ cursor: 'pointer' }}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -387,7 +411,7 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
             <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Status Pengajuan</h3>
               <div className="h-48 flex items-center justify-center">
-                {bookings.length > 0 ? (
+            {dashboardSummary.bookings.total > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -398,6 +422,8 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
                         outerRadius={60}
                         paddingAngle={5}
                         dataKey="value"
+                    onClick={() => onNavigate?.('pesanan-ruang')}
+                    style={{ cursor: 'pointer' }}
                       >
                         {pieData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
@@ -430,6 +456,8 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
                         outerRadius={60}
                         paddingAngle={5}
                         dataKey="value"
+                    onClick={() => onNavigate?.('inventaris')}
+                    style={{ cursor: 'pointer' }}
                       >
                         {equipmentConditionData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
@@ -460,7 +488,7 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
                   </button>
               </div>
               <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                  {bookings.length > 0 ? bookings.slice(0, 5).map((booking) => (
+              {recentBookings.length > 0 ? recentBookings.map((booking) => (
                       <div key={booking.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-center justify-between">
                           <div className="flex items-center space-x-4">
                               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${booking.status === BookingStatus.PENDING ? 'bg-yellow-100 text-yellow-600' : booking.status === BookingStatus.APPROVED ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>

@@ -632,7 +632,7 @@ const PeminjamanBarang: React.FC<PeminjamanBarangProps> = ({ showToast }) => {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-full sm:max-w-lg md:max-w-2xl overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up max-h-[90vh] flex flex-col">
-            <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 flex-shrink-0">
+            <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 shrink-0">
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center text-sm sm:text-base">
                 {editingTransactionId ? <Edit className="w-5 h-5 mr-2 text-blue-600" /> : <Plus className="w-5 h-5 mr-2 text-blue-600" />}
                 {editingTransactionId ? 'Edit Peminjaman' : 'Input Peminjaman Baru'}
@@ -957,7 +957,7 @@ const PeminjamanBarang: React.FC<PeminjamanBarangProps> = ({ showToast }) => {
 
       {/* Return Confirmation Modal */}
       {returnConfirmation && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6 animate-fade-in-up">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Konfirmasi Pengembalian</h3>
             <div className="space-y-3 mb-6">
@@ -1002,7 +1002,7 @@ const PeminjamanBarang: React.FC<PeminjamanBarangProps> = ({ showToast }) => {
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center">
+                  <label className="flex text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 items-center">
                     <MapPin className="w-3 h-3 mr-1" />
                     Lokasi Pengembalian
                   </label>

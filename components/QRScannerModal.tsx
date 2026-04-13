@@ -124,13 +124,13 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-1000 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700">
         
         {/* Header */}
         <div className="p-6 pb-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
+            <div className="p-2 bg-linear-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
               <QrCode className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -150,7 +150,7 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
         </div>
 
         {/* Scanner Area */}
-        <div className="flex-1 relative flex items-center justify-center p-6 bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-800">
+        <div className="flex-1 relative flex items-center justify-center p-6 bg-linear-to-b from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-800">
           
           <div 
             id="scanner-container" 
@@ -161,7 +161,7 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
           {!error && (
             <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
               <div className="w-64 h-64 border-4 border-blue-400/50 rounded-2xl p-4 bg-white/30 dark:bg-black/30 backdrop-blur-sm shadow-2xl animate-pulse">
-                <div className="w-full h-full border-4 border-blue-500 rounded-xl bg-gradient-to-b from-blue-400/20 to-transparent" />
+                <div className="w-full h-full border-4 border-blue-500 rounded-xl bg-linear-to-b from-blue-400/20 to-transparent" />
               </div>
               <p className="absolute bottom-12 text-center text-white text-lg font-semibold drop-shadow-2xl">
                 Scan QR Code
@@ -211,7 +211,7 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900/50 flex items-center gap-3">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-linear-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900/50 flex items-center gap-3">
           <button
             onClick={handleClose}
             className="px-6 py-3 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors ml-auto"

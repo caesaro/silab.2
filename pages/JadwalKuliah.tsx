@@ -828,8 +828,8 @@ const handleDownloadTemplate = async () => {
           )}
           {canManage && googleApi.isAuthenticated && (
             <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg shadow-sm">
-              <Check className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
-              <span className="text-sm font-medium text-green-700 dark:text-green-300 max-w-[150px] truncate">
+              <Check className="w-4 h-4 text-green-600 dark:text-green-400shrink-0" />
+              <span className="text-sm font-medium text-green-700 dark:text-green-300 max-w-37.5 truncate">
                 {googleApi.googleUserEmail || "Terhubung"}
               </span>
               <button onClick={() => googleApi.logout()} className="p-1 hover:bg-green-100 dark:hover:bg-green-900/40 rounded transition-colors" title="Logout Google Calendar">
@@ -953,7 +953,7 @@ const handleDownloadTemplate = async () => {
                 <h3 className="font-bold text-white">{day}</h3>
                 <p className="text-blue-100 text-xs">{daySchedules.length} matakuliah</p>
               </div>
-              <div className="p-2 space-y-2 max-h-[400px] overflow-y-auto">
+              <div className="p-2 space-y-2 max-h-100 overflow-y-auto">
                 {daySchedules.length > 0 ? daySchedules.map(schedule => (
                   <div key={schedule.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 hover:shadow-md hover:bg-blue-50 dark:hover:bg-gray-600 transition-all duration-200 border border-transparent hover:border-blue-200 dark:hover:border-gray-500">
                     <div className="flex justify-between items-start mb-2">
@@ -1005,7 +1005,7 @@ const handleDownloadTemplate = async () => {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4">
            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-full sm:max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up max-h-[90vh] flex flex-col">
-              <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 flex-shrink-0">
+              <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50shrink-0">
                  <h3 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base">
                     {editingSchedule ? 'Edit Jadwal Kuliah' : 'Tambah Jadwal Kuliah'}
                  </h3>
@@ -1155,7 +1155,7 @@ const handleDownloadTemplate = async () => {
       )}
 
       {bulkModal.isOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex justify-between items-center">
               <h3 className="font-bold text-gray-900 dark:text-white">Lengkapi Data Import</h3>
@@ -1255,7 +1255,7 @@ const handleDownloadTemplate = async () => {
       )}
 
       {conflictModal.isOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-yellow-50 dark:bg-yellow-900/20">
               <h3 className="font-bold text-yellow-800 dark:text-yellow-400 flex items-center">
@@ -1286,7 +1286,7 @@ const handleDownloadTemplate = async () => {
       )}
 
       {bulkDeleteModal.isOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20 flex justify-between items-center">
               <h3 className="font-bold text-red-800 dark:text-red-400 flex items-center">

@@ -66,18 +66,18 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
         />
       )}
       <div 
-        className={`w-full px-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus-within:ring-2 focus-within:ring-blue-500 flex justify-between items-center shadow-sm min-h-[42px] ${disabled ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800' : 'cursor-pointer'}`}
+        className={`w-full px-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus-within:ring-2 focus-within:ring-blue-500 flex justify-between items-center shadow-sm min-h-10.5 ${disabled ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800' : 'cursor-pointer'}`}
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
         <span className={`${!selectedOption ? 'text-gray-500 text-sm' : 'truncate text-sm'}`}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
-        <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0 ml-2" />
+        <ChevronDown className="w-4 h-4 text-gray-500shrink-0 ml-2" />
       </div>
 
       {isOpen && (
         <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-60 flex flex-col overflow-hidden">
-          <div className="p-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex-shrink-0">
+          <div className="p-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50shrink-0">
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
@@ -109,7 +109,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
                   }}
                 >
                   <span className="truncate pr-2">{opt.label}</span>
-                  {opt.subLabel && <span className="text-xs text-gray-500 flex-shrink-0 ml-2">{opt.subLabel}</span>}
+                  {opt.subLabel && <span className="text-xs text-gray-500shrink-0 ml-2">{opt.subLabel}</span>}
                 </div>
               ))
             ) : (

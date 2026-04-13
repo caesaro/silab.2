@@ -1067,7 +1067,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
               </div>
               <div>
                 <p className="text-xs text-gray-500">Pesan Error</p>
-                <p className="text-sm bg-gray-100 dark:bg-gray-700 p-3 rounded-lg mt-1 break-words dark:text-white">{selectedLog.errorMessage}</p>
+                <p className="text-sm bg-gray-100 dark:bg-gray-700 p-3 rounded-lg mt-1 wrap-break-words dark:text-white">{selectedLog.errorMessage}</p>
               </div>
               {selectedLog.errorStack && (
                 <div>
@@ -1078,7 +1078,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
               {selectedLog.browserInfo && (
                 <div>
                   <p className="text-xs text-gray-500">Browser Info</p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 break-words">{selectedLog.browserInfo}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 wrap-break-words">{selectedLog.browserInfo}</p>
                 </div>
               )}
             </div>
