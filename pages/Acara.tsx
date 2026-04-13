@@ -286,7 +286,7 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
                 </h3>
                 <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                     <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-2 text-gray-400shrink-0" />
+                        <Clock className="w-4 h-4 mr-2 text-gray-400 shrink-0" />
                         {group.uniqueSchedules.length > 1 ? (
                            <span>{group.uniqueSchedules.length} Jadwal ({formatDateID(group.uniqueSchedules[0].date)} - ...)</span>
                         ) : (
@@ -362,7 +362,7 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
                             </div>
 
                             <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center mt-1">
-                                <MapPin className="w-4 h-4 mr-2shrink-0" /> <span className="line-clamp-2">{selectedGroup.roomIds.map(getRoomName).join(', ')}</span>
+                                <MapPin className="w-4 h-4 mr-2 shrink-0" /> <span className="line-clamp-2">{selectedGroup.roomIds.map(getRoomName).join(', ')}</span>
                             </p>
                         </div>
 
@@ -460,7 +460,7 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
                                 <div className="grid grid-cols-1 gap-4">
                                     {shareConfig.time && (
                                         <div className="flex items-start">
-                                            <div className="bg-blue-50 dark:bg-blue-900/30 p-2 rounded-lg mr-3shrink-0">
+                                        <div className="bg-blue-50 dark:bg-blue-900/30 p-2 rounded-lg mr-3 shrink-0">
                                                 <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                                             </div>
                                             <div className="w-full mt-0.5">
@@ -485,7 +485,7 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
                                     )}
                                     {shareConfig.location && (
                                         <div className="flex items-start">
-                                            <div className="bg-purple-50 dark:bg-purple-900/30 p-2 rounded-lg mr-3shrink-0">
+                                        <div className="bg-purple-50 dark:bg-purple-900/30 p-2 rounded-lg mr-3 shrink-0">
                                                 <MapPin className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                                             </div>
                                             <div className="w-full mt-0.5">

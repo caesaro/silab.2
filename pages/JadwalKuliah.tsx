@@ -828,7 +828,7 @@ const handleDownloadTemplate = async () => {
           )}
           {canManage && googleApi.isAuthenticated && (
             <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg shadow-sm">
-              <Check className="w-4 h-4 text-green-600 dark:text-green-400shrink-0" />
+              <Check className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" />
               <span className="text-sm font-medium text-green-700 dark:text-green-300 max-w-37.5 truncate">
                 {googleApi.googleUserEmail || "Terhubung"}
               </span>
@@ -1005,7 +1005,7 @@ const handleDownloadTemplate = async () => {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4">
            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-full sm:max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up max-h-[90vh] flex flex-col">
-              <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50shrink-0">
+              <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 shrink-0">
                  <h3 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base">
                     {editingSchedule ? 'Edit Jadwal Kuliah' : 'Tambah Jadwal Kuliah'}
                  </h3>
