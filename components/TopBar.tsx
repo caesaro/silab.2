@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Moon, Sun, Bell, Search, LogOut, User, ChevronDown, Check, Box, MapPin, CheckCheck, Loader2, Trash2 } from 'lucide-react';
+import { Menu, Moon, Sun, Bell, Search, LogOut, User, ChevronDown, Check, Box, MapPin, CheckCheck, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 import { Role, Notification } from '../types';
 import { api } from '../services/api';
 
@@ -16,6 +16,7 @@ interface TopBarProps {
   onMarkAllAsRead: () => void;
   onClearAllNotifications: () => void;
   onNavigate: (page: string) => void;
+  isMaintenanceMode?: boolean;
 }
 
 // 1. Definisikan interface untuk hasil pencarian
@@ -37,7 +38,7 @@ const iconMap: Record<string, React.ElementType> = {
 };
 
 const TopBar: React.FC<TopBarProps> = ({ 
-  onToggleSidebar, isDarkMode, toggleDarkMode, currentRole, userName, onOpenAi, onLogout, notifications, onMarkAsRead, onMarkAllAsRead, onClearAllNotifications, onNavigate
+  onToggleSidebar, isDarkMode, toggleDarkMode, currentRole, userName, onOpenAi, onLogout, notifications, onMarkAsRead, onMarkAllAsRead, onClearAllNotifications, onNavigate, isMaintenanceMode
 }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -172,6 +173,13 @@ const TopBar: React.FC<TopBarProps> = ({
       </div>
 
       <div className="flex items-center space-x-3 sm:space-x-4">
+
+        {isMaintenanceMode && (
+          <div className="hidden sm:flex items-center px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full text-xs font-bold animate-pulse border border-red-200 dark:border-red-800" title="Maintenance Mode Sedang Aktif">
+            <AlertTriangle className="w-3.5 h-3.5 mr-1" />
+            Maintenance
+          </div>
+        )}
 
         {/* Notifications */}
         <div className="relative">

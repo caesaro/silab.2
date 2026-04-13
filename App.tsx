@@ -7,6 +7,7 @@ import LoadingScreen from './components/LoadingScreen';
 import ProtectedRoute from './components/ProtectedRoute';
 import { api } from './services/api';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation, Outlet } from 'react-router-dom';
+import { Megaphone } from 'lucide-react';
 
 import { APP_FULL_NAME } from './config';
 
@@ -99,6 +100,7 @@ const AppContent: React.FC = () => {
   // Loading State
   const [isLoading, setIsLoading] = useState(true);
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+  const [announcement, setAnnouncement] = useState<{active: boolean, message: string, type: string} | null>(null);
 
   // Notifications & Toast State
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -109,10 +111,15 @@ const AppContent: React.FC = () => {
     // Cek status maintenance dari server
     const checkSystemStatus = async () => {
       try {
-        const res = await api('/api/settings/maintenance');
-        if (res.ok) {
-          const data = await res.json();
-          setIsMaintenanceMode(data.enabled);
+        const [resMaint, resAnnounce] = await Promise.all([
+          api('/api/settings/maintenance'),
+          api('/api/settings/announcement')
+        ]);
+        if (resMaint.ok) {
+          setIsMaintenanceMode((await resMaint.json()).enabled);
+        }
+        if (resAnnounce.ok) {
+          setAnnouncement(await resAnnounce.json());
         }
       } catch (e) {
         // Non-blocking: lanjutkan meskipun gagal
@@ -467,9 +474,14 @@ const AppContent: React.FC = () => {
     return <LoadingScreen />;
   }
 
-  // Render Maintenance Screen (Hanya untuk User biasa, Admin/Laboran tetap bisa akses)
-  if (isMaintenanceMode && currentRole === Role.USER) {
-    return <Maintenance />;
+  // Render Maintenance Screen (Hanya untuk User biasa. Admin/Laboran/Supervisor tetap bisa akses)
+  const canBypassMaintenance = currentRole === Role.ADMIN || currentRole === Role.LABORAN || currentRole === 'Supervisor' as Role;
+  
+  if (isMaintenanceMode && !canBypassMaintenance) {
+    // Izinkan akses ke path /login agar admin yang sedang logout tetap bisa masuk
+    if (location.pathname !== '/login') {
+      return <Maintenance />;
+    }
   }
 
   return (
@@ -529,9 +541,20 @@ const AppContent: React.FC = () => {
             onMarkAllAsRead={markAllNotificationsAsRead}
             onClearAllNotifications={clearAllNotifications}
             onNavigate={(page) => navigate(`/${page}`)}
+            isMaintenanceMode={isMaintenanceMode}
           />
 
           <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 print:overflow-visible print:h-auto print:p-0 print:block flex flex-col">
+            {announcement?.active && announcement?.message && (
+              <div className={`mb-6 p-4 rounded-xl border flex items-start animate-fade-in-up ${
+                announcement.type === 'info' ? 'bg-blue-100 border-blue-200 text-blue-800 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300' :
+                announcement.type === 'warning' ? 'bg-yellow-100 border-yellow-200 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-300' :
+                'bg-red-100 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300'
+              }`}>
+                <Megaphone className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" />
+                <p className="text-sm font-medium">{announcement.message}</p>
+              </div>
+            )}
             <div className="flex-1 animate-fade-in-up transition-all duration-300" key={location.pathname}>
               <Suspense fallback={<PageLoader />}>
                 <Outlet />
@@ -623,7 +646,7 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <Router>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AppContent />
     </Router>
   );

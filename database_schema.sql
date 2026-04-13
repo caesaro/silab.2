@@ -24,7 +24,7 @@ CREATE TYPE pkl_status_enum AS ENUM ('Aktif', 'Selesai', 'Dibatalkan');
 -- ALTER TABLE loans ALTER COLUMN status TYPE loan_status_enum USING status::loan_status_enum;
 -- ALTER TABLE pkl_students ALTER COLUMN status TYPE pkl_status_enum USING status::pkl_status_enum;
 
--- 1. Tabel Users
+-- Tabel Users
 -- Menyimpan data semua pengguna (Mahasiswa, Dosen, Admin, Teknisi)
 CREATE TABLE users (
     id VARCHAR(50) PRIMARY KEY,
@@ -51,7 +51,7 @@ VALUES
 ('ADMIN-001', 'Administrator', 'admin.noc@core.fti', 'admin', '$2a$12$JOgQfS7L8RV4QOMnLpPQdeWeJgFaquVRouBIXml.EM0Lu54InxRAG', 'Admin', 'ADMIN001', '00000000000', 'Aktif');
 
 
--- 1b. Tabel Staff
+-- Tabel Staff
 -- Menyimpan data staff/laboran yang bisa menjadi PIC ruangan
 CREATE TABLE staff (
     id VARCHAR(50) PRIMARY KEY,
@@ -69,7 +69,7 @@ CREATE TABLE staff (
 
 CREATE TRIGGER update_staff_updated_at BEFORE UPDATE ON staff FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- 2. Tabel Rooms
+-- Tabel Rooms
 -- Menyimpan data ruangan laboratorium
 CREATE TABLE rooms (
     id VARCHAR(50) PRIMARY KEY,
@@ -89,7 +89,7 @@ CREATE TABLE rooms (
 
 CREATE TRIGGER update_rooms_updated_at BEFORE UPDATE ON rooms FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- 3. Tabel Bookings
+-- Tabel Bookings
 -- Transaksi peminjaman ruangan
 CREATE TABLE bookings (
     id VARCHAR(50) PRIMARY KEY,
@@ -111,7 +111,7 @@ CREATE TABLE bookings (
 
 CREATE TRIGGER update_bookings_updated_at BEFORE UPDATE ON bookings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- 3b. Tabel Booking Schedules (Detail Jadwal)
+-- Tabel Booking Schedules (Detail Jadwal)
 CREATE TABLE booking_schedules (
     id SERIAL PRIMARY KEY,
     booking_id VARCHAR(50) NOT NULL,
@@ -121,7 +121,7 @@ CREATE TABLE booking_schedules (
     CONSTRAINT fk_schedule_booking FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
 );
 
--- 4. Tabel Equipment
+-- Tabel Equipment
 -- Data barang inventaris
 CREATE TABLE inventory (
     id VARCHAR(50) PRIMARY KEY,
@@ -139,7 +139,7 @@ CREATE TABLE inventory (
 
 CREATE TRIGGER update_inventory_updated_at BEFORE UPDATE ON inventory FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- 5. Tabel Transactions
+-- Tabel Transactions
 -- Header peminjaman (Satu transaksi bisa memuat banyak barang)
 CREATE TABLE transactions (
     id VARCHAR(50) PRIMARY KEY,
@@ -155,7 +155,7 @@ CREATE TABLE transactions (
 
 CREATE TRIGGER update_transactions_updated_at BEFORE UPDATE ON transactions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- 6. Tabel Loans (Detail Barang)
+-- Tabel Loans (Detail Barang)
 -- Detail barang dalam satu transaksi
 CREATE TABLE loans (
     id VARCHAR(50) PRIMARY KEY,
@@ -173,7 +173,7 @@ CREATE TABLE loans (
 
 CREATE TRIGGER update_loans_updated_at BEFORE UPDATE ON loans FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- 6b. Tabel Item Movements (Tracking Perpindahan Barang)
+-- Tabel Item Movements (Tracking Perpindahan Barang)
 -- Mencatat perpindahan barang (baik dari peminjaman maupun input manual)
 CREATE TABLE item_movements (
     id VARCHAR(50) PRIMARY KEY,
@@ -197,7 +197,7 @@ CREATE INDEX idx_movements_inventory ON item_movements(inventory_id);
 CREATE INDEX idx_movements_date ON item_movements(movement_date);
 CREATE INDEX idx_movements_type ON item_movements(movement_type);
 
--- 7. Tabel Notifications
+-- Tabel Notifications
 -- Menyimpan riwayat notifikasi untuk dashboard
 CREATE TABLE notifications (
     id VARCHAR(50) PRIMARY KEY,
@@ -229,7 +229,7 @@ CREATE INDEX idx_rooms_pic_id ON rooms(pic_id);
 CREATE INDEX idx_transactions_peminjam ON transactions(peminjam_identifier);
 CREATE INDEX idx_transactions_tgl ON transactions(tgl_pinjam);
 
--- 8. Tabel System Settings
+-- Tabel System Settings
 -- Menyimpan konfigurasi global aplikasi
 CREATE TABLE system_settings (
     key VARCHAR(50) PRIMARY KEY,
@@ -243,7 +243,7 @@ CREATE TRIGGER update_system_settings_updated_at BEFORE UPDATE ON system_setting
 INSERT INTO system_settings (key, value) VALUES ('maintenance_mode', 'false');
 INSERT INTO system_settings (key, value) VALUES ('global_announcement', '{"active": false, "message": "", "type": "info"}');
 
--- 9. Tabel Room Computers (Spesifikasi Komputer per Ruangan)
+-- Tabel Room Computers (Spesifikasi Komputer per Ruangan)
 CREATE TABLE room_computers (
     id VARCHAR(50) PRIMARY KEY,
     room_id VARCHAR(50) NOT NULL,
@@ -263,7 +263,7 @@ CREATE TABLE room_computers (
     CONSTRAINT fk_computer_room FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
 );
 
--- 10. Tabel PKL Students (Orang Magang/PKL)
+-- Tabel PKL Students (Orang Magang/PKL)
 CREATE TABLE pkl_students (
     id VARCHAR(50) PRIMARY KEY,
     nama_siswa VARCHAR(100) NOT NULL,
@@ -286,7 +286,7 @@ CREATE INDEX idx_pkl_sekolah ON pkl_students(sekolah);
 CREATE INDEX idx_pkl_status ON pkl_students(status);
 CREATE INDEX idx_pkl_pembimbing ON pkl_students(pembimbing_id);
 
--- 11. Tabel Class Schedules (Jadwal Kuliah)
+-- Tabel Class Schedules (Jadwal Kuliah)
 -- Menyimpan jadwal kelas per semester
 CREATE TABLE class_schedules (
     id VARCHAR(50) PRIMARY KEY,
@@ -315,7 +315,7 @@ CREATE INDEX idx_class_schedules_semester ON class_schedules(semester);
 CREATE INDEX idx_class_schedules_academic ON class_schedules(academic_year);
 CREATE INDEX idx_class_schedules_day ON class_schedules(day_of_week);
 
--- 12. Tabel Software (Software yang terinstall di Laboratorium)
+-- Tabel Software (Software yang terinstall di Laboratorium)
 CREATE TABLE software (
     id VARCHAR(50) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -339,7 +339,7 @@ CREATE INDEX idx_software_room ON software(room_id);
 CREATE INDEX idx_software_category ON software(category);
 CREATE INDEX idx_software_name ON software(name);
 
--- 13. Tabel Error Logs (Log Error Aplikasi)
+-- Tabel Error Logs (Log Error Aplikasi)
 CREATE TABLE error_logs (
     id SERIAL PRIMARY KEY,
     error_type VARCHAR(50) NOT NULL, -- 'API', 'NETWORK', 'VALIDATION', 'RUNTIME', 'DATABASE', 'AUTH', 'UNKNOWN'
@@ -393,7 +393,7 @@ CREATE INDEX IF NOT EXISTS idx_user_tokens_expires_at ON user_tokens(expires_at)
 CREATE INDEX IF NOT EXISTS idx_user_tokens_device_id ON user_tokens(device_id);
 CREATE INDEX IF NOT EXISTS idx_user_tokens_refresh_token ON user_tokens(refresh_token);
 
--- 14. Tabel Google SSO Config
+-- Tabel Google SSO Config
 -- Menyimpan konfigurasi Google OAuth/SSO
 CREATE TABLE sso_config (
     id SERIAL PRIMARY KEY,
@@ -408,7 +408,7 @@ CREATE TABLE sso_config (
 INSERT INTO sso_config (enabled, client_id, domain) 
 VALUES (TRUE, '828476305239-7hilvfjvadt8ndn9br7n1upmdso38ou8.apps.googleusercontent.com', 'uksw.edu,student.uksw.edu,students.uksw.edu');
 
--- 16. Tabel SSO Users (Pengguna Google SSO yang Diizinkan)
+-- Tabel SSO Users (Pengguna Google SSO yang Diizinkan)
 -- Menyimpan data pengguna yang dapat login menggunakan Google Workspace
 CREATE TABLE sso_users (
     id VARCHAR(50) PRIMARY KEY,

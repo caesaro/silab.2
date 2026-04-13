@@ -131,6 +131,7 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
       setTimeout(async () => {
           if (proofRef.current) {
               const printContents = proofRef.current.innerHTML;
+              const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]')).map(el => el.outerHTML).join('\n');
               const printWindow = window.open('', '_blank', 'width=900,height=1000');
               if (printWindow) {
                   printWindow.document.write(`
@@ -138,7 +139,7 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
                       <html>
                       <head>
                           <title>Bukti Peminjaman - ${booking.id}</title>
-                          <script src="https://cdn.tailwindcss.com"></script>
+                          ${styles}
                           <style>
                               @page { size: A4 portrait; margin: 0; }
                               body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }

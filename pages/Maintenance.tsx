@@ -1,11 +1,18 @@
 import React from 'react';
 import { Construction, RefreshCw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Maintenance: React.FC = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 text-center p-6 font-sans">
       <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl max-w-md border border-gray-200 dark:border-gray-700 animate-fade-in-up">
-        <div className="w-20 h-20 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+        <div 
+          className="w-20 h-20 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mx-auto mb-6 cursor-default hover:bg-yellow-200 transition-colors"
+          onDoubleClick={() => navigate('/login')}
+          title="Sistem Sedang Dalam Perbaikan"
+        >
           <Construction className="w-10 h-10 text-yellow-600 dark:text-yellow-500" />
         </div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">Sistem Sedang Dalam Perbaikan</h1>

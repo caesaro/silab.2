@@ -15,36 +15,50 @@ interface DashboardProps {
   onNavigate?: (page: string) => void;
 }
 
+const getColorClasses = (color: string) => {
+  if (color.includes('blue')) return { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400' };
+  if (color.includes('green')) return { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-600 dark:text-green-400' };
+  if (color.includes('yellow')) return { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-600 dark:text-yellow-400' };
+  if (color.includes('red')) return { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-600 dark:text-red-400' };
+  if (color.includes('purple')) return { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-600 dark:text-purple-400' };
+  if (color.includes('orange')) return { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-600 dark:text-orange-400' };
+  return { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-600 dark:text-gray-400' };
+};
 
-
-const StatCard: React.FC<{ title: string; value: string; icon: React.ElementType; color: string; onClick?: () => void; subtext?: string }> = ({ title, value, icon: Icon, color, onClick, subtext }) => (
-  <div onClick={onClick} className={`bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 ${onClick ? 'cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]' : ''}`}>
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{title}</p>
-        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{value}</h3>
-      </div>
-      <div className={`p-3 rounded-lg ${color} bg-opacity-10`}>
-        <Icon className={`w-6 h-6 ${color.replace('bg-', 'text-')}`} />
-      </div>
-    </div>
-    {subtext && (
-      <div className="mt-4 flex items-center text-xs text-gray-500 dark:text-gray-400">
-        {subtext}
-      </div>
-    )}
-  </div>
-);
-
-const QuickActionCard: React.FC<{ title: string; icon: React.ElementType; color: string; onClick: () => void; description: string }> = ({ title, icon: Icon, color, onClick, description }) => (
-    <button onClick={onClick} className="flex flex-col items-start p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all group w-full text-left h-full">
-        <div className={`p-3 rounded-lg ${color} bg-opacity-10 mb-3 group-hover:scale-110 transition-transform`}>
-            <Icon className={`w-6 h-6 ${color.replace('bg-', 'text-')}`} />
+const StatCard: React.FC<{ title: string; value: string; icon: React.ElementType; color: string; onClick?: () => void; subtext?: string }> = ({ title, value, icon: Icon, color, onClick, subtext }) => {
+  const { bg, text } = getColorClasses(color);
+  return (
+    <div onClick={onClick} className={`bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 ${onClick ? 'cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]' : ''}`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{title}</p>
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{value}</h3>
         </div>
-        <h3 className="font-bold text-gray-900 dark:text-white mb-1 text-sm">{title}</h3>
-        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{description}</p>
-    </button>
-);
+        <div className={`p-3 rounded-lg ${bg}`}>
+          <Icon className={`w-6 h-6 ${text}`} />
+        </div>
+      </div>
+      {subtext && (
+        <div className="mt-4 flex items-center text-xs text-gray-500 dark:text-gray-400">
+          {subtext}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const QuickActionCard: React.FC<{ title: string; icon: React.ElementType; color: string; onClick: () => void; description: string }> = ({ title, icon: Icon, color, onClick, description }) => {
+    const { bg, text } = getColorClasses(color);
+    return (
+        <button onClick={onClick} className="flex flex-col items-start p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all group w-full text-left h-full">
+            <div className={`p-3 rounded-lg ${bg} mb-3 group-hover:scale-110 transition-transform`}>
+                <Icon className={`w-6 h-6 ${text}`} />
+            </div>
+            <h3 className="font-bold text-gray-900 dark:text-white mb-1 text-sm">{title}</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{description}</p>
+        </button>
+    );
+};
 
 const DashboardSkeleton = () => (
   <div className="space-y-6">
@@ -97,7 +111,6 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
     totalUsers: 0,
     equipment: { total: 0, damaged: 0, good: 0, minor: 0, major: 0 }
   });
-  const [announcement, setAnnouncement] = useState<{active: boolean, message: string, type: string} | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -105,25 +118,21 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
       setIsLoading(true);
       try {
         if (isUser) {
-          // OPTIMASI: User biasa hanya butuh data pemesanan & pengumuman
-          const [resBookings, resAnnounce] = await Promise.all([
-            api('/api/bookings?exclude_file=true'),
-            api('/api/settings/announcement')
+          // OPTIMASI: User biasa hanya butuh data pemesanan
+          const [resBookings] = await Promise.all([
+            api('/api/bookings?exclude_file=true')
           ]);
           if (resBookings.ok) setBookings(await resBookings.json());
-          if (resAnnounce.ok) setAnnouncement(await resAnnounce.json());
         } else {
           // Admin dan Laboran butuh semua data statistik
-          const [resBookings, resRooms, resSummary, resAnnounce] = await Promise.all([
+          const [resBookings, resRooms, resSummary] = await Promise.all([
             api('/api/bookings?exclude_file=true'),
             api('/api/rooms?exclude_image=true'),
-            api('/api/dashboard/summary'),
-            api('/api/settings/announcement')
+            api('/api/dashboard/summary')
           ]);
           if (resBookings.ok) setBookings(await resBookings.json());
           if (resRooms.ok) setRooms(await resRooms.json());
           if (resSummary.ok) setDashboardSummary(await resSummary.json());
-          if (resAnnounce.ok) setAnnouncement(await resAnnounce.json());
         }
       } catch (error) {
         console.error("Gagal mengambil data dashboard:", error);
@@ -199,26 +208,6 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
       ];
   }, [dashboardSummary, isUser]);
 
-  // Helper for Announcement Banner
-  const renderAnnouncement = () => {
-    if (!announcement || !announcement.active || !announcement.message) return null;
-    
-    const styleMap: Record<string, string> = {
-        info: 'bg-blue-100 border-blue-200 text-blue-800 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300',
-        warning: 'bg-yellow-100 border-yellow-200 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-300',
-        error: 'bg-red-100 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300'
-    };
-
-    const activeStyle = styleMap[announcement.type] || styleMap.info;
-
-    return (
-        <div className={`mb-6 p-4 rounded-xl border flex items-start ${activeStyle} animate-fade-in-up`}>
-            <Megaphone className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" />
-            <p className="text-sm font-medium">{announcement.message}</p>
-        </div>
-    );
-  };
-
   if (isLoading) {
     return <DashboardSkeleton />;
   }
@@ -236,8 +225,6 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
             {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </div>
         </div>
-
-        {renderAnnouncement()}
 
         {/* User Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -330,8 +317,6 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
         </div>
       </div>
 
-      {renderAnnouncement()}
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
             title="Menunggu Verifikasi" 
@@ -373,7 +358,7 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
         {/* Left Column: Charts */}
         <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col">
           <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Statistik Penggunaan Ruangan</h3>
-          <div className="flex-1 min-h-[300px]">
+          <div className="flex-1 min-h-75">
             {bookings.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={barData}>

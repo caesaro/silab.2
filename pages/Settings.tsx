@@ -94,6 +94,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
   // Server Stats State
   const [serverStats, setServerStats] = useState<ServerStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // SSO State
   const [ssoConfig, setSsoConfig] = useState({
@@ -232,11 +233,12 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
       fetchErrorLogs();
       fetchErrorStats();
     }
-  }, [activeTab, pagination.offset, pagination.limit]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, pagination.offset, pagination.limit, refreshTrigger]);
 
   const handleApplyFilters = () => {
     setPagination(prev => ({ ...prev, offset: 0 }));
-    fetchErrorLogs();
+    setRefreshTrigger(prev => prev + 1);
   };
 
   const handleClearFilters = () => {
@@ -248,7 +250,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
       endDate: ''
     });
     setPagination(prev => ({ ...prev, offset: 0 }));
-    fetchErrorLogs();
+    setRefreshTrigger(prev => prev + 1);
   };
 
   const handleResolveLog = async (id: number) => {
@@ -256,8 +258,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
       const res = await api(`/api/error-logs/${id}/resolve`, { method: 'PUT' });
       if (res.ok) {
         showToast('Error telah ditandai selesai', 'success');
-        fetchErrorLogs();
-        fetchErrorStats();
+        setRefreshTrigger(prev => prev + 1);
       }
     } catch (err) {
       showToast('Gagal menyelesaikan error', 'error');
@@ -294,8 +295,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
         if (res.ok) {
           const result = await res.json();
           showToast(`${result.deleted} error berhasil dihapus`, 'success');
-          fetchErrorLogs();
-          fetchErrorStats();
+          setRefreshTrigger(prev => prev + 1);
         }
       } else if (confirmModal.actionType === 'restore_db') {
         const formData = new FormData();
@@ -768,7 +768,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
                        <Power className="w-4 h-4 mr-2 text-orange-500" /> Maintenance Mode
                     </h4>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-md">
-                       Jika aktif, akses untuk User akan ditutup sementara. Admin dan Laboran tetap dapat mengakses.
+                       Jika aktif, akses untuk semua user akan ditutup sementara.
                     </p>
                  </div>
                  <button onClick={handleMaintenanceToggle} className={`relative inline-flex h-6 w-11 items-center rounded-full ${maintenanceMode ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-600'}`}>
@@ -888,7 +888,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
                 <button onClick={handleClearResolvedClick} className="flex items-center px-3 py-2 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
                   <Trash2 className="w-4 h-4 mr-2" /> Hapus Resolved
                 </button>
-                <button onClick={() => { fetchErrorLogs(); fetchErrorStats(); }} className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                <button onClick={() => setRefreshTrigger(prev => prev + 1)} className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
                   <RefreshCw className="w-4 h-4" />
                 </button>
               </div>
