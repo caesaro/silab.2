@@ -17,11 +17,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
   const [expandedGroups, setExpandedGroups] = useState(new Set());
 
   const mainItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: [Role.ADMIN, Role.LABORAN, Role.USER, 'Supervisor' as Role] },
-    { id: 'ruangan', label: 'Daftar Ruangan', icon: DoorOpen, roles: [Role.ADMIN, Role.LABORAN, Role.USER, 'Supervisor' as Role] },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: [Role.ADMIN, Role.LABORAN, Role.USER, 'Supervisor' as Role, Role.ADMIN_TU] },
+    { id: 'ruangan', label: 'Daftar Ruangan', icon: DoorOpen, roles: [Role.ADMIN, Role.LABORAN, Role.USER, 'Supervisor' as Role, Role.ADMIN_TU] },
     { id: 'pesanan-ruang', label: 'Pesanan Ruang', icon: ClipboardCheck, roles: [Role.ADMIN, Role.LABORAN, 'Supervisor' as Role] },
     { id: 'inventaris', label: 'Inventaris', icon: Archive, roles: [Role.ADMIN, Role.LABORAN, 'Supervisor' as Role] },
-    { id: 'pemesanan-saya', label: 'Pemesanan Saya', icon: ClipboardList, roles: [Role.USER] },
+    { id: 'pemesanan-saya', label: 'Pemesanan Saya', icon: ClipboardList, roles: [Role.USER, Role.ADMIN_TU] },
+    // { id: 'layanan-tu', label: 'Layanan TU', icon: FileText, roles: [Role.ADMIN, Role.LABORAN, Role.USER, 'Supervisor' as Role, Role.USER_TU, Role.ADMIN_TU] },
   ];
 
   const menuGroups = [
@@ -29,7 +30,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
       id: 'jadwal',
       title: 'Jadwal',
       items: [
-      { id: 'jadwal-ruang', label: 'Jadwal Ruang', icon: CalendarRange, roles: [Role.ADMIN, Role.LABORAN, Role.USER, 'Supervisor' as Role] },
+      { id: 'jadwal-ruang', label: 'Jadwal Ruang', icon: CalendarRange, roles: [Role.ADMIN, Role.LABORAN, Role.USER, 'Supervisor' as Role, Role.ADMIN_TU] },
       { id: 'jadwal-kuliah', label: 'Jadwal Kuliah', icon: BookOpen, roles: [Role.ADMIN, Role.LABORAN, 'Supervisor' as Role] },
       { id: 'acara', label: 'Acara', icon: CalendarDays, roles: [Role.ADMIN, Role.LABORAN, 'Supervisor' as Role] },
       ]
@@ -57,8 +58,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
       title: 'Pengaturan',
       items: [
         { id: 'pengaturan', label: 'Pengaturan', icon: Settings, roles: [Role.ADMIN] },
-      { id: 'profil', label: 'Profile', icon: Users, roles: [Role.ADMIN, Role.LABORAN, Role.USER, 'Supervisor' as Role] },
-      { id: 'tentang', label: 'Tentang', icon: Info, roles: [Role.ADMIN, Role.LABORAN, Role.USER, 'Supervisor' as Role] },
+      { id: 'profil', label: 'Profile', icon: Users, roles: [Role.ADMIN, Role.LABORAN, Role.USER, 'Supervisor' as Role, Role.USER_TU, Role.ADMIN_TU] },
+      { id: 'tentang', label: 'Tentang', icon: Info, roles: [Role.ADMIN, Role.LABORAN, Role.USER, 'Supervisor' as Role, Role.USER_TU, Role.ADMIN_TU] },
       ]
     }
   ];

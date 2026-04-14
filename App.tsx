@@ -64,6 +64,8 @@ const JadwalKuliah = lazyWithReload(() => import('./pages/JadwalKuliah'));
 const ManajemenSpesifikasi = lazyWithReload(() => import('./pages/ManajemenSpesifikasi'));
 const Tentang = lazyWithReload(() => import('./pages/Tentang'));
 const NotFound = lazyWithReload(() => import('./pages/NotFound'));
+const LayananTU = lazyWithReload(() => import('./pages_tu/HalamanTU'));
+const MobileUpload = lazyWithReload(() => import('./pages_tu/components/MobileUpload'));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -80,8 +82,8 @@ const AppContent: React.FC = () => {
   const getStorageItem = (key: string) => sessionStorage.getItem(key) || localStorage.getItem(key);
 
   const [isAuthenticated, setIsAuthenticated] = useState(() => getStorageItem('isAuthenticated') === 'true');
-  const currentPage = location.pathname.substring(1) || 'dashboard';
   const [currentRole, setCurrentRole] = useState<Role>(() => (getStorageItem('currentRole') as Role) || ('User' as Role));
+  const currentPage = location.pathname.substring(1) || (currentRole === Role.USER_TU || currentRole === Role.ADMIN_TU ? 'layanan-tu' : 'dashboard');
   const [userName, setUserName] = useState<string>(() => getStorageItem('userName') || 'User');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -229,7 +231,8 @@ const AppContent: React.FC = () => {
     setUserName(userName);
     
     setIsAuthenticated(true);
-    navigate('/dashboard');
+    const targetPage = (role === Role.USER_TU) ? '/layanan-tu' : '/dashboard';
+    navigate(targetPage);
     showToast('Selamat datang kembali!', 'success');
     
     // Tentukan penyimpanan berdasarkan pilihan user
@@ -474,8 +477,17 @@ const AppContent: React.FC = () => {
     return <LoadingScreen />;
   }
 
-  // Render Maintenance Screen (Hanya untuk User biasa. Admin/Laboran/Supervisor tetap bisa akses)
-  const canBypassMaintenance = currentRole === Role.ADMIN || currentRole === Role.LABORAN || currentRole === 'Supervisor' as Role;
+  // Render Mobile QR Upload (Bypass login & app layout)
+  const queryParams = new URLSearchParams(location.search);
+  const uploadSessionId = queryParams.get('uploadSession');
+  if (uploadSessionId) {
+    return (
+      <Suspense fallback={<LoadingScreen />}><MobileUpload sessionId={uploadSessionId} /></Suspense>
+    );
+  }
+
+  // Render Maintenance Screen (Hanya untuk User biasa. Admin/Laboran/Supervisor/Admin TU tetap bisa akses)
+  const canBypassMaintenance = currentRole === Role.ADMIN || currentRole === Role.LABORAN || currentRole === 'Supervisor' as Role || currentRole === Role.ADMIN_TU;
   
   if (isMaintenanceMode && !canBypassMaintenance) {
     // Izinkan akses ke path /login agar admin yang sedang logout tetap bisa masuk
@@ -570,8 +582,12 @@ const AppContent: React.FC = () => {
             <Navigate to="/login" replace />
           )
         }>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard role={currentRole} onNavigate={(p: string) => navigate(`/${p}`)} />} />
+          <Route path="/" element={<Navigate to={currentRole === Role.USER_TU ? "/layanan-tu" : "/dashboard"} replace />} />
+          <Route path="/dashboard" element={
+            <ProtectedRoute currentRole={currentRole} allowedRoles={[Role.ADMIN, Role.LABORAN, Role.USER, 'Supervisor' as Role, Role.ADMIN_TU]} onNavigate={(p: string) => navigate(`/${p}`)}>
+              <Dashboard role={currentRole} onNavigate={(p: string) => navigate(`/${p}`)} />
+            </ProtectedRoute>
+          } />
           <Route path="/jadwal-ruang" element={<JadwalRuang role={currentRole} showToast={showToast} isDarkMode={isDarkMode} />} />
           <Route path="/ruangan" element={<Ruangan role={currentRole} isDarkMode={isDarkMode} onNavigate={(p: string) => navigate(`/${p}`)} showToast={showToast} />} />
           <Route path="/acara" element={<Acara showToast={showToast} isDarkMode={isDarkMode} />} />
@@ -628,6 +644,7 @@ const AppContent: React.FC = () => {
             </ProtectedRoute>
           } />
           <Route path="/tentang" element={<Tentang />} />
+          <Route path="/layanan-tu" element={<LayananTU role={currentRole} />} />
         </Route>
         
         <Route path="*" element={

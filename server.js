@@ -13,6 +13,8 @@ import bookingRoutes from './backend/routes/booking.routes.js';
 import loanRoutes from './backend/routes/loan.routes.js';
 import systemRoutes from './backend/routes/system.routes.js';
 import settingsRoutes from './backend/routes/settings.routes.js';
+import siasatRoutes from './backend/routes/siasat.routes.js';
+import tuRoutes from './backend/routes/tu.routes.js';
 
 const app = express();
 const port = 5000; // Menggunakan port 5000 agar tidak bentrok dengan React (3000)
@@ -124,6 +126,8 @@ app.use('/api', bookingRoutes);
 app.use('/api', loanRoutes);
 app.use('/api', systemRoutes);
 app.use('/api', settingsRoutes);
+app.use('/api', siasatRoutes);
+app.use('/api', tuRoutes);
 
 // Test Endpoint
 app.get('/', (req, res) => {

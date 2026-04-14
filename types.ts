@@ -3,6 +3,8 @@ export enum Role {
   LABORAN = 'Laboran',
   USER = 'User',
   SUPERVISOR = 'Supervisor',
+  USER_TU = 'User TU',
+  ADMIN_TU = 'Admin TU',
 }
 
 export enum BookingStatus {
@@ -175,4 +177,16 @@ export interface Software {
   roomId?: string;
   notes?: string;
   category?: string; // e.g., Operating System, Development Tool, Antivirus, etc.
+}
+
+export interface ObservationData {
+  recipientName: string;
+  companyName: string;
+  companyAddress: string;
+  courseName: string;
+  lecturerName: string;
+  lecturerNidn: string;
+  headOfProgramName: string;
+  headOfProgramNidn: string;
+  students: { name: string; nim: string }[];
 }

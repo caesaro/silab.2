@@ -338,7 +338,7 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
         </div>
       </div>
 
-      <div className="absolute -left-9999px top-0">
+      <div className="absolute -left-2499.75 top-0 opacity-0 invisible pointer-events-none">
         <div ref={proofRef} className="w-full text-black">
             {proofBooking && (
                 <div className="relative z-10">
