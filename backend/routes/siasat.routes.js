@@ -1,5 +1,6 @@
 import express from 'express';
 import { XMLParser } from 'fast-xml-parser';
+import { pool } from '../config/database.js';
 import { verifyToken } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -14,6 +15,65 @@ const parser = new XMLParser({
 const SOAP_URL = process.env.SIASAT_SOAP_URL || 'http://10.10.1.52/kpftiservice/kpservice.asmx';
 const SOAP_USER = process.env.SIASAT_SOAP_USER || 'FTIKP';
 const SOAP_PASS = process.env.SIASAT_SOAP_PASS || '234rtegd';
+
+const getAutoSemesterCode = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+
+  if (month >= 1 && month <= 4) return `${year - 1}2`;
+  if (month >= 5 && month <= 8) return `${year - 1}3`;
+  return `${year}1`;
+};
+
+const formatSemesterInfo = (semesterCode) => {
+  if (!semesterCode || !/^\d{4}[123]$/.test(String(semesterCode))) {
+    return { semesterCode: '', semesterName: '', academicYear: '', label: '' };
+  }
+
+  const code = String(semesterCode);
+  const year = parseInt(code.slice(0, 4), 10);
+  const type = code.slice(4);
+
+  if (type === '1') {
+    return {
+      semesterCode: code,
+      semesterName: 'Ganjil',
+      academicYear: `${year}/${year + 1}`,
+      label: `Ganjil ${year}/${year + 1}`
+    };
+  }
+
+  if (type === '2') {
+    return {
+      semesterCode: code,
+      semesterName: 'Genap',
+      academicYear: `${year - 1}/${year}`,
+      label: `Genap ${year - 1}/${year}`
+    };
+  }
+
+  return {
+    semesterCode: code,
+    semesterName: 'Antara',
+    academicYear: `${year - 1}/${year}`,
+    label: `Antara ${year - 1}/${year}`
+  };
+};
+
+const resolveSemesterCode = async (requestedSemester) => {
+  if (requestedSemester) return String(requestedSemester);
+
+  try {
+    const result = await pool.query("SELECT value FROM system_settings WHERE key = 'tu_current_semester_code' LIMIT 1");
+    const configuredSemester = result.rows[0]?.value;
+    if (configuredSemester) return String(configuredSemester);
+  } catch (error) {
+    console.error('Failed to read semester setting:', error);
+  }
+
+  return getAutoSemesterCode();
+};
 
 // 1. Endpoint Get Profil Mahasiswa
 router.get('/siasat/mahasiswa/:nim', verifyToken, async (req, res) => {
@@ -63,10 +123,11 @@ router.get('/siasat/mahasiswa/:nim', verifyToken, async (req, res) => {
 // 2. Endpoint Get Jadwal KST Mahasiswa (Untuk Verifikasi)
 router.get('/siasat/kst/:nim', verifyToken, async (req, res) => {
   const { nim } = req.params;
-  const { semester } = req.query; // contoh: "20241"
+  const { semester: rawSemester } = req.query; // contoh: "20241"
+  const semester = await resolveSemesterCode(rawSemester);
 
-  if (!semester) {
-      return res.status(400).json({ error: 'Parameter semester diperlukan (contoh: 20241)' });
+  if (!/^\d{4}[123]$/.test(semester)) {
+      return res.status(400).json({ error: 'Parameter semester tidak valid. Gunakan format seperti 20251, 20252, atau 20253.' });
   }
 
   const xmlBody = `
@@ -119,7 +180,7 @@ router.get('/siasat/kst/:nim', verifyToken, async (req, res) => {
         ruang: item.ruang
     }));
 
-    res.json({ success: true, data: formattedKST });
+    res.json({ success: true, data: formattedKST, semester: formatSemesterInfo(semester) });
   } catch (error) {
     console.error('Error fetch SIASAT KST:', error);
     res.status(500).json({ error: 'Gagal terhubung ke service SIASAT' });

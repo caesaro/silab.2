@@ -35,12 +35,12 @@ export const api = async (endpoint: string, options: ApiRequest = {}) => {
 
   
   const config: RequestInit = {
+    ...options,
     method: options.method || 'GET',
     headers: {
       ...customHeaders,
       ...options.headers,
     },
-    ...options,
   };
 
   // Handle POST/PUT data

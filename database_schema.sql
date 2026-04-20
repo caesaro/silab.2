@@ -424,3 +424,106 @@ CREATE TRIGGER update_sso_users_updated_at BEFORE UPDATE ON sso_users FOR EACH R
 -- Indexing untuk SSO Users
 CREATE INDEX IF NOT EXISTS idx_sso_users_email ON sso_users(email);
 CREATE INDEX IF NOT EXISTS idx_sso_users_status ON sso_users(status);
+
+-- ==========================================
+-- LAYANAN TATA USAHA (TU)
+-- ==========================================
+
+-- Tabel Active Student Requests (Surat Keterangan Aktif Kuliah)
+CREATE TABLE active_student_requests (
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    nim VARCHAR(50) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    transcript_base64 TEXT,
+    transcript_name VARCHAR(255),
+    signature_base64 TEXT,
+    stamp_base64 TEXT,
+    letter_number VARCHAR(100),
+    letter_sequence INTEGER,
+    letter_generated_at TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TRIGGER update_active_student_requests_updated_at BEFORE UPDATE ON active_student_requests FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Tabel Observation Requests (Surat Pengantar Observasi)
+CREATE TABLE observation_requests (
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    nim VARCHAR(50) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    recipient_name VARCHAR(255), -- Nama penerima atau jabatan tujuan surat
+    company_address TEXT, -- Alamat instansi/perusahaan tujuan
+    purpose TEXT, -- Tujuan spesifik observasi
+    company VARCHAR(255), -- Nama instansi/perusahaan tujuan
+    signature_base64 TEXT,
+    stamp_base64 TEXT,
+    letter_number VARCHAR(100),
+    letter_sequence INTEGER,
+    letter_generated_at TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TRIGGER update_observation_requests_updated_at BEFORE UPDATE ON observation_requests FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Tabel Background Surat TU (1 PNG A4 per jenis surat)
+CREATE TABLE tu_letter_backgrounds (
+    id SERIAL PRIMARY KEY,
+    letter_type VARCHAR(50) NOT NULL CHECK (letter_type IN ('active-student', 'observation')),
+    file_name VARCHAR(255),
+    mime_type VARCHAR(100) DEFAULT 'image/png',
+    image_base64 TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(letter_type)
+);
+
+CREATE TRIGGER update_tu_letter_backgrounds_updated_at BEFORE UPDATE ON tu_letter_backgrounds FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Counter nomor surat TU per jenis surat per bulan
+CREATE TABLE tu_letter_number_counters (
+    id SERIAL PRIMARY KEY,
+    letter_type VARCHAR(50) NOT NULL CHECK (letter_type IN ('active-student', 'observation')),
+    year INTEGER NOT NULL,
+    month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
+    last_sequence INTEGER NOT NULL DEFAULT 0,
+    last_letter_number VARCHAR(100),
+    last_generated_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(letter_type, year, month)
+);
+
+CREATE TRIGGER update_tu_letter_number_counters_updated_at BEFORE UPDATE ON tu_letter_number_counters FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TABLE tu_letter_layouts (
+    id SERIAL PRIMARY KEY,
+    letter_type VARCHAR(50) NOT NULL CHECK (letter_type IN ('active-student', 'observation')),
+    margin_top_mm NUMERIC(6,2) NOT NULL DEFAULT 40,
+    margin_right_mm NUMERIC(6,2) NOT NULL DEFAULT 22,
+    margin_bottom_mm NUMERIC(6,2) NOT NULL DEFAULT 26,
+    margin_left_mm NUMERIC(6,2) NOT NULL DEFAULT 22,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(letter_type)
+);
+
+CREATE TRIGGER update_tu_letter_layouts_updated_at BEFORE UPDATE ON tu_letter_layouts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_active_student_requests_letter_number_unique
+ON active_student_requests(letter_number)
+WHERE letter_number IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_observation_requests_letter_number_unique
+ON observation_requests(letter_number)
+WHERE letter_number IS NOT NULL;
+
+-- Pengaturan default untuk Layanan TU
+INSERT INTO system_settings (key, value) VALUES ('tu_dean_signature_base64', '');
+INSERT INTO system_settings (key, value) VALUES ('tu_faculty_stamp_base64', '');
+INSERT INTO system_settings (key, value) VALUES ('tu_current_semester_code', '');

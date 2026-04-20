@@ -38,12 +38,12 @@ export function MobileUpload({ sessionId }: { sessionId: string }) {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md text-center py-8 shadow-lg border-0 ring-1 ring-slate-900/5">
+      <div className="min-h-screen bg-slate-50 dark:bg-gray-900 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md text-center py-8 shadow-lg border-0 ring-1 ring-slate-900/5 dark:ring-gray-700">
           <CardContent>
             <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-slate-800">Upload Berhasil!</h2>
-            <p className="text-slate-500 mt-2">File transkrip Anda telah berhasil dikirim ke layar komputer. Anda boleh menutup halaman ini.</p>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Upload Berhasil!</h2>
+            <p className="text-slate-500 dark:text-gray-400 mt-2">File transkrip Anda telah berhasil dikirim ke layar komputer. Anda boleh menutup halaman ini.</p>
           </CardContent>
         </Card>
       </div>
@@ -51,26 +51,26 @@ export function MobileUpload({ sessionId }: { sessionId: string }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-lg border-0 ring-1 ring-slate-900/5">
-        <CardHeader className="text-center bg-white border-b">
-          <CardTitle className="text-xl text-slate-800">Upload Transkrip</CardTitle>
-          <CardDescription>Pilih file PDF transkrip nilai dari HP Anda</CardDescription>
+    <div className="min-h-screen bg-slate-50 dark:bg-gray-900 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md shadow-lg border-0 ring-1 ring-slate-900/5 dark:ring-gray-700">
+        <CardHeader className="text-center bg-white dark:bg-gray-800 border-b dark:border-gray-700">
+          <CardTitle className="text-xl text-slate-800 dark:text-white">Upload Transkrip</CardTitle>
+          <CardDescription className="dark:text-gray-400">Pilih file PDF transkrip nilai dari HP Anda</CardDescription>
         </CardHeader>
         <CardContent className="p-6">
-          <div className="mt-2 flex justify-center rounded-lg border border-dashed border-slate-300 px-6 py-12 hover:bg-slate-50 transition-colors">
+          <div className="mt-2 flex justify-center rounded-lg border border-dashed border-slate-300 dark:border-gray-600 px-6 py-12 hover:bg-slate-50 dark:hover:bg-gray-800/50 transition-colors">
             <div className="text-center">
               <Upload className="mx-auto h-12 w-12 text-slate-400" aria-hidden="true" />
               <div className="mt-4 flex text-sm leading-6 text-slate-600 justify-center">
                 <label
                   htmlFor="file-upload"
-                  className="relative cursor-pointer rounded-md bg-white font-semibold text-indigo-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-indigo-600 focus-within:ring-offset-2 hover:text-indigo-500"
+                  className="relative cursor-pointer rounded-md bg-transparent font-semibold text-indigo-600 dark:text-indigo-400 focus-within:outline-none hover:text-indigo-500"
                 >
                   <span>{isUploading ? 'Mengupload...' : 'Pilih file PDF'}</span>
                   <input id="file-upload" type="file" accept=".pdf" className="sr-only" onChange={handleFileChange} disabled={isUploading} />
                 </label>
               </div>
-              <p className="text-xs leading-5 text-slate-500 mt-2">PDF up to 10MB</p>
+              <p className="text-xs leading-5 text-slate-500 dark:text-gray-400 mt-2">PDF up to 10MB</p>
             </div>
           </div>
         </CardContent>

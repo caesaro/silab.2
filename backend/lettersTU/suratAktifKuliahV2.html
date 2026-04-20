@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Surat Keterangan Aktif Kuliah</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            color: black;
+            background: white;
+        }
+
+        img[src=""] {
+            display: none !important;
+        }
+
+        .page {
+            position: relative;
+            width: 210mm;
+            height: 297mm;
+            overflow: hidden;
+            background: white;
+        }
+
+        .background-image {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: fill;
+        }
+
+        .content {
+            position: relative;
+            z-index: 1;
+            padding: {{marginTopMm}}mm {{marginRightMm}}mm {{marginBottomMm}}mm {{marginLeftMm}}mm;
+            font-size: 11pt;
+            line-height: 1.75;
+        }
+
+        .title {
+            margin: 0 0 8mm;
+            text-align: center;
+            font-size: 15pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            text-decoration: underline;
+        }
+
+        .letter-meta {
+            margin-bottom: 10mm;
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10.5pt;
+        }
+
+        .letter-meta td {
+            padding: 1mm 0;
+            vertical-align: top;
+        }
+
+        .student-data {
+            margin: 0 0 8mm 12mm;
+            width: calc(100% - 12mm);
+            border-collapse: collapse;
+        }
+
+        .student-data td {
+            padding: 1.2mm 0;
+            vertical-align: top;
+        }
+
+        .signature-block {
+            margin-top: 14mm;
+            width: 74mm;
+            margin-left: auto;
+            text-align: left;
+        }
+
+        .signature-area {
+            position: relative;
+            height: 34mm;
+            margin: 2mm 0 4mm;
+        }
+
+        .stamp-image {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            height: 30mm;
+            opacity: 0.9;
+        }
+
+        .signature-image {
+            position: absolute;
+            left: 18mm;
+            bottom: 6mm;
+            height: 22mm;
+        }
+
+        .signature-name {
+            font-weight: bold;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <img src="{{backgroundImage}}" alt="Background Surat" class="background-image">
+
+        <div class="content">
+            <p class="title">Surat Keterangan</p>
+
+            <table class="letter-meta">
+                <tr>
+                    <td style="width: 22mm;">Nomor</td>
+                    <td style="width: 4mm;">:</td>
+                    <td>{{nomorSurat}}</td>
+                    <td style="width: 35%;"><strong>Nomor</strong></td>
+                    <td style="width: 20%;"><strong>Lamp.</strong></td>
+                    <td style="width: 45%;"><strong>Hal</strong></td>
+                </tr>
+                <tr>
+                    <td>Lamp</td>
+                    <td>:</td>
+                    <td>{{nomorSurat}}</td>
+                    <td>{{lampiran}}</td>
+                </tr>
+                <tr>
+                    <td>Hal</td>
+                    <td>:</td>
+                    <td><strong>{{letterPurpose}}</strong></td>
+                </tr>
+            </table>
+
+            <p>Pimpinan Fakultas Teknologi Informasi Universitas Kristen Satya Wacana, dengan ini menerangkan bahwa:</p>
+
+            <table class="student-data">
+                <tr>
+                    <td style="width: 48mm;">Nama Mahasiswa</td>
+                    <td style="width: 5mm;">:</td>
+                    <td><strong>{{name}}</strong></td>
+                </tr>
+                <tr>
+                    <td>NIM</td>
+                    <td>:</td>
+                    <td><strong>{{nim}}</strong></td>
+                </tr>
+                <tr>
+                    <td>Jenjang Program</td>
+                    <td>:</td>
+                    <td>Sarjana</td>
+                </tr>
+                <tr>
+                    <td>Program Studi</td>
+                    <td>:</td>
+                    <td>{{programStudi}}</td>
+                </tr>
+                <tr>
+                    <td>Fakultas</td>
+                    <td>:</td>
+                    <td>Teknologi Informasi</td>
+                </tr>
+                <tr>
+                    <td>Universitas</td>
+                    <td>:</td>
+                    <td>Kristen Satya Wacana</td>
+                </tr>
+            </table>
+
+            <p>Benar sebagai Mahasiswa Fakultas Teknologi Informasi yang saat ini pada Semester {{semester}} Tahun Akademik {{tahunAkademik}} terdaftar dengan status aktif kuliah.</p>
+            <p>Demikian surat keterangan ini diberikan kepada yang bersangkutan untuk dipergunakan sebagaimana mestinya.</p>
+
+            <div class="signature-block">
+                <p>Salatiga, {{tanggalSurat}}</p>
+                <p>Hormat kami,</p>
+                <div class="signature-area">
+                    <img src="{{stampImage}}" alt="Cap Fakultas" class="stamp-image">
+                    <img src="{{signatureImage}}" alt="Tanda Tangan" class="signature-image">
+                </div>
+                <p class="signature-name">Prof. Ir. Daniel H.F. Manongga, M.Sc., Ph.D.</p>
+                <p>Dekan</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

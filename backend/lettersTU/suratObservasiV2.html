@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Surat Pengantar Observasi</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            color: black;
+            background: white;
+        }
+
+        img[src=""] {
+            display: none !important;
+        }
+
+        .page {
+            position: relative;
+            width: 210mm;
+            height: 297mm;
+            overflow: hidden;
+            background: white;
+        }
+
+        .background-image {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: fill;
+        }
+
+        .content {
+            position: relative;
+            z-index: 1;
+            font-size: 11pt;
+            line-height: 1.6;
+        }
+
+        .top-block {
+            display: grid;
+            grid-template-columns: 1fr 78mm;
+            column-gap: 10mm;
+            margin-bottom: 4mm;
+        }
+
+        .subject-meta,
+        .reference-meta {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10.5pt;
+        }
+
+        .subject-meta {
+            max-width: 90mm;
+        }
+
+        .reference-meta {
+            margin-bottom: 7mm;
+        }
+
+        .subject-meta td,
+        .reference-meta td {
+            padding: 0.7mm 0;
+            vertical-align: top;
+        }
+
+        .recipient-block {
+            font-size: 10.5pt;
+        }
+
+        .recipient-block p {
+            margin: 0 0 0.8mm;
+        }
+
+        .student-list {
+            margin: 0 0 6mm 12mm;
+            width: calc(100% - 12mm);
+        }
+
+        .student-list-header,
+        .student-list-row {
+            display: grid;
+            grid-template-columns: 1fr 42mm;
+            column-gap: 10mm;
+            align-items: start;
+        }
+
+        .student-list-header {
+            font-weight: bold;
+            margin-bottom: 2mm;
+        }
+
+        .student-list-row {
+            margin-bottom: 1.5mm;
+        }
+
+        .signature-block {
+            margin-top: 18mm;
+            width: 78mm;
+            margin-left: auto;
+            text-align: left;
+        }
+
+        .signature-area {
+            position: relative;
+            height: 34mm;
+            margin: 2mm 0 4mm;
+        }
+
+        .stamp-image {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            height: 30mm;
+            opacity: 0.9;
+        }
+
+        .signature-image {
+            position: absolute;
+            left: 18mm;
+            bottom: 6mm;
+            height: 22mm;
+        }
+
+        .signature-name {
+            font-weight: bold;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <img src="{{backgroundImage}}" alt="Background Surat" class="background-image">
+
+        <div class="content" style="padding: {{marginTopMm}}mm {{marginRightMm}}mm {{marginBottomMm}}mm {{marginLeftMm}}mm;">
+            <div class="top-block">
+                <table class="subject-meta">
+                    <tr>
+                        <td style="width: 18mm;">Perihal</td>
+                        <td style="width: 4mm;">:</td>
+                        <td><strong>{{letterPurpose}}</strong></td>
+                    </tr>
+                </table>
+
+                <div class="recipient-block">
+                    <p>Kepada Yth:</p>
+                    <p><strong>{{recipientName}}</strong></p>
+                    <p><strong>{{company}}</strong></p>
+                    <p>{{companyAddress}}</p>
+                </div>
+            </div>
+
+            <table class="reference-meta">
+                <tr>
+                    <td style="width: 35%;"><strong>Acuan Kami</strong></td>
+                    <td style="width: 20%;"><strong>Acuan Anda</strong></td>
+                    <td style="width: 25%;"><strong>Tanggal</strong></td>
+                    <td style="width: 20%;"><strong>Lamp.</strong></td>
+                </tr>
+                <tr>
+                    <td>{{nomorSurat}}</td>
+                    <td>-</td>
+                    <td>{{tanggalSurat}}</td>
+                    <td>{{lampiran}}</td>
+                </tr>
+            </table>
+
+            <p>Dengan Hormat,</p>
+            <p>Bersama dengan surat ini kami memberitahukan bahwa mahasiswa Fakultas Teknologi Informasi Universitas Kristen Satya Wacana berikut ini:</p>
+
+            <div class="student-list">
+                <div class="student-list-header">
+                    <div>Nama Mahasiswa</div>
+                    <div>NIM</div>
+                </div>
+                <div class="student-list-row">
+                    <div><strong>{{name}}</strong></div>
+                    <div><strong>{{nim}}</strong></div>
+                </div>
+            </div>
+
+            <p>Bahwa mahasiswa tersebut adalah benar mahasiswa aktif kami yang bermaksud melakukan kegiatan observasi di <strong>{{company}}</strong> untuk keperluan <strong>{{purpose}}</strong>.</p>
+            <p>Melalui surat ini kami mohon kesediaan Bapak/Ibu untuk memberikan izin agar yang bersangkutan dapat melakukan observasi dan wawancara.</p>
+            <p>Demikian surat ini kami sampaikan. Atas perhatian dan izin yang diberikan, kami ucapkan terima kasih. Kiranya kerja sama ini dapat berlanjut di masa yang akan datang.</p>
+
+            <div class="signature-block">
+                <p>Hormat kami,</p>
+                <div class="signature-area">
+                    <img src="{{stampImage}}" alt="Cap Fakultas" class="stamp-image">
+                    <img src="{{signatureImage}}" alt="Tanda Tangan" class="signature-image">
+                </div>
+                <p class="signature-name">Prof. Ir. Daniel H.F. Manongga, M.Sc., Ph.D.</p>
+                <p>Dekan</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

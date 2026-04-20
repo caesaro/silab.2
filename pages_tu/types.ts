@@ -3,6 +3,29 @@ export interface Student {
   nim: string;
 }
 
+export interface LetterAsset {
+  imageBase64: string;
+  fileName: string;
+  mimeType?: string;
+}
+
+export interface TULetterBackgrounds {
+  activeStudent: LetterAsset;
+  observation: LetterAsset;
+}
+
+export interface LetterLayout {
+  marginTopMm: number;
+  marginRightMm: number;
+  marginBottomMm: number;
+  marginLeftMm: number;
+}
+
+export interface TULetterLayouts {
+  activeStudent: LetterLayout;
+  observation: LetterLayout;
+}
+
 export interface ObservationData {
   recipientName: string;
   companyName: string;
@@ -26,4 +49,9 @@ export interface ActiveStudentRequest {
   createdAt: string;
   signatureBase64?: string;
   stampBase64?: string;
+  semesterCode?: string;
+  semesterName?: string;
+  academicYear?: string;
+  letterNumber?: string;
+  letterGeneratedAt?: string;
 }

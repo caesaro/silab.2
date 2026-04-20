@@ -237,7 +237,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
   onCancel,
   showToast,
 }) => {
-  const userRole = (localStorage.getItem("currentRole") as Role) || Role.USER;
+  const userRole = (localStorage.getItem("currentRole") as Role) || Role.LEMBAGA_KEMAHASISWAAN;
   const canManage = userRole === Role.ADMIN || userRole === Role.LABORAN || userRole.toString() === 'Supervisor';
 
   // ── Common fields ──────────────────────────────────────────────────────────

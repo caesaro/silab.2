@@ -357,7 +357,7 @@ const Profile: React.FC<ProfileProps> = ({ role, showToast, onNavigate }) => {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{role === Role.USER ? 'NIM' : 'NIDN/NIP'}</label>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{role === Role.LEMBAGA_KEMAHASISWAAN ? 'NIM' : 'NIDN/NIP'}</label>
                   <div className="relative">
                     <CreditCard className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input 

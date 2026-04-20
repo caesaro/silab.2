@@ -288,7 +288,7 @@ const TopBar: React.FC<TopBarProps> = ({
               <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-1 border border-gray-200 dark:border-gray-700 z-20">
                 <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                   <p className="text-sm text-gray-900 dark:text-white font-medium">Signed in as</p>
-                  <p className="text-xs text-gray-500 truncate">{currentRole === Role.USER ? 'student@uksw.edu' : 'admin@uksw.edu'}</p>
+                  <p className="text-xs text-gray-500 truncate">{currentRole === Role.LEMBAGA_KEMAHASISWAAN || currentRole === Role.DOSEN ? 'student@uksw.edu' : 'admin@uksw.edu'}</p>
                 </div>
                 <button 
                    onClick={() => {

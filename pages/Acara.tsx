@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Booking, BookingStatus, Room } from '../types';
 import { Search, Calendar, Clock, MapPin, User, Share2, Download, X, Wrench, Info, CalendarDays, Layers } from 'lucide-react';
 import { api } from '../services/api';
-import html2canvas from 'html2canvas';
+import * as htmlToImage from 'html-to-image';
 import nocLogo from "../src/assets/noc.png";
 import { formatDateID } from '../src/utils/formatters';
 
@@ -30,6 +30,8 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
   const [events, setEvents] = useState<BookingWithTech[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<EventGroup | null>(null);
   const [filterStatus, setFilterStatus] = useState<'All' | 'Mendatang' | 'Berlangsung' | 'Selesai'>('All');
   const [filterRoom, setFilterRoom] = useState<string>('All');
@@ -71,11 +73,24 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
     return rooms.find(r => r.id === roomId)?.name || 'Unknown Room';
   };
 
+  const debouncedSearch = (value: string) => {
+    setSearchTerm(value);
+    if (searchTimeout) clearTimeout(searchTimeout);
+    const timeout = setTimeout(() => {
+      setDebouncedSearchTerm(value);
+    }, 300);
+    setSearchTimeout(timeout);
+  };
+
+  useEffect(() => {
+    return () => { if (searchTimeout) clearTimeout(searchTimeout); };
+  }, [searchTimeout]);
+
   const groupedEvents = useMemo(() => {
     const map = new Map<string, BookingWithTech[]>();
     events.forEach(b => {
-      const matches = b.purpose.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      b.userName.toLowerCase().includes(searchTerm.toLowerCase());
+      const matches = b.purpose.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                      b.userName.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
       if (!matches) return;
 
       // Group berdasarkan User dan Keperluan acara
@@ -138,7 +153,7 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
       // Jika keduanya belum lewat (mendatang/berlangsung), urutkan dari yang waktu mulainya paling dekat dengan saat ini
       return startA - startB;
     });
-  }, [events, searchTerm]);
+  }, [events, debouncedSearchTerm]);
 
   const handleDownloadImage = async () => {
     const element = ticketRef.current;
@@ -146,21 +161,23 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
     
     try {
         showToast("Sedang membuat gambar...", "info");
-        // Tambahkan kelas 'dark' sementara jika mode gelap aktif agar html2canvas dapat mengambil gayanya
+        // Tambahkan kelas 'dark' sementara jika mode gelap aktif agar html-to-image dapat mengambil gayanya
         if (isDarkMode) {
             element.classList.add('dark');
         }
-        const canvas = await html2canvas(element, {
-            scale: 2,
-            backgroundColor: isDarkMode ? '#111827' : '#ffffff', // gray-900 untuk tema gelap
-            useCORS: true
+        const image = await htmlToImage.toPng(element, {
+            pixelRatio: 2,
+            backgroundColor: isDarkMode ? '#111827' : '#ffffff'
         });
         
-        const image = canvas.toDataURL("image/png");
         const link = document.createElement('a');
         link.href = image;
-        link.download = `Event_${selectedGroup?.master.purpose.substring(0, 20).replace(/\s+/g, '_')}.png`;
+        // Menghapus karakter yang tidak diizinkan oleh OS untuk nama file
+        const safeName = selectedGroup?.master.purpose.substring(0, 20).replace(/[^a-zA-Z0-9]/g, '_') || 'Acara';
+        link.download = `Event_${safeName}.png`;
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
         showToast("Gambar berhasil didownload!", "success");
     } catch (error) {
         console.error("Gagal membuat gambar", error);
@@ -210,7 +227,7 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
                     type="text" 
                     placeholder="Cari acara..." 
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => debouncedSearch(e.target.value)}
                     className="pl-9 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 w-full dark:text-white"
                 />
             </div>
@@ -440,7 +457,7 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
                         
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-3">
-                                <img src={nocLogo} alt="Logo" className="w-10 h-10 object-contain" />
+                                <img src={nocLogo} alt="Logo" className="w-10 h-10 object-contain" crossOrigin="anonymous" />
                                 <div>
                                     <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100 leading-tight">CORE.FTI</h1>
                                     <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider">Event Card</p>
@@ -541,7 +558,7 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
                         </div>
                         
                         <div className="absolute bottom-2 right-4 opacity-10">
-                            <img src={nocLogo} className="w-24 h-24" />
+                            <img src={nocLogo} className="w-24 h-24" crossOrigin="anonymous" />
                         </div>
                     </div>
                 </div>

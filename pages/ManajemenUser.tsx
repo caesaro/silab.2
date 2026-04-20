@@ -17,7 +17,7 @@ interface UserManagementProps {
 const UserManagement: React.FC<UserManagementProps> = ({ showToast }) => {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterRole, setFilterRole] = useState<'All' | 'Mahasiswa' | 'Dosen'>('All');
+  const [filterRole, setFilterRole] = useState<'All' | 'Lembaga Kemahasiswaan' | 'Dosen' | 'Laboran' | 'Supervisor' | 'Admin TU' | 'User TU'>('All');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Aktif' | 'Non-Aktif' | 'Suspended'>('All');
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'internal' | 'sso'>('internal');
@@ -29,7 +29,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ showToast }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
   const [formData, setFormData] = useState<Partial<AppUser>>({
-    name: '', email: '', username: '', role: 'User', identifier: '', phone: '', status: 'Aktif'
+    name: '', email: '', username: '', role: 'Lembaga Kemahasiswaan', identifier: '', phone: '', status: 'Aktif'
   });
 
   const [confirmModal, setConfirmModal] = useState({
@@ -90,7 +90,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ showToast }) => {
       setFormData(user);
     } else {
       setEditingUser(null);
-      setFormData({ name: '', email: '', username: '', role: 'User', identifier: '', phone: '', status: 'Aktif' });
+      setFormData({ name: '', email: '', username: '', role: 'Lembaga Kemahasiswaan', identifier: '', phone: '', status: 'Aktif' });
     }
     setIsModalOpen(true);
   };
@@ -251,8 +251,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ showToast }) => {
                     className="px-2 py-1 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded text-sm dark:text-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
                 >
                     <option value="All">Semua</option>
-                    <option value="Mahasiswa">Mahasiswa</option>
+                    <option value="Lembaga Kemahasiswaan">Lembaga Kemahasiswaan</option>
                     <option value="Dosen">Dosen</option>
+                    <option value="Laboran">Laboran</option>
+                    <option value="Supervisor">Supervisor</option>
+                    <option value="Admin TU">Admin TU</option>
+                    <option value="User TU">User TU</option>
                 </select>
              </div>
              <div className="flex items-center space-x-2">
@@ -403,9 +407,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ showToast }) => {
                             onChange={e => setFormData({...formData, role: e.target.value as any})}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
                         >
-                            <option value="User">User (Mahasiswa/Dosen)</option>
+                            <option value="Lembaga Kemahasiswaan">Lembaga Kemahasiswaan</option>
+                            <option value="Dosen">Dosen</option>
                             <option value="Laboran">Laboran</option>
                             <option value="Supervisor">Supervisor</option>
+                            <option value="Admin TU">Admin TU</option>
+                            <option value="User TU">User TU</option>
                         </select>
                     </div>
                     <div>

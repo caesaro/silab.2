@@ -64,7 +64,7 @@ const JadwalKuliah = lazyWithReload(() => import('./pages/JadwalKuliah'));
 const ManajemenSpesifikasi = lazyWithReload(() => import('./pages/ManajemenSpesifikasi'));
 const Tentang = lazyWithReload(() => import('./pages/Tentang'));
 const NotFound = lazyWithReload(() => import('./pages/NotFound'));
-const LayananTU = lazyWithReload(() => import('./pages_tu/HalamanTU'));
+const LayananTU = lazyWithReload(() => import('./pages_tu/LayananTU'));
 const MobileUpload = lazyWithReload(() => import('./pages_tu/components/MobileUpload'));
 
 // Loading fallback component
@@ -80,10 +80,11 @@ const AppContent: React.FC = () => {
   
   // Helper fungsi untuk membaca storage (Prioritaskan Session, fallback ke Local)
   const getStorageItem = (key: string) => sessionStorage.getItem(key) || localStorage.getItem(key);
+  const isRoleMatch = (role: Role | string, target: Role) => role.toString().toUpperCase() === target.toString().toUpperCase();
 
   const [isAuthenticated, setIsAuthenticated] = useState(() => getStorageItem('isAuthenticated') === 'true');
-  const [currentRole, setCurrentRole] = useState<Role>(() => (getStorageItem('currentRole') as Role) || ('User' as Role));
-  const currentPage = location.pathname.substring(1) || (currentRole === Role.USER_TU || currentRole === Role.ADMIN_TU ? 'layanan-tu' : 'dashboard');
+  const [currentRole, setCurrentRole] = useState<Role>(() => (getStorageItem('currentRole') as Role) || Role.LEMBAGA_KEMAHASISWAAN);
+  const currentPage = location.pathname.substring(1) || (isRoleMatch(currentRole, Role.USER_TU) || isRoleMatch(currentRole, Role.ADMIN_TU) ? 'layanan-tu' : 'dashboard');
   const [userName, setUserName] = useState<string>(() => getStorageItem('userName') || 'User');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -231,7 +232,7 @@ const AppContent: React.FC = () => {
     setUserName(userName);
     
     setIsAuthenticated(true);
-    const targetPage = (role === Role.USER_TU) ? '/layanan-tu' : '/dashboard';
+    const targetPage = isRoleMatch(role, Role.USER_TU) || isRoleMatch(role, Role.ADMIN_TU) ? '/layanan-tu' : '/dashboard';
     navigate(targetPage);
     showToast('Selamat datang kembali!', 'success');
     
@@ -261,7 +262,7 @@ const AppContent: React.FC = () => {
       // Continue client-side logout
     } finally {
       setIsAuthenticated(false);
-      setCurrentRole('User' as Role);
+      setCurrentRole(Role.LEMBAGA_KEMAHASISWAAN);
       setUserName('User');
       clearAllStorage();
       navigate('/login');
@@ -460,7 +461,7 @@ const AppContent: React.FC = () => {
       // Jika auth status dihapus dari localStorage (karena tab lain menekan tombol logout)
       if (e.key === 'isAuthenticated' && e.newValue !== 'true') {
         setIsAuthenticated(false);
-        setCurrentRole('User' as Role);
+        setCurrentRole(Role.LEMBAGA_KEMAHASISWAAN);
         setUserName('User');
         sessionStorage.clear(); // Bersihkan juga memori sessionStorage pada tab ini
         navigate('/login');
@@ -487,7 +488,11 @@ const AppContent: React.FC = () => {
   }
 
   // Render Maintenance Screen (Hanya untuk User biasa. Admin/Laboran/Supervisor/Admin TU tetap bisa akses)
-  const canBypassMaintenance = currentRole === Role.ADMIN || currentRole === Role.LABORAN || currentRole === 'Supervisor' as Role || currentRole === Role.ADMIN_TU;
+  const canBypassMaintenance =
+    isRoleMatch(currentRole, Role.ADMIN) ||
+    isRoleMatch(currentRole, Role.LABORAN) ||
+    currentRole.toString().toUpperCase() === ('Supervisor' as Role).toString().toUpperCase() ||
+    isRoleMatch(currentRole, Role.ADMIN_TU);
   
   if (isMaintenanceMode && !canBypassMaintenance) {
     // Izinkan akses ke path /login agar admin yang sedang logout tetap bisa masuk
@@ -511,7 +516,7 @@ const AppContent: React.FC = () => {
               />
             </Suspense>
           ) : (
-            <Navigate to="/dashboard" replace />
+            <Navigate to={isRoleMatch(currentRole, Role.USER_TU) || isRoleMatch(currentRole, Role.ADMIN_TU) ? "/layanan-tu" : "/dashboard"} replace />
           )
         } />
 
@@ -520,14 +525,16 @@ const AppContent: React.FC = () => {
             <div className="flex h-screen overflow-hidden print:h-auto print:overflow-visible print:block">
         
         {/* Mobile Sidebar Overlay */}
-        {isSidebarOpen && (
+        {isSidebarOpen && !isRoleMatch(currentRole, Role.USER_TU) && (
           <div 
             className="fixed inset-0 bg-black/50 z-30 md:hidden print:hidden"
             onClick={() => setIsSidebarOpen(false)}
           />
         )}
 
-        <Sidebar 
+        {/* Sembunyikan Sidebar untuk Role USER TU */}
+        {!isRoleMatch(currentRole, Role.USER_TU) && (
+          <Sidebar 
           currentRole={currentRole}
           currentPage={currentPage}
           onNavigate={(page) => {
@@ -538,6 +545,7 @@ const AppContent: React.FC = () => {
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={toggleSidebarCollapse}
         />
+        )}
 
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden print:overflow-visible print:h-auto print:block">
           <TopBar 
@@ -582,9 +590,9 @@ const AppContent: React.FC = () => {
             <Navigate to="/login" replace />
           )
         }>
-          <Route path="/" element={<Navigate to={currentRole === Role.USER_TU ? "/layanan-tu" : "/dashboard"} replace />} />
+          <Route path="/" element={<Navigate to={isRoleMatch(currentRole, Role.USER_TU) ? "/layanan-tu" : "/dashboard"} replace />} />
           <Route path="/dashboard" element={
-            <ProtectedRoute currentRole={currentRole} allowedRoles={[Role.ADMIN, Role.LABORAN, Role.USER, 'Supervisor' as Role, Role.ADMIN_TU]} onNavigate={(p: string) => navigate(`/${p}`)}>
+            <ProtectedRoute currentRole={currentRole} allowedRoles={[Role.ADMIN, Role.LABORAN, Role.LEMBAGA_KEMAHASISWAAN, Role.DOSEN, 'Supervisor' as Role, Role.ADMIN_TU]} onNavigate={(p: string) => navigate(`/${p}`)}>
               <Dashboard role={currentRole} onNavigate={(p: string) => navigate(`/${p}`)} />
             </ProtectedRoute>
           } />
@@ -621,7 +629,11 @@ const AppContent: React.FC = () => {
               <ManajemenUser showToast={showToast} />
             </ProtectedRoute>
           } />
-          <Route path="/pemesanan-saya" element={<PemesananSaya userId={getStorageItem('userId') || ''} showToast={showToast} />} />
+          <Route path="/pemesanan-saya" element={
+            <ProtectedRoute currentRole={currentRole} allowedRoles={[Role.LEMBAGA_KEMAHASISWAAN, Role.ADMIN_TU]} onNavigate={(p: string) => navigate(`/${p}`)}>
+              <PemesananSaya userId={getStorageItem('userId') || ''} showToast={showToast} />
+            </ProtectedRoute>
+          } />
           <Route path="/pesanan-ruang" element={
             <ProtectedRoute currentRole={currentRole} allowedRoles={[Role.ADMIN, Role.LABORAN, 'Supervisor' as Role]} onNavigate={(p: string) => navigate(`/${p}`)}>
               <PesananRuang addNotification={addNotification} showToast={showToast} />
@@ -634,7 +646,7 @@ const AppContent: React.FC = () => {
             </ProtectedRoute>
           } />
           <Route path="/jadwal-kuliah" element={
-            <ProtectedRoute currentRole={currentRole} allowedRoles={[Role.ADMIN, Role.LABORAN, 'Supervisor' as Role]} onNavigate={(p: string) => navigate(`/${p}`)}>
+            <ProtectedRoute currentRole={currentRole} allowedRoles={[Role.ADMIN, Role.LABORAN, Role.DOSEN, 'Supervisor' as Role]} onNavigate={(p: string) => navigate(`/${p}`)}>
               <JadwalKuliah role={currentRole} showToast={showToast} />
             </ProtectedRoute>
           } />
@@ -644,7 +656,11 @@ const AppContent: React.FC = () => {
             </ProtectedRoute>
           } />
           <Route path="/tentang" element={<Tentang />} />
-          <Route path="/layanan-tu" element={<LayananTU role={currentRole} />} />
+          <Route path="/layanan-tu" element={
+            <ProtectedRoute currentRole={currentRole} allowedRoles={[Role.ADMIN, Role.LABORAN, Role.LEMBAGA_KEMAHASISWAAN, Role.DOSEN, 'Supervisor' as Role, Role.USER_TU, Role.ADMIN_TU]} onNavigate={(p: string) => navigate(`/${p}`)}>
+              <LayananTU role={currentRole} />
+            </ProtectedRoute>
+          } />
         </Route>
         
         <Route path="*" element={

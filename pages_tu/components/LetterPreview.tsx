@@ -1,113 +1,154 @@
 import React from 'react';
-import { ObservationData } from '../types';
+import { LetterLayout, ObservationData } from '../types';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
 interface LetterPreviewProps {
   data: ObservationData;
+  backgroundImageBase64?: string;
+  layout?: LetterLayout;
 }
 
-export const LetterPreview = React.forwardRef<HTMLDivElement, LetterPreviewProps>(({ data }, ref) => {
+const getObservationNumberPlaceholder = () => {
+  const now = new Date();
+  return `AUTO/FTI/S.Obs/${format(now, 'MM/yyyy')}`;
+};
+
+export const LetterPreview = React.forwardRef<HTMLDivElement, LetterPreviewProps>(({
+  data,
+  backgroundImageBase64,
+  layout
+}, ref) => {
   const today = format(new Date(), 'dd MMMM yyyy', { locale: id });
+  const observationNumber = getObservationNumberPlaceholder();
+  const pageLayout = layout || { marginTopMm: 40, marginRightMm: 22, marginBottomMm: 26, marginLeftMm: 22 };
 
   return (
-    <div ref={ref} className="bg-white p-10 shadow-lg max-w-[210mm] min-h-[297mm] mx-auto text-black font-serif text-[12pt] leading-relaxed">
-      {/* Kop Surat */}
-      <div className="flex items-center justify-between border-b-4 border-black pb-4 mb-6">
-        <div className="flex-1 text-center">
-          <h1 className="text-xl font-bold uppercase tracking-wide">Universitas Kristen Satya Wacana</h1>
-          <h2 className="text-2xl font-bold uppercase tracking-wider mt-1">Fakultas Teknologi Informasi</h2>
-          <p className="text-sm mt-2">Jl. Diponegoro 52-60 Salatiga 50711 - Jawa Tengah - Indonesia</p>
-          <p className="text-sm">Telp. (0298) 321212 | Email: fti@uksw.edu | Web: fti.uksw.edu</p>
-        </div>
-      </div>
+    <div
+      ref={ref}
+      className="relative mx-auto h-[297mm] w-[210mm] overflow-hidden bg-white font-serif text-[11pt] leading-[1.6] text-black shadow-lg"
+    >
+      {backgroundImageBase64 ? (
+        <img
+          src={backgroundImageBase64}
+          alt="Background Surat Observasi"
+          className="absolute inset-0 h-full w-full object-fill"
+        />
+      ) : null}
 
-      {/* Meta Surat */}
-      <div className="flex justify-between mb-8">
-        <div>
-          <table className="text-[12pt]">
+      <div
+        className="pointer-events-none absolute border border-dashed border-sky-400/40 print:hidden"
+        style={{
+          top: `${pageLayout.marginTopMm}mm`,
+          right: `${pageLayout.marginRightMm}mm`,
+          bottom: `${pageLayout.marginBottomMm}mm`,
+          left: `${pageLayout.marginLeftMm}mm`
+        }}
+      />
+
+      <div
+        className="relative z-10"
+        style={{
+          paddingTop: `${pageLayout.marginTopMm}mm`,
+          paddingRight: `${pageLayout.marginRightMm}mm`,
+          paddingBottom: `${pageLayout.marginBottomMm}mm`,
+          paddingLeft: `${pageLayout.marginLeftMm}mm`
+        }}
+      >
+        <div className="mb-[4mm] grid grid-cols-[1fr_78mm] gap-[10mm] text-[10.5pt]">
+          <table className="w-full max-w-[90mm] border-collapse">
             <tbody>
               <tr>
-                <td className="pr-4 py-1">Nomor</td>
-                <td>: .../FTI/OBS/{format(new Date(), 'MM/yyyy')}</td>
-              </tr>
-              <tr>
-                <td className="pr-4 py-1">Lampiran</td>
-                <td>: -</td>
-              </tr>
-              <tr>
-                <td className="pr-4 py-1">Hal</td>
-                <td className="font-bold">: Permohonan Ijin Observasi</td>
+                <td className="w-[18mm] py-[0.7mm] align-top">Perihal</td>
+                <td className="w-[4mm] py-[0.7mm] align-top">:</td>
+                <td className="py-[0.7mm] align-top font-bold">Pengantar Observasi</td>
               </tr>
             </tbody>
           </table>
+
+          <div className="space-y-[0.8mm]">
+            <p>Kepada Yth:</p>
+            <p className="font-bold">{data.recipientName || '[Nama Penerima / Jabatan]'}</p>
+            <p className="font-bold">{data.companyName || '[Nama Perusahaan / Instansi]'}</p>
+            <p>{data.companyAddress || '[Alamat Instansi]'}</p>
+          </div>
         </div>
-        <div>
-          <p>Salatiga, {today}</p>
-        </div>
-      </div>
 
-      {/* Tujuan Surat */}
-      <div className="mb-8">
-        <p>Kepada Yth.</p>
-        <p className="font-bold">{data.recipientName || '[Nama Penerima / Jabatan]'}</p>
-        <p className="font-bold">{data.companyName || '[Nama Perusahaan]'}</p>
-        <p>{data.companyAddress || '[Alamat Perusahaan]'}</p>
-      </div>
-
-      {/* Isi Surat */}
-      <div className="mb-6 text-justify">
-        <p className="mb-4">Dengan hormat,</p>
-        <p className="mb-4">
-          Sehubungan dengan tugas mata kuliah <span className="font-bold">{data.courseName || '[Nama Mata Kuliah]'}</span> pada program studi di lingkungan Fakultas Teknologi Informasi Universitas Kristen Satya Wacana, kami mohon bantuan Bapak/Ibu untuk dapat memberikan ijin kepada mahasiswa kami:
-        </p>
-
-        {/* Tabel Mahasiswa */}
-        <table className="w-full border-collapse border border-black mb-4">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="border border-black px-4 py-2 w-12 text-center">No</th>
-              <th className="border border-black px-4 py-2 text-left">Nama Lengkap</th>
-              <th className="border border-black px-4 py-2 text-left w-48">NIM</th>
-            </tr>
-          </thead>
+        <table className="mb-[7mm] w-[88mm] border-collapse text-[10.5pt]">
           <tbody>
-            {data.students.map((student, index) => (
-              <tr key={index}>
-                <td className="border border-black px-4 py-2 text-center">{index + 1}</td>
-                <td className="border border-black px-4 py-2">{student.name || '-'}</td>
-                <td className="border border-black px-4 py-2">{student.nim || '-'}</td>
-              </tr>
-            ))}
-            {data.students.length === 0 && (
-              <tr>
-                <td colSpan={3} className="border border-black px-4 py-2 text-center italic text-gray-500">
-                  Data mahasiswa belum ditambahkan
-                </td>
-              </tr>
-            )}
+            <tr>
+              <td className="w-[24mm] py-[0.7mm] align-top">Acuan Kami</td>
+              <td className="w-[4mm] py-[0.7mm] align-top">:</td>
+              <td className="py-[0.7mm] align-top">{observationNumber}</td>
+            </tr>
+            <tr>
+              <td className="py-[0.7mm] align-top">Acuan Anda</td>
+              <td className="py-[0.7mm] align-top">:</td>
+              <td className="py-[0.7mm] align-top">-</td>
+            </tr>
+            <tr>
+              <td className="py-[0.7mm] align-top">Tanggal</td>
+              <td className="py-[0.7mm] align-top">:</td>
+              <td className="py-[0.7mm] align-top">{today}</td>
+            </tr>
+            <tr>
+              <td className="py-[0.7mm] align-top">Lamp.</td>
+              <td className="py-[0.7mm] align-top">:</td>
+              <td className="py-[0.7mm] align-top">-</td>
+            </tr>
           </tbody>
         </table>
 
-        <p className="mb-4">
-          Untuk melakukan kegiatan observasi dan wawancara di perusahaan/instansi yang Bapak/Ibu pimpin. Data yang diperoleh semata-mata hanya akan digunakan untuk kepentingan akademik mahasiswa yang bersangkutan.
-        </p>
-        <p>
-          Demikian permohonan ini kami sampaikan. Atas perhatian, bantuan, dan kerjasama yang baik dari Bapak/Ibu, kami mengucapkan terima kasih.
-        </p>
-      </div>
+        <div className="space-y-[5mm] text-justify">
+          <p>Dengan Hormat,</p>
+          <p>
+            Bersama dengan surat ini kami memberitahukan bahwa mahasiswa Fakultas Teknologi Informasi
+            Program Studi S1 Teknik Informatika Universitas Kristen Satya Wacana berikut ini:
+          </p>
 
-      {/* Tanda Tangan */}
-      <div className="flex justify-between mt-16 px-4">
-        <div className="text-center">
-          <p className="mb-24">Dosen Pengampu</p>
-          <p className="font-bold underline">{data.lecturerName || '[Nama Dosen Pengampu]'}</p>
-          <p>NIDN. {data.lecturerNidn || '[NIDN Dosen]'}</p>
+          <div className="mb-[2mm] ml-[12mm] w-[calc(100%-12mm)] text-[10.5pt]">
+            <div className="mb-[2mm] grid grid-cols-[1fr_42mm] gap-x-[10mm] font-bold">
+              <div>Nama Mahasiswa</div>
+              <div>NIM</div>
+            </div>
+            {data.students.length > 0 ? data.students.map((student, index) => (
+              <div key={index} className="grid grid-cols-[1fr_42mm] gap-x-[10mm] py-[0.8mm]">
+                <div>{student.name || '-'}</div>
+                <div>{student.nim || '-'}</div>
+              </div>
+            )) : (
+              <div className="italic text-gray-500">Data mahasiswa belum ditambahkan</div>
+            )}
+          </div>
+
+          <p>
+            Bahwa sebagai salah satu syarat untuk memenuhi sebagian tugas dari mata kuliah{' '}
+            <span className="font-bold">{data.courseName || '[Nama Mata Kuliah]'}</span>, yang diwajibkan oleh Fakultas,
+            maka melalui surat ini kami mohon kesediaan Bapak/Ibu memberikan izin untuk dapat melakukan observasi dan
+            wawancara di <span className="font-bold">{data.companyName || '[Nama Perusahaan / Instansi]'}</span>.
+          </p>
+
+          <p>
+            Demikian surat ini kami sampaikan. Atas perhatian dan izin yang diberikan diucapkan terima kasih.
+            Kiranya kerja sama ini dapat berlanjut di masa yang akan datang.
+          </p>
         </div>
-        <div className="text-center">
-          <p className="mb-24">Ketua Program Studi</p>
-          <p className="font-bold underline">{data.headOfProgramName || '[Nama Kaprodi]'}</p>
-          <p>NIDN. {data.headOfProgramNidn || '[NIDN Kaprodi]'}</p>
+
+        <div className="mt-[16mm] grid grid-cols-2 gap-[16mm] px-[6mm]">
+          <div className="text-center">
+            <p>Mengetahui,</p>
+            <div className="h-[24mm]" />
+            <p className="font-bold underline underline-offset-4">{data.headOfProgramName || '[Nama Kaprodi]'}</p>
+            <p>NIDN. {data.headOfProgramNidn || '[NIDN Kaprodi]'}</p>
+            <p>Kaprodi S1 Teknik Informatika</p>
+          </div>
+          <div className="text-center">
+            <p>Salam,</p>
+            <div className="h-[24mm]" />
+            <p className="font-bold underline underline-offset-4">{data.lecturerName || '[Nama Dosen Pengampu]'}</p>
+            <p>NIDN. {data.lecturerNidn || '[NIDN Dosen]'}</p>
+            <p>Pengampu Mata Kuliah</p>
+          </div>
         </div>
       </div>
     </div>

@@ -44,7 +44,7 @@ const SelectContent = React.forwardRef<
       )}
       {...props}
     >
-      <SelectPrimitive.List className="p-1 h-[var(--radix-select-content-available-height)] w-full min-w-[var(--radix-select-trigger-width)]">
+      <SelectPrimitive.List className="p-1 h-(--radix-select-content-available-height) w-full min-w-(--radix-select-trigger-width)">
         {children}
       </SelectPrimitive.List>
     </SelectPrimitive.Popup>
@@ -71,7 +71,7 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-gray-100 focus:text-gray-900 dark:focus:bg-gray-700 dark:focus:text-white data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-gray-100 focus:text-gray-900 dark:focus:bg-gray-700 dark:focus:text-white data-disabled:pointer-events-none data-disabled:opacity-50",
       className
     )}
     {...props}

@@ -3,25 +3,33 @@ import { pool } from '../config/database.js';
 import { verifyRole } from '../middleware/auth.js';
 const router = express.Router();
 
+const ALLOWED_ROLES = ['Admin', 'Laboran', 'Lembaga Kemahasiswaan', 'Dosen', 'Supervisor', 'Admin TU', 'User TU'];
+const ALLOWED_STATUSES = ['Aktif', 'Non-Aktif', 'Suspended', 'Reset'];
+const normalizeStatus = (status) => status === 'Suspended' ? 'Non-Aktif' : status;
+
 // Endpoint untuk mengambil data users
 router.get('/users', verifyRole(['Admin', 'Laboran', 'Supervisor']), async (req, res) => {
   try {
     const { type } = req.query;
     
     // Sort by last_login agar user yang baru aktif (Internal/SSO) muncul paling atas
-    let query = 'SELECT * FROM users';
+    let query = `
+      SELECT u.*, su.email AS sso_email
+      FROM users u
+      LEFT JOIN sso_users su ON su.email = u.email
+    `;
     let params = [];
     
     // Filter berdasarkan tipe user (internal vs SSO)
     if (type === 'internal') {
-      // Internal: user yang memiliki password (dibuat manual)
-      query += ' WHERE password IS NOT NULL';
+      // Internal: user yang tidak terdaftar sebagai SSO user
+      query += ' WHERE su.email IS NULL';
     } else if (type === 'sso') {
-      // SSO: user yang login via Google (password NULL)
-      query += ' WHERE password IS NULL';
+      // SSO: user yang terdaftar pada tabel sso_users
+      query += ' WHERE su.email IS NOT NULL';
     }
     
-    query += ' ORDER BY last_login DESC NULLS LAST, created_at DESC';
+    query += ' ORDER BY u.last_login DESC NULLS LAST, u.created_at DESC';
     
     const result = await pool.query(query, params);
     
@@ -45,8 +53,167 @@ router.get('/users', verifyRole(['Admin', 'Laboran', 'Supervisor']), async (req,
   }
 });
 
+// Endpoint membuat user baru dari Manajemen User
+router.post('/users', verifyRole(['Admin']), async (req, res) => {
+  const { name, email, username, role, identifier, phone, status } = req.body;
+
+  if (!name || !email || !username || !role) {
+    return res.status(400).json({ error: 'Nama, email, username, dan role wajib diisi.' });
+  }
+
+  if (!ALLOWED_ROLES.includes(role)) {
+    return res.status(400).json({ error: 'Role user tidak valid.' });
+  }
+
+  if (status && !ALLOWED_STATUSES.includes(status)) {
+    return res.status(400).json({ error: 'Status user tidak valid.' });
+  }
+
+  try {
+    const existing = await pool.query(
+      'SELECT id FROM users WHERE email = $1 OR username = $2',
+      [email, username]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: 'Email atau username sudah terdaftar.' });
+    }
+
+    const id = `USER-${Date.now()}`;
+
+    await pool.query(
+      `INSERT INTO users (id, nama, email, username, password, role, identifier, telepon, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, NULL, $5, $6, $7, $8, NOW(), NOW())`,
+      [id, name, email, username, role, identifier || null, phone || null, normalizeStatus(status || 'Aktif')]
+    );
+
+    res.status(201).json({ success: true, id });
+  } catch (err) {
+    console.error('Error creating user:', err);
+    res.status(500).json({ error: 'Gagal membuat user baru.' });
+  }
+});
+
+// Endpoint update user dari Manajemen User
+router.put('/users/:id', verifyRole(['Admin']), async (req, res) => {
+  const { name, email, username, role, identifier, phone, status } = req.body;
+  const { id } = req.params;
+
+  if (!name || !email || !username || !role) {
+    return res.status(400).json({ error: 'Nama, email, username, dan role wajib diisi.' });
+  }
+
+  if (!ALLOWED_ROLES.includes(role)) {
+    return res.status(400).json({ error: 'Role user tidak valid.' });
+  }
+
+  if (status && !ALLOWED_STATUSES.includes(status)) {
+    return res.status(400).json({ error: 'Status user tidak valid.' });
+  }
+
+  try {
+    const existing = await pool.query(
+      'SELECT id FROM users WHERE (email = $1 OR username = $2) AND id <> $3',
+      [email, username, id]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: 'Email atau username sudah dipakai user lain.' });
+    }
+
+    const result = await pool.query(
+      `UPDATE users
+       SET nama = $1,
+           email = $2,
+           username = $3,
+           role = $4,
+           identifier = $5,
+           telepon = $6,
+           status = $7,
+           updated_at = NOW()
+       WHERE id = $8
+       RETURNING id`,
+      [name, email, username, role, identifier || null, phone || null, normalizeStatus(status || 'Aktif'), id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User tidak ditemukan.' });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating user:', err);
+    res.status(500).json({ error: 'Gagal memperbarui user.' });
+  }
+});
+
+// Endpoint hapus user dari Manajemen User
+router.delete('/users/:id', verifyRole(['Admin']), async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id, role', [req.params.id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User tidak ditemukan.' });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting user:', err);
+    res.status(500).json({ error: 'Gagal menghapus user.' });
+  }
+});
+
+// Endpoint ubah status user
+router.put('/users/:id/status', verifyRole(['Admin']), async (req, res) => {
+  const { status } = req.body;
+
+  if (!status || !ALLOWED_STATUSES.includes(status)) {
+    return res.status(400).json({ error: 'Status user tidak valid.' });
+  }
+
+  try {
+    const result = await pool.query(
+      'UPDATE users SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING id',
+      [normalizeStatus(status), req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User tidak ditemukan.' });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating user status:', err);
+    res.status(500).json({ error: 'Gagal mengubah status user.' });
+  }
+});
+
+// Endpoint reset password user
+router.put('/users/:id/reset-password', verifyRole(['Admin']), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE users
+       SET password = NULL,
+           password_changed_at = NULL,
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING id`,
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User tidak ditemukan.' });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error resetting password:', err);
+    res.status(500).json({ error: 'Gagal mereset password user.' });
+  }
+});
+
 // Endpoint Get Single User (Profile)
-router.get('/users/:id', verifyRole(['Admin', 'Laboran', 'User', 'Supervisor']), async (req, res) => {
+router.get('/users/:id', verifyRole(['Admin', 'Laboran', 'Lembaga Kemahasiswaan', 'Dosen', 'Supervisor', 'Admin TU', 'User TU']), async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
@@ -80,7 +247,7 @@ router.get('/users/:id', verifyRole(['Admin', 'Laboran', 'User', 'Supervisor']),
 });
 
 // Endpoint Get User Account Info (for Profile page)
-router.get('/users/:id/account-info', verifyRole(['Admin', 'Laboran', 'User', 'Supervisor']), async (req, res) => {
+router.get('/users/:id/account-info', verifyRole(['Admin', 'Laboran', 'Lembaga Kemahasiswaan', 'Dosen', 'Supervisor', 'Admin TU', 'User TU']), async (req, res) => {
   try {
     const userId = req.params.id;
     

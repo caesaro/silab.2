@@ -192,10 +192,10 @@ router.post('/auth/google', async (req, res) => {
       const newId = `USER-${Date.now()}`;
       const username = email.split('@')[0]; // Gunakan bagian depan email sebagai username
       
-      // Insert User Baru (Role: User, Status: Aktif)
+      // Insert User Baru (Role: Lembaga Kemahasiswaan, Status: Aktif)
       const insertQuery = `
         INSERT INTO users (id, nama, email, username, password, role, identifier, status, created_at)
-        VALUES ($1, $2, $3, $4, NULL, 'User', $5, 'Aktif', NOW())
+        VALUES ($1, $2, $3, $4, NULL, 'Lembaga Kemahasiswaan', $5, 'Aktif', NOW())
         RETURNING *
       `;
       // Identifier default menggunakan bagian depan email jika tidak ada info lain
@@ -276,7 +276,7 @@ router.post('/register', apiLimiter,
     // 4. Insert ke Database (Status default: Non-Aktif agar butuh ACC Admin)
     const query = `
       INSERT INTO users (id, nama, email, username, password, role, identifier, status)
-      VALUES ($1, $2, $3, $4, $5, 'User', $6, 'Non-Aktif')
+      VALUES ($1, $2, $3, $4, $5, 'Lembaga Kemahasiswaan', $6, 'Non-Aktif')
       RETURNING id, nama, email
     `;
     
@@ -424,7 +424,7 @@ router.post('/auth/refresh', async (req, res) => {
 });
 
 // Endpoint Ubah Password User (Dari Halaman Profile)
-router.put('/users/:id/change-password', verifyRole(['Admin', 'Laboran', 'User', 'Supervisor']), async (req, res) => {
+router.put('/users/:id/change-password', verifyRole(['Admin', 'Laboran', 'Lembaga Kemahasiswaan', 'Dosen', 'Supervisor', 'Admin TU', 'User TU']), async (req, res) => {
   const { id } = req.params;
   const { currentPassword, newPassword } = req.body;
 

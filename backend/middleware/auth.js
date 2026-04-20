@@ -13,7 +13,10 @@ export const apiLimiter = rateLimit({
 
 // --- 5. Role-Based Access Control (RBAC) Middleware ---
 export const verifyRole = (allowedRoles) => (req, res, next) => {
-  if (!req.user || !allowedRoles.includes(req.user.role)) {
+  const currentRole = req.user?.role?.toString().toUpperCase();
+  const hasAccess = !!currentRole && allowedRoles.some(role => role.toString().toUpperCase() === currentRole);
+
+  if (!req.user || !hasAccess) {
     return res.status(403).json({ error: 'Akses ditolak. Anda tidak memiliki izin yang cukup.' });
   }
   next();

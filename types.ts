@@ -1,7 +1,8 @@
 export enum Role {
   ADMIN = 'Admin',
   LABORAN = 'Laboran',
-  USER = 'User',
+  LEMBAGA_KEMAHASISWAAN = 'Lembaga Kemahasiswaan',
+  DOSEN = 'Dosen',
   SUPERVISOR = 'Supervisor',
   USER_TU = 'User TU',
   ADMIN_TU = 'Admin TU',

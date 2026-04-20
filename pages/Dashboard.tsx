@@ -98,7 +98,9 @@ const DashboardSkeleton = () => (
 );
 
 const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
-  const isUser = role.toString().toUpperCase() === Role.USER.toString().toUpperCase();
+  const isLembagaKemahasiswaan = role.toString().toUpperCase() === Role.LEMBAGA_KEMAHASISWAAN.toString().toUpperCase();
+  const isDosen = role.toString().toUpperCase() === Role.DOSEN.toString().toUpperCase();
+  const isSelfServiceRole = isLembagaKemahasiswaan || isDosen;
   
   // Get logged in user ID from storage (set after successful login)
   const LOGGED_IN_USER_ID = sessionStorage.getItem('userId') || localStorage.getItem('userId') || '';
@@ -124,7 +126,7 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        if (isUser) {
+        if (isSelfServiceRole) {
           // OPTIMASI: User biasa HANYA memanggil data agregasi khusus miliknya
           const [resSummary] = await Promise.all([
             api('/api/dashboard/user-summary', { signal })
@@ -161,12 +163,12 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
     return () => {
       abortController.abort();
     };
-  }, [isUser]);
+  }, [isSelfServiceRole]);
 
   // Calculate Statistics Dynamically
   const stats = useMemo(() => {
     // OPTIMASI: Hentikan kalkulasi berat jika role adalah User
-    if (isUser) {
+    if (isSelfServiceRole) {
       return { 
         totalBookings: 0, pendingBookings: 0, activeLoans: 0, availableRooms: 0, totalUsers: 0, damagedEquipment: 0, totalEquipment: 0,
         myTotal: dashboardSummary.bookings.total,
@@ -186,16 +188,16 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
     const totalEquipment = dashboardSummary.equipment.total;
 
     return { totalBookings, pendingBookings, activeLoans, availableRooms, totalUsers, damagedEquipment, totalEquipment };
-  }, [isUser, dashboardSummary]);
+  }, [isSelfServiceRole, dashboardSummary]);
 
   // Calculate Chart Data
   const barData = useMemo(() => {
-      if (isUser) return []; // OPTIMASI: User tidak render chart ini
+      if (isSelfServiceRole) return []; // OPTIMASI: Role self-service tidak render chart ini
       return dashboardSummary.roomStats;
-  }, [dashboardSummary.roomStats, isUser]);
+  }, [dashboardSummary.roomStats, isSelfServiceRole]);
 
   const pieData = useMemo(() => {
-      if (isUser) return []; // OPTIMASI: User tidak render chart ini
+      if (isSelfServiceRole) return []; // OPTIMASI: Role self-service tidak render chart ini
       const { approved, pending, rejected } = dashboardSummary.bookings;
 
       return [
@@ -203,23 +205,23 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
           { name: 'Pending', value: pending, color: '#f59e0b' },
           { name: 'Ditolak', value: rejected, color: '#ef4444' },
       ];
-  }, [dashboardSummary.bookings, isUser]);
+  }, [dashboardSummary.bookings, isSelfServiceRole]);
 
   const equipmentConditionData = useMemo(() => {
-      if (isUser) return []; // OPTIMASI: User tidak render chart ini
+      if (isSelfServiceRole) return []; // OPTIMASI: Role self-service tidak render chart ini
       return [
           { name: 'Baik', value: dashboardSummary.equipment.good, color: '#22c55e' },
           { name: 'Rusak Ringan', value: dashboardSummary.equipment.minor, color: '#f59e0b' },
           { name: 'Rusak Berat', value: dashboardSummary.equipment.major, color: '#ef4444' },
       ];
-  }, [dashboardSummary, isUser]);
+  }, [dashboardSummary, isSelfServiceRole]);
 
   if (isLoading) {
     return <DashboardSkeleton />;
   }
 
   // --- RENDER FOR USER (MAHASISWA/DOSEN) ---
-  if (isUser) {
+  if (isSelfServiceRole) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -241,28 +243,28 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
 value={stats.myTotal?.toString() || '0'}
                 icon={FileText} 
                 color="bg-blue-500" 
-            onClick={() => onNavigate?.('pemesanan-saya')}
+            onClick={() => onNavigate?.(isDosen ? 'jadwal-kuliah' : 'pemesanan-saya')}
             />
             <StatCard 
                 title="Menunggu" 
 value={stats.myPending?.toString() || '0'}
                 icon={Clock} 
                 color="bg-yellow-500" 
-            onClick={() => onNavigate?.('pemesanan-saya')}
+            onClick={() => onNavigate?.(isDosen ? 'jadwal-kuliah' : 'pemesanan-saya')}
             />
             <StatCard 
                 title="Disetujui" 
 value={stats.myApproved?.toString() || '0'}
                 icon={CheckCircle} 
                 color="bg-green-500" 
-            onClick={() => onNavigate?.('pemesanan-saya')}
+            onClick={() => onNavigate?.(isDosen ? 'jadwal-kuliah' : 'pemesanan-saya')}
             />
              <StatCard 
                 title="Ditolak" 
 value={stats.myRejected?.toString() || '0'}
                 icon={XCircle} 
                 color="bg-red-500" 
-            onClick={() => onNavigate?.('pemesanan-saya')}
+            onClick={() => onNavigate?.(isDosen ? 'jadwal-kuliah' : 'pemesanan-saya')}
             />
         </div>
 
@@ -270,9 +272,9 @@ value={stats.myRejected?.toString() || '0'}
             {/* Recent Activity (My Bookings) */}
             <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
                 <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Riwayat Pengajuan Terakhir</h3>
-                <button onClick={() => onNavigate?.('pemesanan-saya')} className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center">
-                        Lihat Semua <ArrowRight className="w-4 h-4 ml-1" />
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">{isDosen ? 'Jadwal Terbaru' : 'Riwayat Pengajuan Terakhir'}</h3>
+                <button onClick={() => onNavigate?.(isDosen ? 'jadwal-kuliah' : 'pemesanan-saya')} className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center">
+                        {isDosen ? 'Lihat Jadwal' : 'Lihat Semua'} <ArrowRight className="w-4 h-4 ml-1" />
                     </button>
                 </div>
                 <div className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -295,12 +297,12 @@ value={stats.myRejected?.toString() || '0'}
                     {dashboardSummary.bookings.total === 0 && (
                         <div className="p-8 flex flex-col items-center justify-center text-center">
                             <FileText className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" />
-                            <p className="text-gray-500 dark:text-gray-400 mb-4 text-sm">Belum ada riwayat pengajuan.</p>
+                            <p className="text-gray-500 dark:text-gray-400 mb-4 text-sm">{isDosen ? 'Belum ada data jadwal yang dapat ditampilkan di dashboard.' : 'Belum ada riwayat pengajuan.'}</p>
                             <button 
                               onClick={() => onNavigate?.('ruangan')} 
                               className="px-4 py-2 bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-lg text-sm font-medium hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
                             >
-                                Buat Pengajuan Sekarang
+                                {isDosen ? 'Lihat Jadwal Kuliah' : 'Buat Pengajuan Sekarang'}
                             </button>
                         </div>
                     )}
@@ -313,7 +315,7 @@ value={stats.myRejected?.toString() || '0'}
                 <div className="grid grid-cols-1 gap-4">
                 <QuickActionCard title="Cari Ruangan" icon={Calendar} color="bg-blue-500" onClick={() => onNavigate?.('ruangan')} description="Lihat daftar ruangan dan fasilitas." />
                 <QuickActionCard title="Cek Jadwal Lab" icon={Clock} color="bg-purple-500" onClick={() => onNavigate?.('jadwal-ruang')} description="Lihat ketersediaan ruangan." />
-                <QuickActionCard title="Status Pemesanan" icon={FileText} color="bg-green-500" onClick={() => onNavigate?.('pemesanan-saya')} description="Pantau status pengajuan Anda." />
+                <QuickActionCard title={isDosen ? "Jadwal Kuliah" : "Status Pemesanan"} icon={isDosen ? Calendar : FileText} color="bg-green-500" onClick={() => onNavigate?.(isDosen ? 'jadwal-kuliah' : 'pemesanan-saya')} description={isDosen ? "Lihat jadwal perkuliahan Anda." : "Pantau status pengajuan Anda."} />
                 </div>
             </div>
         </div>
