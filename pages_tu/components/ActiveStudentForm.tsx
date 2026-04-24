@@ -16,7 +16,8 @@ export function ActiveStudentForm() {
   const [fileName, setFileName] = useState<string>('');
   const [fileBase64, setFileBase64] = useState<string>('');
 
-  const nimValue = watch('nim');
+const nimValue = watch('nim');
+  const [studentName, setStudentName] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [verifyError, setVerifyError] = useState('');
@@ -98,6 +99,16 @@ export function ActiveStudentForm() {
       const json = await res.json();
       if (json.success && json.data && json.data.length > 0) {
         setIsVerified(true);
+        // Fetch student name
+        try {
+          const nameRes = await api(`/api/siasat/mahasiswa/${nimValue}`);
+          const nameJson = await nameRes.json();
+          if (nameJson.success && nameJson.data && nameJson.data.length > 0) {
+            setStudentName(nameJson.data[0].nama || '-');
+          }
+        } catch (nameError) {
+          console.error('Failed to fetch student name:', nameError);
+        }
       } else {
         const semesterLabel = json.semester?.label || json.semester?.semesterCode || 'semester berjalan';
         setVerifyError(`KST tidak ditemukan untuk NIM ${nimValue} pada ${semesterLabel}. Pastikan Anda sudah registrasi KST.`);
@@ -120,7 +131,7 @@ export function ActiveStudentForm() {
     setFormFeedback(null);
     try {
       const payload = {
-        name: data.name,
+        name: studentName,
         nim: data.nim,
         email: data.email,
         transcriptBase64: fileBase64,
@@ -216,10 +227,7 @@ export function ActiveStudentForm() {
             </div>
 
             <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="name" className="text-slate-700 dark:text-slate-300 font-medium">Nama Lengkap</Label>
-                <Input id="name" placeholder="Masukkan nama lengkap" {...register("name", { required: true })} readOnly={isVerified} className={isVerified ? "bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400" : ""} />
-              </div>
+
               
               <div className="space-y-1.5">
                 <Label htmlFor="nim" className="text-slate-700 dark:text-slate-300 font-medium">NIM</Label>
@@ -238,7 +246,18 @@ export function ActiveStudentForm() {
                   </p>
                 )}
                 {verifyError && <p className="text-sm text-red-500 flex items-center mt-1"><XCircle className="w-4 h-4 mr-1" /> {verifyError}</p>}
-                {isVerified && <p className="text-sm text-green-600 flex items-center mt-1 font-medium"><CheckCircle2 className="w-4 h-4 mr-1" /> KST Terverifikasi (Aktif Semester Ini)</p>}
+{isVerified && (
+  <>
+    <p className="text-sm text-green-600 flex items-center mt-1 font-medium"><CheckCircle2 className="w-4 h-4 mr-1" /> KST Terverifikasi (Aktif Semester Ini)</p>
+    {studentName && (
+      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-xl dark:bg-blue-950/30 dark:border-blue-800">
+        <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Nama Mahasiswa</Label>
+        <p className="mt-1 text-slate-800 dark:text-white font-medium">{studentName}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Diambil dari data SIASAT</p>
+      </div>
+    )}
+  </>
+)}
               </div>
 
               {isVerified && (

@@ -32,9 +32,7 @@ export interface ObservationData {
   companyAddress: string;
   courseName: string;
   lecturerName: string;
-  lecturerNidn: string;
   headOfProgramName: string;
-  headOfProgramNidn: string;
   students: Student[];
 }
 

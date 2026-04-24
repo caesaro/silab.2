@@ -26,9 +26,7 @@ export function ObservationForm({ onDataChange, onPrint, onDownloadPdf, isDownlo
       companyAddress: '',
       courseName: '',
       lecturerName: '',
-      lecturerNidn: '',
       headOfProgramName: '',
-      headOfProgramNidn: '',
       students: [{ name: '', nim: '' }]
     }
   });
@@ -116,19 +114,8 @@ export function ObservationForm({ onDataChange, onPrint, onDownloadPdf, isDownlo
                   <Input id="lecturerName" placeholder="Nama lengkap beserta gelar" {...register("lecturerName")} />
                 </div>
                 <div className="space-y-1.5">
-              <Label htmlFor="lecturerNidn" className="text-slate-700 dark:text-slate-300 font-medium">NIDN Dosen</Label>
-                  <Input id="lecturerNidn" placeholder="Nomor Induk Dosen Nasional" {...register("lecturerNidn")} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
               <Label htmlFor="headOfProgramName" className="text-slate-700 dark:text-slate-300 font-medium">Nama Kaprodi</Label>
                   <Input id="headOfProgramName" placeholder="Nama lengkap beserta gelar" {...register("headOfProgramName")} />
-                </div>
-                <div className="space-y-1.5">
-              <Label htmlFor="headOfProgramNidn" className="text-slate-700 dark:text-slate-300 font-medium">NIDN Kaprodi</Label>
-                  <Input id="headOfProgramNidn" placeholder="Nomor Induk Dosen Nasional" {...register("headOfProgramNidn")} />
                 </div>
               </div>
             </div>

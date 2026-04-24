@@ -48,7 +48,12 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
   };
 
   const handleEditBooking = (booking: Booking) => {
-    setEditingBooking(booking);
+    // Menyisipkan nilai properti file agar BookingForm mendeteksi keberadaan surat
+    // dan tidak memaksa pengguna (mahasiswa) untuk mengunggah ulang file PDF.
+    setEditingBooking({
+      ...booking,
+      proposalFile: (booking as any).hasFile ? booking.id : undefined
+    });
     setIsBookingModalOpen(true);
   };
 
@@ -95,9 +100,14 @@ const PemesananSaya: React.FC<PemesananSayaProps> = ({ userId, showToast }) => {
   const executeConfirmAction = async () => {
     setIsConfirming(true);
     try {
-      await api(`/api/bookings/${confirmModal.targetId}`, { method: 'DELETE' });
-      setMyBookings(prev => prev.filter(b => b.id !== confirmModal.targetId));
-      showToast(confirmModal.actionType === 'cancel' ? "Permohonan dibatalkan." : "Riwayat dihapus.", "success");
+      const res = await api(`/api/bookings/${confirmModal.targetId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setMyBookings(prev => prev.filter(b => b.id !== confirmModal.targetId));
+        showToast(confirmModal.actionType === 'cancel' ? "Permohonan dibatalkan." : "Riwayat dihapus.", "success");
+      } else {
+        const data = await res.json();
+        showToast(data.error || "Gagal membatalkan permohonan.", "error");
+      }
     } catch (e) {
       showToast("Tindakan gagal dilakukan.", "error");
     } finally {

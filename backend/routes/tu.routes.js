@@ -473,7 +473,7 @@ initTransporter();
 const letterConfig = {
   'active-student': {
     table: 'active_student_requests',
-    template: 'suratAktifKuliah.html',
+    template: 'suratAktifKuliahV2.html',
     subject: 'Surat Keterangan Aktif Kuliah',
     pdfFilename: 'Surat_Aktif_Kuliah',
     emailBody: `
@@ -484,12 +484,14 @@ const letterConfig = {
       '{{programStudi}}': 'Teknik Informatika / Sistem Informasi', // TODO: Ambil dari data SIASAT
       '{{semester}}': 'Ganjil/Genap', // TODO: Ambil dari data SIASAT
       '{{tahunAkademik}}': '20XX/20XX', // TODO: Ambil dari data SIASAT
-      '{{nomorSurat}}': `.../B/TU-FTI/UKSW/${new Date().getMonth() + 1}/${new Date().getFullYear()}`
+      '{{nomorSurat}}': data.letter_number || '-',
+      '{{lampiran}}': '-',
+      '{{letterPurpose}}': 'Keterangan Aktif Kuliah'
     })
   },
   'observation': {
     table: 'observation_requests',
-    template: 'suratObservasi.html',
+    template: 'suratObservasiV2.html',
     subject: 'Surat Pengantar Observasi',
     pdfFilename: 'Surat_Pengantar_Observasi',
     emailBody: `
@@ -500,7 +502,10 @@ const letterConfig = {
       '{{recipientName}}': data.recipient_name || data.recipientName || '(tidak disebutkan)',
       '{{companyAddress}}': data.company_address || data.companyAddress || '(tidak disebutkan)',
       '{{purpose}}': data.purpose || '(tidak disebutkan)',
-      '{{company}}': data.company || '(tidak disebutkan)'
+      '{{company}}': data.company || '(tidak disebutkan)',
+      '{{nomorSurat}}': data.letter_number || '-',
+      '{{lampiran}}': '-',
+      '{{letterPurpose}}': 'Pengantar Observasi'
     })
   }
 };

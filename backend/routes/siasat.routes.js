@@ -12,9 +12,9 @@ const parser = new XMLParser({
 });
 
 // Konfigurasi API SIASAT (Sangat disarankan untuk memindahkannya ke file .env)
-const SOAP_URL = process.env.SIASAT_SOAP_URL || 'http://10.10.1.52/kpftiservice/kpservice.asmx';
-const SOAP_USER = process.env.SIASAT_SOAP_USER || 'FTIKP';
-const SOAP_PASS = process.env.SIASAT_SOAP_PASS || '234rtegd';
+const SOAP_URL = process.env.SIASAT_SOAP_URL;
+const SOAP_USER = process.env.SIASAT_SOAP_USER;
+const SOAP_PASS = process.env.SIASAT_SOAP_PASS;
 
 const getAutoSemesterCode = () => {
   const now = new Date();

@@ -170,17 +170,21 @@ router.get('/bookings/:id/file', async (req, res) => {
     }
 });
 
-router.post('/bookings', upload.single('file'), async (req, res) => {
-  const { roomId, userId, responsiblePerson, contactPerson, purpose, schedules, autoApprove, techSupportPic, techSupportNeeds } = req.body;
+router.post('/bookings', async (req, res) => {
+  const { roomId, userId, responsiblePerson, contactPerson, purpose, schedules, autoApprove, techSupportPic, techSupportNeeds, proposalFile, file, file_proposal, fileProposal } = req.body;
   
   // 1. Validasi & Konversi File Proposal (Sebelum Transaksi DB)
   let proposalBuffer = null;
-  if (req.file && req.file.buffer) {
-    proposalBuffer = req.file.buffer;
-    // Validasi Ukuran: Max 5MB
-    if (proposalBuffer.length > 5 * 1024 * 1024) {
-      return res.status(400).json({ error: 'Ukuran file proposal melebihi batas maksimum 5MB.' });
-    }
+  const base64String = proposalFile || file || file_proposal || fileProposal;
+  
+  if (base64String && typeof base64String === 'string' && base64String.startsWith('data:') && base64String.includes(',')) {
+      const base64Data = base64String.split(',')[1];
+      proposalBuffer = Buffer.from(base64Data, 'base64');
+      
+      // Validasi Ukuran: Max 5MB
+      if (proposalBuffer.length > 5 * 1024 * 1024) {
+          return res.status(400).json({ error: 'Ukuran file proposal melebihi batas maksimum 5MB.' });
+      }
   }
 
   const client = await pool.connect();
@@ -222,6 +226,228 @@ router.post('/bookings', upload.single('file'), async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+// Endpoint Update Status (Approve / Reject)
+router.put('/bookings/:id/status', verifyRole(['Admin', 'Laboran', 'Supervisor']), async (req, res) => {
+    const { id } = req.params;
+    const { status, techSupportPic, techSupportNeeds, rejectionReason } = req.body;
+
+    try {
+        const result = await pool.query(
+            `UPDATE bookings
+             SET status = $1,
+                 tech_support_pic = $2,
+                 tech_support_needs = $3,
+                 rejection_reason = $4,
+                 updated_at = NOW()
+             WHERE id = $5 RETURNING id`,
+            [status, techSupportPic || [], techSupportNeeds || null, rejectionReason || null, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Booking tidak ditemukan' });
+        }
+
+        res.json({ success: true, message: 'Status berhasil diperbarui' });
+    } catch (err) {
+        console.error('Update booking status error:', err);
+        res.status(500).json({ error: 'Gagal memperbarui status booking' });
+    }
+});
+
+// Endpoint Update Data Teknis
+router.put('/bookings/:id/tech-support', verifyRole(['Admin', 'Laboran', 'Supervisor']), async (req, res) => {
+    const { id } = req.params;
+    const { techSupportPic, techSupportNeeds } = req.body;
+
+    try {
+        const result = await pool.query(
+            `UPDATE bookings
+             SET tech_support_pic = $1,
+                 tech_support_needs = $2,
+                 updated_at = NOW()
+             WHERE id = $3 RETURNING id`,
+            [techSupportPic || [], techSupportNeeds || null, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Booking tidak ditemukan' });
+        }
+
+        res.json({ success: true, message: 'Data teknis berhasil diperbarui' });
+    } catch (err) {
+        console.error('Update tech support error:', err);
+        res.status(500).json({ error: 'Gagal memperbarui data teknis' });
+    }
+});
+
+// Endpoint Update Data Booking
+router.put('/bookings/:id', async (req, res) => {
+    const { id } = req.params;
+    const { roomId, responsiblePerson, contactPerson, purpose, schedules, techSupportPic, techSupportNeeds, proposalFile, file, file_proposal, fileProposal } = req.body;
+    const loggedInUserId = req.user?.id;
+    const loggedInUserRole = req.user?.role;
+
+    try {
+        // Cek data pesanan sebelum diubah
+        const checkRes = await pool.query('SELECT user_id, status FROM bookings WHERE id = $1', [id]);
+        if (checkRes.rows.length === 0) return res.status(404).json({ error: 'Booking tidak ditemukan' });
+        
+        const booking = checkRes.rows[0];
+        const isManager = ['Admin', 'Laboran', 'Supervisor'].includes(loggedInUserRole);
+        
+        // Validasi 1: User A tidak boleh mengedit pesanan User B
+        if (!isManager && booking.user_id !== loggedInUserId) {
+            return res.status(403).json({ error: 'Akses ditolak. Anda tidak dapat mengedit pesanan milik pengguna lain.' });
+        }
+        // Validasi 2: User biasa tidak boleh mengedit pesanan yang sudah diproses
+        if (!isManager && booking.status !== 'Pending') {
+            return res.status(400).json({ error: 'Pesanan yang sudah diproses (Disetujui/Ditolak) tidak dapat diedit lagi.' });
+        }
+    } catch (err) {
+        return res.status(500).json({ error: 'Gagal memvalidasi kepemilikan booking.' });
+    }
+
+    let proposalBuffer = undefined;
+    const base64String = proposalFile || file || file_proposal || fileProposal;
+    
+    if (base64String && typeof base64String === 'string' && base64String.startsWith('data:') && base64String.includes(',')) {
+        const base64Data = base64String.split(',')[1];
+        proposalBuffer = Buffer.from(base64Data, 'base64');
+        if (proposalBuffer.length > 5 * 1024 * 1024) {
+            return res.status(400).json({ error: 'Ukuran file proposal melebihi batas maksimum 5MB.' });
+        }
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        
+        // Update Header Booking
+        if (proposalBuffer !== undefined) {
+            await client.query(
+                `UPDATE bookings SET room_id=$1, penanggung_jawab=$2, contact_person=$3, keperluan=$4, file_proposal=$5, tech_support_pic=$6, tech_support_needs=$7, updated_at=NOW() WHERE id=$8`,
+                [roomId, responsiblePerson, contactPerson, purpose, proposalBuffer, techSupportPic || [], techSupportNeeds || null, id]
+            );
+        } else {
+            await client.query(
+                `UPDATE bookings SET room_id=$1, penanggung_jawab=$2, contact_person=$3, keperluan=$4, tech_support_pic=$5, tech_support_needs=$6, updated_at=NOW() WHERE id=$7`,
+                [roomId, responsiblePerson, contactPerson, purpose, techSupportPic || [], techSupportNeeds || null, id]
+            );
+        }
+
+        // Update Detail Jadwal (Hapus & Insert Baru)
+        await client.query('DELETE FROM booking_schedules WHERE booking_id = $1', [id]);
+        if (schedules && Array.isArray(schedules)) {
+            for (const sch of schedules) {
+                await client.query(
+                    `INSERT INTO booking_schedules (booking_id, schedule_date, start_time, end_time) VALUES ($1, $2, $3, $4)`,
+                    [id, sch.date, sch.startTime, sch.endTime]
+                );
+            }
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true, message: 'Booking berhasil diperbarui' });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Update booking error:', err);
+        res.status(500).json({ error: 'Gagal memperbarui booking.' });
+    } finally {
+        client.release();
+    }
+});
+
+// Endpoint Delete Booking
+router.delete('/bookings/:id', async (req, res) => {
+    const { id } = req.params;
+    const loggedInUserId = req.user?.id;
+    const loggedInUserRole = req.user?.role;
+
+    try {
+        const checkRes = await pool.query('SELECT user_id, status FROM bookings WHERE id = $1', [id]);
+        if (checkRes.rows.length === 0) return res.status(404).json({ error: 'Booking tidak ditemukan' });
+        
+        const booking = checkRes.rows[0];
+        const isManager = ['Admin', 'Laboran', 'Supervisor'].includes(loggedInUserRole);
+        
+        if (!isManager && booking.user_id !== loggedInUserId) {
+            return res.status(403).json({ error: 'Akses ditolak. Anda tidak dapat menghapus pesanan milik pengguna lain.' });
+        }
+        if (!isManager && booking.status === 'Disetujui') {
+            return res.status(400).json({ error: 'Pesanan yang sudah disetujui tidak dapat dibatalkan.' });
+        }
+    } catch (err) {
+        return res.status(500).json({ error: 'Gagal memvalidasi kepemilikan booking.' });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        
+        await client.query('DELETE FROM booking_schedules WHERE booking_id = $1', [id]);
+        const result = await client.query('DELETE FROM bookings WHERE id = $1 RETURNING id', [id]);
+        
+        if (result.rows.length === 0) throw new Error('Booking tidak ditemukan');
+
+        await client.query('COMMIT');
+        res.json({ success: true, message: 'Booking berhasil dihapus' });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Delete booking error:', err);
+        res.status(500).json({ error: 'Gagal menghapus booking' });
+    } finally {
+        client.release();
+    }
+});
+
+// Endpoint Export Excel
+router.get('/bookings/export', verifyRole(['Admin', 'Laboran', 'Supervisor']), async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT b.id, b.keperluan, b.penanggung_jawab, b.contact_person, b.status, b.created_at,
+                   u.nama as peminjam, r.name as ruang,
+                   (SELECT string_agg(s.nama, ', ') FROM staff s WHERE s.id = ANY(b.tech_support_pic)) as teknisi,
+                   b.tech_support_needs
+            FROM bookings b
+            JOIN users u ON b.user_id = u.id
+            JOIN rooms r ON b.room_id = r.id
+            ORDER BY b.created_at DESC
+        `);
+
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Data Peminjaman Ruang');
+
+        worksheet.columns = [
+            { header: 'ID Booking', key: 'id', width: 20 },
+            { header: 'Peminjam', key: 'peminjam', width: 25 },
+            { header: 'Ruangan', key: 'ruang', width: 20 },
+            { header: 'Keperluan', key: 'keperluan', width: 35 },
+            { header: 'Penanggung Jawab', key: 'penanggung_jawab', width: 25 },
+            { header: 'Kontak', key: 'contact_person', width: 20 },
+            { header: 'Status', key: 'status', width: 15 },
+            { header: 'Teknisi', key: 'teknisi', width: 25 },
+            { header: 'Kebutuhan Teknis', key: 'tech_support_needs', width: 35 },
+            { header: 'Tanggal Dibuat', key: 'created_at', width: 20 }
+        ];
+
+        result.rows.forEach(row => {
+            worksheet.addRow({
+                ...row,
+                created_at: new Date(row.created_at).toLocaleString('id-ID')
+            });
+        });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename=Laporan_Peminjaman_Ruang.xlsx');
+
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (err) {
+        console.error('Export Excel error:', err);
+        res.status(500).json({ error: 'Gagal mengekspor data' });
+    }
 });
 
 export default router;

@@ -391,7 +391,8 @@ const BookingForm: React.FC<BookingFormProps> = ({
   // ── Validation ─────────────────────────────────────────────────────────────
 
   const validate = (): string | null => {
-    if (!bookingFile && !proposalFileBase64)
+    const hasExistingFile = (initialData as any)?.hasFile || initialData?.proposalFile;
+    if (!bookingFile && !proposalFileBase64 && !hasExistingFile)
       return "Mohon upload surat permohonan (PDF).";
     if (blocks.length === 0)
       return "Tambahkan minimal satu blok ruangan & jadwal.";
@@ -429,16 +430,20 @@ const BookingForm: React.FC<BookingFormProps> = ({
     try {
       const userId = sessionStorage.getItem("userId") || localStorage.getItem("userId") || "GUEST";
 
+      let finalFilePayload: string | undefined = undefined;
+      if (proposalFileBase64 && proposalFileBase64.startsWith("data:")) {
+        finalFilePayload = proposalFileBase64;
+      }
+
       // ── Edit mode (single booking update) ─────────────────────────────────
       if (initialData?.id) {
         const firstBlock = blocks[0];
-        const payload = {
+        const payload: any = {
           roomId: firstBlock.roomIds[0],
           userId,
           purpose,
           responsiblePerson,
           contactPerson,
-          proposalFile: proposalFileBase64,
           schedules: firstBlock.schedules.map(
             ({ date, startTime, endTime }) => ({
               date,
@@ -450,6 +455,13 @@ const BookingForm: React.FC<BookingFormProps> = ({
         techSupportPic: canManage ? techSupportPic : [],
         techSupportNeeds: canManage ? techSupportNeeds : "",
         };
+
+        if (finalFilePayload) {
+          payload.proposalFile = finalFilePayload;
+          payload.file = finalFilePayload;
+          payload.file_proposal = finalFilePayload;
+          payload.fileProposal = finalFilePayload;
+        }
 
         const res = await api(`/api/bookings/${initialData.id}`, {
           method: "PUT",
@@ -463,24 +475,33 @@ const BookingForm: React.FC<BookingFormProps> = ({
         }
       } else {
         // ── Create mode (one request per room per block) ───────────────────
-        const bookingPayloads = blocks.flatMap((block) =>
-          block.roomIds.map((roomId) => ({
-            roomId,
-            userId,
-            purpose,
-            responsiblePerson,
-            contactPerson,
-            proposalFile: proposalFileBase64,
-            schedules: block.schedules.map(({ date, startTime, endTime }) => ({
-              date,
-              startTime,
-              endTime,
-            })),
-            autoApprove: canManage ? autoApprove : false,
-          techSupportPic: canManage ? techSupportPic : [],
-          techSupportNeeds: canManage ? techSupportNeeds : "",
-          })),
-        );
+        const bookingPayloads = blocks.flatMap((block) => {
+          return block.roomIds.map((roomId) => {
+            const payload: any = {
+              roomId,
+              userId,
+              purpose,
+              responsiblePerson,
+              contactPerson,
+              schedules: block.schedules.map(({ date, startTime, endTime }) => ({
+                date,
+                startTime,
+                endTime,
+              })),
+              autoApprove: canManage ? autoApprove : false,
+              techSupportPic: canManage ? techSupportPic : [],
+              techSupportNeeds: canManage ? techSupportNeeds : "",
+            };
+
+            if (finalFilePayload) {
+              payload.proposalFile = finalFilePayload;
+              payload.file = finalFilePayload;
+              payload.file_proposal = finalFilePayload;
+              payload.fileProposal = finalFilePayload;
+            }
+            return payload;
+          });
+        });
 
         for (const payload of bookingPayloads) {
           const res = await api("/api/bookings", {
@@ -852,7 +873,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 <span className="text-sm font-medium text-blue-600">
                   {bookingFile.name}
                 </span>
-              ) : proposalFileBase64 ? (
+          ) : (proposalFileBase64 || (initialData as any)?.hasFile) ? (
                 <span className="text-sm font-medium text-blue-600">
                   Surat sudah diupload — Klik untuk mengganti
                 </span>

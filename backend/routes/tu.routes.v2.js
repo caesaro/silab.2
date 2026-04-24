@@ -105,6 +105,9 @@ const ensureTuInfrastructure = async () => {
         company_address TEXT,
         purpose TEXT,
         company VARCHAR(255),
+        course_name VARCHAR(255),
+        lecturer_name VARCHAR(255),
+        head_of_program_name VARCHAR(255),
         signature_base64 TEXT,
         stamp_base64 TEXT,
         letter_number VARCHAR(100),
@@ -122,6 +125,9 @@ const ensureTuInfrastructure = async () => {
       ADD COLUMN IF NOT EXISTS company_address TEXT,
       ADD COLUMN IF NOT EXISTS purpose TEXT,
       ADD COLUMN IF NOT EXISTS company VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS course_name VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS lecturer_name VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS head_of_program_name VARCHAR(255),
       ADD COLUMN IF NOT EXISTS signature_base64 TEXT,
       ADD COLUMN IF NOT EXISTS stamp_base64 TEXT,
       ADD COLUMN IF NOT EXISTS letter_number VARCHAR(100),
@@ -270,6 +276,9 @@ const mapObservationRow = (row) => ({
   companyAddress: row.company_address,
   purpose: row.purpose,
   company: row.company,
+  courseName: row.course_name,
+  lecturerName: row.lecturer_name,
+  headOfProgramName: row.head_of_program_name,
   status: row.status,
   signatureBase64: row.signature_base64,
   stampBase64: row.stamp_base64,
@@ -529,7 +538,10 @@ const letterConfig = {
       '{{recipientName}}': data.recipient_name || data.recipientName || '(tidak disebutkan)',
       '{{companyAddress}}': data.company_address || data.companyAddress || '(tidak disebutkan)',
       '{{purpose}}': data.purpose || '(tidak disebutkan)',
-      '{{company}}': data.company || '(tidak disebutkan)'
+      '{{company}}': data.company || '(tidak disebutkan)',
+      '{{courseName}}': data.course_name || data.courseName || '(tidak disebutkan)',
+      '{{lecturerName}}': data.lecturer_name || data.lecturerName || '(tidak disebutkan)',
+      '{{headOfProgramName}}': data.head_of_program_name || data.headOfProgramName || '(tidak disebutkan)'
     })
   }
 };
@@ -684,7 +696,10 @@ router.post('/observation-requests', async (req, res) => {
     companyAddress,
     purpose,
     company,
-    companyName
+    companyName,
+    courseName,
+    lecturerName,
+    headOfProgramName
   } = req.body;
 
   try {
@@ -700,9 +715,12 @@ router.post('/observation-requests', async (req, res) => {
          company_address,
          purpose,
          company,
+         course_name,
+         lecturer_name,
+         head_of_program_name,
          status
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending')`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending')`,
       [
         id,
         name,
@@ -711,7 +729,10 @@ router.post('/observation-requests', async (req, res) => {
         recipientName || null,
         companyAddress || null,
         purpose || null,
-        company || companyName || null
+        company || companyName || null,
+        courseName || null,
+        lecturerName || null,
+        headOfProgramName || null
       ]
     );
     res.json({ success: true, id });

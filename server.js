@@ -129,6 +129,12 @@ app.use('/api', settingsRoutes);
 app.use('/api', siasatRoutes);
 app.use('/api', tuRoutes);
 
+// Global Error Handler untuk menangkap error yang tidak terduga
+app.use((err, req, res, next) => {
+  console.error('Unhandled Server Error:', err);
+  res.status(500).json({ error: 'Terjadi kesalahan internal pada server.' });
+});
+
 // Test Endpoint
 app.get('/', (req, res) => {
   res.send('Backend API CORE.FTI is running on port 5000');

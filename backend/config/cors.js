@@ -11,7 +11,14 @@ const allowedOrigins = [
   'https://core.fti.uksw.edu',
   'http://core.fti.uksw.edu',
   'http://192.168.68.246',
-  'https://192.168.68.246'
+  'https://192.168.68.246',
+  'https://core.fti.edu',
+  'http://core.fti.edu',
+  'http://192.168.229.201:5173',
+  'https://192.168.229.201:5173',
+  'http://192.168.229.201',
+  'https://192.168.229.201',
+
 ];
 
 export { allowedOrigins };

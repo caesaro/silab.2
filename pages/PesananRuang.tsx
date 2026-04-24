@@ -92,16 +92,16 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
   const googleApi = useGoogleCalendar(Role.ADMIN, showToast);
 
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
-  const [bookingToApprove, setBookingToApprove] =
-    useState<BookingWithTech | null>(null);
+  const [bookingsToApprove, setBookingsToApprove] =
+    useState<BookingWithTech[]>([]);
   const [approvalData, setApprovalData] = useState<{
     pic: string[];
     needs: string;
   }>({ pic: [], needs: "" });
 
   const [isRejectionModalOpen, setIsRejectionModalOpen] = useState(false);
-  const [bookingToReject, setBookingToReject] =
-    useState<BookingWithTech | null>(null);
+  const [bookingsToReject, setBookingsToReject] =
+    useState<BookingWithTech[]>([]);
   const [rejectionReason, setRejectionReason] = useState("");
 
   const [isEditingTech, setIsEditingTech] = useState(false);
@@ -356,6 +356,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
     newStatus: BookingStatus,
     techData?: { pic: string[]; needs: string },
     reason?: string,
+    skipFetch?: boolean
   ) => {
     const booking = bookings.find((b) => b.id === id);
     if (!booking) return;
@@ -383,7 +384,9 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
         rejectionReason: reason,
       },
     });
-    fetchData();
+    if (!skipFetch) {
+      fetchData();
+    }
     if (selectedBooking && selectedBooking.id === id) {
       setSelectedBooking({
         ...selectedBooking,
@@ -422,60 +425,69 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
     setProcessingId(null);
   };
 
-  const handleApproveClick = (booking: BookingWithTech) => {
-    setBookingToApprove(booking);
+  const handleApproveClick = (bookingsTarget: BookingWithTech | BookingWithTech[]) => {
+    setBookingsToApprove(Array.isArray(bookingsTarget) ? bookingsTarget : [bookingsTarget]);
     setApprovalData({ pic: [], needs: "" });
     setIsApprovalModalOpen(true);
   };
 
   const handleConfirmApproval = async () => {
-    if (bookingToApprove) {
+    if (bookingsToApprove.length > 0) {
       setIsApprovalModalOpen(false);
-      await handleUpdateStatus(
-        bookingToApprove.id,
-        BookingStatus.APPROVED,
-        approvalData,
-      );
-      setBookingToApprove(null);
+      for (const booking of bookingsToApprove) {
+        await handleUpdateStatus(
+          booking.id,
+          BookingStatus.APPROVED,
+          approvalData,
+          undefined,
+          true
+        );
+      }
+      fetchData();
+      setBookingsToApprove([]);
     }
   };
 
-  const handleRejectClick = (booking: BookingWithTech) => {
-    setBookingToReject(booking);
+  const handleRejectClick = (bookingsTarget: BookingWithTech | BookingWithTech[]) => {
+    setBookingsToReject(Array.isArray(bookingsTarget) ? bookingsTarget : [bookingsTarget]);
     setDeleteOption("all");
     setRejectionReason("");
     setIsRejectionModalOpen(true);
   };
 
   const handleConfirmRejection = async () => {
-    if (bookingToReject) {
-      const isCancellation = bookingToReject.status === BookingStatus.APPROVED;
-      if (isCancellation && googleApi.isGapiInitialized) {
-        const gapiResult: any = await deleteFromGoogleCalendar(
-          bookingToReject,
-          deleteOption,
-        );
-        if (
-          !gapiResult.success &&
-          gapiResult.message !== "Dilewati: Tidak ada URL Kalender" &&
-          gapiResult.message !== "Event tidak ditemukan di Google Calendar"
-        ) {
-          showToast(
-            `Peringatan: Gagal hapus dari Calendar (${gapiResult.message}), namun status tetap diupdate.`,
-            "warning",
-          );
-        } else if (gapiResult.success) {
-          showToast("Event dihapus dari Google Calendar!", "success");
-        }
-      }
+    if (bookingsToReject.length > 0) {
       setIsRejectionModalOpen(false);
-      await handleUpdateStatus(
-        bookingToReject.id,
-        BookingStatus.REJECTED,
-        undefined,
-        rejectionReason,
-      );
-      setBookingToReject(null);
+      for (const booking of bookingsToReject) {
+        const isCancellation = booking.status === BookingStatus.APPROVED;
+        if (isCancellation && googleApi.isGapiInitialized) {
+          const gapiResult: any = await deleteFromGoogleCalendar(
+            booking,
+            deleteOption,
+          );
+          if (
+            !gapiResult.success &&
+            gapiResult.message !== "Dilewati: Tidak ada URL Kalender" &&
+            gapiResult.message !== "Event tidak ditemukan di Google Calendar"
+          ) {
+            showToast(
+              `Peringatan: Gagal hapus dari Calendar (${gapiResult.message}), namun status tetap diupdate.`,
+              "warning",
+            );
+          } else if (gapiResult.success) {
+            showToast("Event dihapus dari Google Calendar!", "success");
+          }
+        }
+        await handleUpdateStatus(
+          booking.id,
+          BookingStatus.REJECTED,
+          undefined,
+          rejectionReason,
+          true
+        );
+      }
+      fetchData();
+      setBookingsToReject([]);
     }
   };
 
@@ -851,7 +863,10 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
                     ══════════════════════════════════════════════════════ */}
                       <tr
                         onClick={() => {
-                          setSelectedBooking(group.master);
+                          setSelectedBooking({
+                            ...group.master,
+                            proposalFile: (group.master as any).hasFile ? group.master.id : undefined
+                          });
                           setIsEditingTech(false);
                           setEditTechData({
                             pic: group.master.techSupportPic || [],
@@ -985,7 +1000,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleApproveClick(group.master);
+                                  handleApproveClick(group.entries);
                                 }}
                                 className="p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors"
                                 title="Setuju"
@@ -995,7 +1010,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleRejectClick(group.master);
+                                  handleRejectClick(group.entries);
                                 }}
                                 className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                                 title="Tolak"
@@ -1009,7 +1024,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleRejectClick(group.master);
+                                  handleRejectClick(group.entries);
                                 }}
                                 className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                                 title="Batalkan (Darurat)"
@@ -1083,7 +1098,10 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
                                         key={`${row.booking.id}-${idx}`}
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          setSelectedBooking(row.booking);
+                                          setSelectedBooking({
+                                            ...row.booking,
+                                            proposalFile: (row.booking as any).hasFile ? row.booking.id : undefined
+                                          });
                                           setIsEditingTech(false);
                                           setEditTechData({
                                             pic:
@@ -1276,7 +1294,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
       {/* Approval Confirmation Modal */}
       <ApprovalModal
         isOpen={isApprovalModalOpen}
-        booking={bookingToApprove}
+        booking={bookingsToApprove.length > 0 ? bookingsToApprove[0] : null}
         rooms={rooms}
         staffList={staffList}
         approvalData={approvalData}
@@ -1288,7 +1306,7 @@ const PesananRuang: React.FC<ManageBookingsProps> = ({
       {/* Rejection Confirmation Modal */}
       <RejectionModal
         isOpen={isRejectionModalOpen}
-        booking={bookingToReject}
+        booking={bookingsToReject.length > 0 ? bookingsToReject[0] : null}
         rooms={rooms}
         rejectionReason={rejectionReason}
         setRejectionReason={setRejectionReason}

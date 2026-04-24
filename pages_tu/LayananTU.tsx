@@ -37,9 +37,7 @@ const sanitizeObservationData = (data: ObservationData): ObservationData => ({
   companyAddress: data.companyAddress.trim(),
   courseName: data.courseName.trim(),
   lecturerName: data.lecturerName.trim(),
-  lecturerNidn: data.lecturerNidn.trim(),
   headOfProgramName: data.headOfProgramName.trim(),
-  headOfProgramNidn: data.headOfProgramNidn.trim(),
   students: data.students
     .map((student) => ({
       name: student.name.trim(),
@@ -54,9 +52,7 @@ const validateObservationData = (data: ObservationData) => {
   if (!data.companyAddress) return 'Alamat perusahaan tujuan masih perlu dilengkapi.';
   if (!data.courseName) return 'Nama mata kuliah observasi belum diisi.';
   if (!data.lecturerName) return 'Nama dosen pengampu masih kosong.';
-  if (!data.lecturerNidn) return 'NIDN dosen pengampu masih kosong.';
   if (!data.headOfProgramName) return 'Nama kaprodi masih kosong.';
-  if (!data.headOfProgramNidn) return 'NIDN kaprodi masih kosong.';
   if (data.students.length === 0) return 'Tambahkan minimal satu mahasiswa untuk surat observasi.';
 
   const invalidStudent = data.students.find((student) => !student.name || !student.nim);
@@ -95,9 +91,7 @@ const HalamanTU: React.FC<HalamanTUProps> = ({ role }) => {
     companyAddress: '',
     courseName: '',
     lecturerName: '',
-    lecturerNidn: '',
     headOfProgramName: '',
-    headOfProgramNidn: '',
     students: []
   });
 

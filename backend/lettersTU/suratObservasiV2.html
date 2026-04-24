@@ -83,51 +83,48 @@
         .student-list {
             margin: 0 0 6mm 12mm;
             width: calc(100% - 12mm);
+            border-collapse: collapse;
         }
 
-        .student-list-header,
-        .student-list-row {
-            display: grid;
-            grid-template-columns: 1fr 42mm;
-            column-gap: 10mm;
-            align-items: start;
-        }
-
-        .student-list-header {
-            font-weight: bold;
-            margin-bottom: 2mm;
-        }
-
-        .student-list-row {
-            margin-bottom: 1.5mm;
-        }
-
-        .signature-block {
-            margin-top: 18mm;
-            width: 78mm;
-            margin-left: auto;
+        .student-list th,
+        .student-list td {
             text-align: left;
+            vertical-align: top;
+            padding-bottom: 1.5mm;
+        }
+
+        .student-list th {
+            padding-bottom: 2mm;
+        }
+
+        .signatures-wrapper {
+            margin-top: 18mm;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            column-gap: 16mm;
+            padding: 0 6mm;
+            text-align: center;
         }
 
         .signature-area {
             position: relative;
-            height: 34mm;
+            height: 24mm;
             margin: 2mm 0 4mm;
         }
 
         .stamp-image {
             position: absolute;
-            left: 0;
-            bottom: 0;
-            height: 30mm;
+            left: 5mm;
+            bottom: -2mm;
+            height: 28mm;
             opacity: 0.9;
         }
 
         .signature-image {
             position: absolute;
-            left: 18mm;
-            bottom: 6mm;
-            height: 22mm;
+            left: 20mm;
+            bottom: 2mm;
+            height: 20mm;
         }
 
         .signature-name {
@@ -176,29 +173,36 @@
             <p>Dengan Hormat,</p>
             <p>Bersama dengan surat ini kami memberitahukan bahwa mahasiswa Fakultas Teknologi Informasi Universitas Kristen Satya Wacana berikut ini:</p>
 
-            <div class="student-list">
-                <div class="student-list-header">
-                    <div>Nama Mahasiswa</div>
-                    <div>NIM</div>
-                </div>
-                <div class="student-list-row">
-                    <div><strong>{{name}}</strong></div>
-                    <div><strong>{{nim}}</strong></div>
-                </div>
-            </div>
+            <table class="student-list">
+                <tr>
+                    <th>Nama Mahasiswa</th>
+                    <th style="width: 42mm;">NIM</th>
+                </tr>
+                <tr>
+                    <td><strong>{{name}}</strong></td>
+                    <td><strong>{{nim}}</strong></td>
+                </tr>
+            </table>
 
-            <p>Bahwa mahasiswa tersebut adalah benar mahasiswa aktif kami yang bermaksud melakukan kegiatan observasi di <strong>{{company}}</strong> untuk keperluan <strong>{{purpose}}</strong>.</p>
-            <p>Melalui surat ini kami mohon kesediaan Bapak/Ibu untuk memberikan izin agar yang bersangkutan dapat melakukan observasi dan wawancara.</p>
-            <p>Demikian surat ini kami sampaikan. Atas perhatian dan izin yang diberikan, kami ucapkan terima kasih. Kiranya kerja sama ini dapat berlanjut di masa yang akan datang.</p>
+            <p>Bahwa sebagai salah satu syarat untuk memenuhi sebagian tugas dari mata kuliah <strong>{{courseName}}</strong>, yang diwajibkan oleh Fakultas, maka melalui surat ini kami mohon kesediaan Bapak/Ibu memberikan izin untuk dapat melakukan observasi dan wawancara di <strong>{{company}}</strong>.</p>
+            <p>Demikian surat ini kami sampaikan. Atas perhatian dan izin yang diberikan diucapkan terima kasih. Kiranya kerja sama ini dapat berlanjut di masa yang akan datang.</p>
 
-            <div class="signature-block">
-                <p>Hormat kami,</p>
-                <div class="signature-area">
-                    <img src="{{stampImage}}" alt="Cap Fakultas" class="stamp-image">
-                    <img src="{{signatureImage}}" alt="Tanda Tangan" class="signature-image">
+            <div class="signatures-wrapper">
+                <div>
+                    <p>Mengetahui,</p>
+                    <div class="signature-area">
+                        <img src="{{stampImage}}" alt="Cap Fakultas" class="stamp-image">
+                        <img src="{{signatureImage}}" alt="Tanda Tangan" class="signature-image">
+                    </div>
+                    <p class="signature-name">{{headOfProgramName}}</p>
+                    <p>Kaprodi S1 Teknik Informatika</p>
                 </div>
-                <p class="signature-name">Prof. Ir. Daniel H.F. Manongga, M.Sc., Ph.D.</p>
-                <p>Dekan</p>
+                <div>
+                    <p>Salam,</p>
+                    <div class="signature-area"></div>
+                    <p class="signature-name">{{lecturerName}}</p>
+                    <p>Pengampu Mata Kuliah</p>
+                </div>
             </div>
         </div>
     </div>

@@ -22,7 +22,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
     { id: 'pesanan-ruang', label: 'Pesanan Ruang', icon: ClipboardCheck, roles: [Role.ADMIN, Role.LABORAN, 'Supervisor' as Role] },
     { id: 'inventaris', label: 'Inventaris', icon: Archive, roles: [Role.ADMIN, Role.LABORAN, 'Supervisor' as Role] },
     { id: 'pemesanan-saya', label: 'Pemesanan Saya', icon: ClipboardList, roles: [Role.LEMBAGA_KEMAHASISWAAN, Role.ADMIN_TU] },
-    // { id: 'layanan-tu', label: 'Layanan TU', icon: FileText, roles: [Role.ADMIN, Role.LABORAN, Role.LEMBAGA_KEMAHASISWAAN, Role.DOSEN, 'Supervisor' as Role, Role.USER_TU, Role.ADMIN_TU] },
+    { id: 'layanan-tu', label: 'Layanan TU', icon: FileText, roles: [Role.ADMIN, Role.LABORAN, Role.LEMBAGA_KEMAHASISWAAN, Role.DOSEN, 'Supervisor' as Role, Role.USER_TU, Role.ADMIN_TU] },
   ];
 
   const menuGroups = [

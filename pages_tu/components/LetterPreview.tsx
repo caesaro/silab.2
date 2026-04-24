@@ -59,41 +59,33 @@ export const LetterPreview = React.forwardRef<HTMLDivElement, LetterPreviewProps
           <table className="w-full max-w-[90mm] border-collapse">
             <tbody>
               <tr>
-                <td className="w-[18mm] py-[0.7mm] align-top">Perihal</td>
+                <td className="w-[18mm] py-[0.7mm] align-top font-bold">Perihal</td>
                 <td className="w-[4mm] py-[0.7mm] align-top">:</td>
-                <td className="py-[0.7mm] align-top font-bold">Pengantar Observasi</td>
+                <td className="py-[0.7mm] align-top">Pengantar Observasi</td>
               </tr>
             </tbody>
           </table>
 
           <div className="space-y-[0.8mm]">
-            <p>Kepada Yth:</p>
-            <p className="font-bold">{data.recipientName || '[Nama Penerima / Jabatan]'}</p>
-            <p className="font-bold">{data.companyName || '[Nama Perusahaan / Instansi]'}</p>
+            <p className="font-bold">Kepada Yth:</p>
+            <p>{data.recipientName || '[Nama Penerima / Jabatan]'}</p>
+            <p>{data.companyName || '[Nama Perusahaan / Instansi]'}</p>
             <p>{data.companyAddress || '[Alamat Instansi]'}</p>
           </div>
         </div>
 
-        <table className="mb-[7mm] w-[88mm] border-collapse text-[10.5pt]">
+        <table className="mb-[7mm] w-full border-collapse text-[10.5pt]">
           <tbody>
             <tr>
-              <td className="w-[24mm] py-[0.7mm] align-top">Acuan Kami</td>
-              <td className="w-[4mm] py-[0.7mm] align-top">:</td>
+              <td className="w-[35%] py-[0.7mm] align-top font-bold">Acuan Kami</td>
+              <td className="w-[20%] py-[0.7mm] align-top font-bold">Acuan Anda</td>
+              <td className="w-[25%] py-[0.7mm] align-top font-bold">Tanggal</td>
+              <td className="w-[20%] py-[0.7mm] align-top font-bold">Lamp.</td>
+            </tr>
+            <tr>
               <td className="py-[0.7mm] align-top">{observationNumber}</td>
-            </tr>
-            <tr>
-              <td className="py-[0.7mm] align-top">Acuan Anda</td>
-              <td className="py-[0.7mm] align-top">:</td>
               <td className="py-[0.7mm] align-top">-</td>
-            </tr>
-            <tr>
-              <td className="py-[0.7mm] align-top">Tanggal</td>
-              <td className="py-[0.7mm] align-top">:</td>
               <td className="py-[0.7mm] align-top">{today}</td>
-            </tr>
-            <tr>
-              <td className="py-[0.7mm] align-top">Lamp.</td>
-              <td className="py-[0.7mm] align-top">:</td>
               <td className="py-[0.7mm] align-top">-</td>
             </tr>
           </tbody>
@@ -106,20 +98,20 @@ export const LetterPreview = React.forwardRef<HTMLDivElement, LetterPreviewProps
             Program Studi S1 Teknik Informatika Universitas Kristen Satya Wacana berikut ini:
           </p>
 
-          <div className="mb-[2mm] ml-[12mm] w-[calc(100%-12mm)] text-[10.5pt]">
-            <div className="mb-[2mm] grid grid-cols-[1fr_42mm] gap-x-[10mm] font-bold">
-              <div>Nama Mahasiswa</div>
-              <div>NIM</div>
-            </div>
-            {data.students.length > 0 ? data.students.map((student, index) => (
-              <div key={index} className="grid grid-cols-[1fr_42mm] gap-x-[10mm] py-[0.8mm]">
-                <div>{student.name || '-'}</div>
-                <div>{student.nim || '-'}</div>
-              </div>
-            )) : (
-              <div className="italic text-gray-500">Data mahasiswa belum ditambahkan</div>
-            )}
-          </div>
+          <table className="mb-[2mm] ml-[12mm] w-[calc(100%-12mm)] border-collapse text-left text-[10.5pt]">
+            <tbody>
+              {data.students.length > 0 ? data.students.map((student, index) => (
+                <tr key={index}>
+                  <td className="py-[0.8mm] font-bold align-top">{student.name || '-'}</td>
+                  <td className="py-[0.8mm] font-bold align-top">{student.nim || '-'}</td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan={2} className="italic text-gray-500 py-[0.8mm]">Data mahasiswa belum ditambahkan</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
 
           <p>
             Bahwa sebagai salah satu syarat untuk memenuhi sebagian tugas dari mata kuliah{' '}
@@ -139,14 +131,12 @@ export const LetterPreview = React.forwardRef<HTMLDivElement, LetterPreviewProps
             <p>Mengetahui,</p>
             <div className="h-[24mm]" />
             <p className="font-bold underline underline-offset-4">{data.headOfProgramName || '[Nama Kaprodi]'}</p>
-            <p>NIDN. {data.headOfProgramNidn || '[NIDN Kaprodi]'}</p>
             <p>Kaprodi S1 Teknik Informatika</p>
           </div>
           <div className="text-center">
             <p>Salam,</p>
             <div className="h-[24mm]" />
             <p className="font-bold underline underline-offset-4">{data.lecturerName || '[Nama Dosen Pengampu]'}</p>
-            <p>NIDN. {data.lecturerNidn || '[NIDN Dosen]'}</p>
             <p>Pengampu Mata Kuliah</p>
           </div>
         </div>
