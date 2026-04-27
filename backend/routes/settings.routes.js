@@ -1,6 +1,7 @@
 import express from 'express';
 import { exec } from 'child_process';
 import path from 'path';
+import os from 'os';
 import fs from 'fs';
 import multer from 'multer';
 import { pool } from '../config/database.js';
@@ -66,15 +67,21 @@ router.put('/settings/sso-config', verifyRole(['Admin']), async (req, res) => {
 router.get('/settings/backup', verifyRole(['Admin']), (req, res) => {
   const date = new Date().toISOString().split('T')[0];
   const fileName = `backup-corefti-${date}.sql`;
-  const filePath = path.join(process.cwd(), fileName);
+  const filePath = path.join(os.tmpdir(), fileName);
 
   // Flag -c (--clean) akan menambahkan script "DROP TABLE" secara otomatis di dalam SQL.
   // Berguna agar proses restore tidak terbentur masalah "Table Already Exists".
-  const dumpCommand = `PGPASSWORD="${process.env.DB_PASSWORD}" pg_dump -U ${process.env.DB_USER} -h ${process.env.DB_HOST} -p ${process.env.DB_PORT || 5432} -d ${process.env.DB_NAME} -F p -c -f "${filePath}"`;
+  // Flag -w (--no-password) mencegah hang menunggu input jika autentikasi gagal.
+  const dumpCommand = `pg_dump -U ${process.env.DB_USER} -h ${process.env.DB_HOST} -p ${process.env.DB_PORT || 5432} -d ${process.env.DB_NAME} -F p -c -w -f "${filePath}"`;
 
-  exec(dumpCommand, (error, stdout, stderr) => {
+  exec(dumpCommand, {
+    env: {
+      ...process.env,
+      PGPASSWORD: process.env.DB_PASSWORD
+    }
+  }, (error, stdout, stderr) => {
     if (error) {
-      console.error(`Backup error: ${error.message}`);
+      console.error(`Backup error: ${error.message}`, stderr);
       return res.status(500).json({ error: 'Gagal membuat backup. Pastikan pg_dump terinstall di sistem.' });
     }
 
@@ -95,16 +102,21 @@ router.post('/settings/restore', verifyRole(['Admin']), upload.single('file'), (
   const filePath = req.file.path;
 
   // Gunakan 'psql' untuk mengeksekusi file format plain text SQL (-F p)
-  const restoreCommand = `PGPASSWORD="${process.env.DB_PASSWORD}" psql -U ${process.env.DB_USER} -h ${process.env.DB_HOST} -p ${process.env.DB_PORT || 5432} -d ${process.env.DB_NAME} -f "${filePath}"`;
+  const restoreCommand = `psql -U ${process.env.DB_USER} -h ${process.env.DB_HOST} -p ${process.env.DB_PORT || 5432} -d ${process.env.DB_NAME} -w -f "${filePath}"`;
 
-  exec(restoreCommand, (error, stdout, stderr) => {
+  exec(restoreCommand, {
+    env: {
+      ...process.env,
+      PGPASSWORD: process.env.DB_PASSWORD
+    }
+  }, (error, stdout, stderr) => {
     // Selalu hapus file temporary yang diupload user
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
 
     if (error) {
-      console.error(`Restore error: ${error.message}`);
+      console.error(`Restore error: ${error.message}`, stderr);
       return res.status(500).json({ error: 'Gagal merestore database. Pastikan file valid.' });
     }
 
