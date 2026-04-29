@@ -29,20 +29,20 @@ const SoftwareForm: React.FC<SoftwareFormProps> = ({ isOpen, onClose, onSave, in
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
+    <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="mobile-modal-panel bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up flex flex-col">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
           <h3 className="font-bold text-gray-900 dark:text-white">
             {initialData?.id ? 'Edit Software' : 'Tambah Software'}
           </h3>
           <button onClick={onClose}><X className="w-5 h-5 text-gray-500"/></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="mobile-modal-body p-4 sm:p-6 space-y-4">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Nama Software</label>
             <input type="text" required value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Microsoft Office"/>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Versi</label>
               <input type="text" value={formData.version || ''} onChange={e => setFormData({...formData, version: e.target.value})} className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="2021"/>
@@ -69,7 +69,7 @@ const SoftwareForm: React.FC<SoftwareFormProps> = ({ isOpen, onClose, onSave, in
               <option value="Open Source">Open Source</option>
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Vendor</label>
               <input type="text" value={formData.vendor || ''} onChange={e => setFormData({...formData, vendor: e.target.value})} className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Microsoft"/>
@@ -83,7 +83,7 @@ const SoftwareForm: React.FC<SoftwareFormProps> = ({ isOpen, onClose, onSave, in
             <label className="block text-xs font-medium text-gray-500 mb-1">Catatan</label>
             <textarea value={formData.notes || ''} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" rows={2} placeholder="Catatan opsional..."/>
           </div>
-          <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="mobile-modal-actions flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
             <button type="button" onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Batal</button>
             <button type="submit" disabled={isSaving} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center disabled:opacity-50">
               {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}

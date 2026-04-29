@@ -5,9 +5,11 @@ import { api } from '../services/api';
 
 interface TopBarProps {
   onToggleSidebar: () => void;
+  showSidebarToggle: boolean;
   isDarkMode: boolean;
   toggleDarkMode: () => void;
   currentRole: Role;
+  pageLabel: string;
   userName: string;
   onOpenAi: () => void;
   onLogout: () => void;
@@ -38,7 +40,7 @@ const iconMap: Record<string, React.ElementType> = {
 };
 
 const TopBar: React.FC<TopBarProps> = ({ 
-  onToggleSidebar, isDarkMode, toggleDarkMode, currentRole, userName, onOpenAi, onLogout, notifications, onMarkAsRead, onMarkAllAsRead, onClearAllNotifications, onNavigate, isMaintenanceMode
+  onToggleSidebar, showSidebarToggle, isDarkMode, toggleDarkMode, currentRole, pageLabel, userName, onOpenAi, onLogout, notifications, onMarkAsRead, onMarkAllAsRead, onClearAllNotifications, onNavigate, isMaintenanceMode
 }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -111,15 +113,26 @@ const TopBar: React.FC<TopBarProps> = ({
   };
 
   return (
-    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 h-16 flex items-center justify-between px-4 sm:px-6 sticky top-0 z-30 print:hidden">
-      <div className="flex items-center">
-        <button 
-          onClick={onToggleSidebar} 
-          className="p-2 rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 md:hidden"
-          aria-label="Toggle Sidebar"
-        >
-          <Menu className="w-6 h-6" />
-        </button>
+    <header className="bg-white/95 dark:bg-gray-800/95 border-b border-gray-200 dark:border-gray-700 h-16 flex items-center justify-between px-3 sm:px-6 sticky top-0 z-30 print:hidden backdrop-blur-md">
+      <div className="flex min-w-0 items-center">
+        {showSidebarToggle && (
+          <button 
+            onClick={onToggleSidebar} 
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 md:hidden"
+            aria-label="Toggle Sidebar"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+        )}
+
+        <div className="ml-2 min-w-0 md:hidden">
+          <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
+            {pageLabel}
+          </p>
+          <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+            {currentRole}
+          </p>
+        </div>
         
         {/* Global Search */}
         <div className="hidden md:flex items-center ml-4 relative">
@@ -130,7 +143,7 @@ const TopBar: React.FC<TopBarProps> = ({
             value={searchQuery}
             onChange={handleSearch}
             onFocus={() => searchQuery.length > 1 && setIsSearchOpen(true)}
-            className="pl-9 pr-4 py-2 bg-gray-100 dark:bg-gray-700 border-none rounded-full text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 w-64 transition-all"
+            className="h-11 w-72 rounded-full border-none bg-gray-100 pl-10 pr-4 text-sm text-gray-900 transition-all focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
           />
           
           {/* Search Results Dropdown */}
@@ -172,7 +185,7 @@ const TopBar: React.FC<TopBarProps> = ({
         </div>
       </div>
 
-      <div className="flex items-center space-x-3 sm:space-x-4">
+      <div className="flex items-center gap-2 sm:gap-3">
 
         {isMaintenanceMode && (
           <div className="hidden sm:flex items-center px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full text-xs font-bold animate-pulse border border-red-200 dark:border-red-800" title="Maintenance Mode Sedang Aktif">
@@ -185,7 +198,7 @@ const TopBar: React.FC<TopBarProps> = ({
         <div className="relative">
             <button 
               onClick={() => setIsNotifOpen(!isNotifOpen)}
-              className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full relative"
+              className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
               aria-label="Notifications"
             >
               <Bell className="w-5 h-5" />
@@ -197,7 +210,7 @@ const TopBar: React.FC<TopBarProps> = ({
             {isNotifOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setIsNotifOpen(false)}></div>
-                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl py-1 border border-gray-200 dark:border-gray-700 z-20 overflow-hidden">
+                <div className="absolute right-0 mt-2 w-[calc(100vw-1.25rem)] max-w-sm bg-white dark:bg-gray-800 rounded-2xl shadow-xl py-1 border border-gray-200 dark:border-gray-700 z-20 overflow-hidden">
                   <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/30">
                     <div className="flex justify-between items-center mb-3">
                       <div className="flex items-center gap-2">
@@ -260,7 +273,7 @@ const TopBar: React.FC<TopBarProps> = ({
 
         <button 
           onClick={toggleDarkMode} 
-          className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
           aria-label="Toggle Dark Mode"
         >
           {isDarkMode ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5" />}
@@ -270,7 +283,7 @@ const TopBar: React.FC<TopBarProps> = ({
         <div className="relative">
           <button 
             onClick={() => setIsProfileOpen(!isProfileOpen)}
-            className="flex items-center space-x-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="flex min-h-11 items-center space-x-2 rounded-2xl px-2 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             aria-label="User Menu"
           >
             <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 overflow-hidden">
@@ -285,7 +298,7 @@ const TopBar: React.FC<TopBarProps> = ({
           {isProfileOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setIsProfileOpen(false)}></div>
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-1 border border-gray-200 dark:border-gray-700 z-20">
+              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-2xl shadow-lg py-1 border border-gray-200 dark:border-gray-700 z-20">
                 <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                   <p className="text-sm text-gray-900 dark:text-white font-medium">Signed in as</p>
                   <p className="text-xs text-gray-500 truncate">{currentRole === Role.LEMBAGA_KEMAHASISWAAN || currentRole === Role.DOSEN ? 'student@uksw.edu' : 'admin@uksw.edu'}</p>

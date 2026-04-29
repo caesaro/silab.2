@@ -13,14 +13,14 @@ const ApprovalModal = ({ isOpen, booking, rooms, staffList, approvalData, setApp
   if (!isOpen || !booking) return null;
   const getRoomName = (roomId: string) => rooms.find((r: Room) => r.id === roomId)?.name || 'Ruangan Tidak Diketahui';
   return (
-    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
+    <div className="mobile-modal-shell fixed inset-0 z-60 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="mobile-modal-panel bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up flex flex-col">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-green-50 dark:bg-green-900/20">
           <h3 className="font-bold text-green-800 dark:text-green-400 flex items-center">
             <CheckCircle className="w-5 h-5 mr-2" /> Setuju Peminjaman
           </h3>
         </div>
-        <div className="p-6 space-y-4">
+        <div className="mobile-modal-body p-4 sm:p-6 space-y-4">
           <p className="text-sm text-gray-600 dark:text-gray-300">
             Anda akan menyetujui peminjaman ruangan <strong>{getRoomName(booking.roomId)}</strong> untuk kegiatan <strong>{booking.purpose}</strong>.
           </p>
@@ -63,7 +63,7 @@ const ApprovalModal = ({ isOpen, booking, rooms, staffList, approvalData, setApp
               />
             </div>
           </div>
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="mobile-modal-actions flex justify-end gap-3 pt-2">
             <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Batal</button>
             <button onClick={onConfirm} className="px-4 py-2 text-sm bg-green-600 text-white hover:bg-green-700 rounded-lg shadow-md">Simpan & Setuju</button>
           </div>

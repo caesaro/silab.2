@@ -547,8 +547,8 @@ const Profile: React.FC<ProfileProps> = ({ role, showToast, onNavigate }) => {
 
       {/* Change Password Modal */}
       {isChangePasswordOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
+        <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="mobile-modal-panel bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up flex flex-col">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center">
                 <KeyRound className="w-5 h-5 mr-2 text-blue-600" />
@@ -561,7 +561,7 @@ const Profile: React.FC<ProfileProps> = ({ role, showToast, onNavigate }) => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleChangePassword} className="p-6 space-y-4">
+            <form onSubmit={handleChangePassword} className="mobile-modal-body p-4 sm:p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password Saat Ini</label>
                 <input 
@@ -589,7 +589,7 @@ const Profile: React.FC<ProfileProps> = ({ role, showToast, onNavigate }) => {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              <div className="pt-4 flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 mt-2">
+              <div className="mobile-modal-actions pt-4 flex justify-end gap-3 border-t border-gray-200 dark:border-gray-700 mt-2">
                 <button 
                   type="button" 
                   onClick={() => setIsChangePasswordOpen(false)}
@@ -611,8 +611,8 @@ const Profile: React.FC<ProfileProps> = ({ role, showToast, onNavigate }) => {
 
       {/* Crop Modal */}
       {isCropModalOpen && tempImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col h-125">
+        <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+           <div className="mobile-modal-panel bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col h-125">
               <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
                  <h3 className="font-bold text-gray-900 dark:text-white">Sesuaikan Foto Profil</h3>
                  <button onClick={() => { setIsCropModalOpen(false); setTempImage(null); }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
@@ -635,7 +635,7 @@ const Profile: React.FC<ProfileProps> = ({ role, showToast, onNavigate }) => {
                     <span className="text-xs text-gray-500">Zoom</span>
                     <input type="range" value={zoom} min={1} max={3} step={0.1} aria-labelledby="Zoom" onChange={(e) => setZoom(Number(e.target.value))} className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700" />
                  </div>
-                 <div className="flex justify-end space-x-3">
+                 <div className="mobile-modal-actions flex justify-end gap-3">
                     <button onClick={() => { setIsCropModalOpen(false); setTempImage(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
                        Batal
                     </button>

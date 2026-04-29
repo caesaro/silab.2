@@ -366,15 +366,15 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center text-sm font-medium shadow-sm transition-all hover:scale-105"
+          className="w-full sm:w-auto justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center text-sm font-medium shadow-sm transition-all hover:scale-105"
         >
           <Plus className="w-4 h-4 mr-2" /> Input Manual
         </button>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 flex flex-col xl:flex-row gap-4 justify-between items-center">
-        <div className="flex flex-col sm:flex-row gap-4 w-full xl:w-auto">
-          <div className="flex space-x-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg w-fit">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 flex flex-col xl:flex-row gap-4 justify-between items-stretch xl:items-center">
+        <div className="flex flex-col gap-4 w-full xl:w-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl w-full sm:w-fit">
             <button
               onClick={() => setViewMode('latest')}
               className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
@@ -409,7 +409,7 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
             <select 
               value={filterType}
               onChange={(e) => setFilterType(e.target.value as any)}
-              className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500"
+              className="w-full sm:w-auto px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500"
             >
               <option value="All">Semua Jenis</option>
               <option value="Peminjaman">Peminjaman</option>
@@ -423,7 +423,7 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
             <select 
               value={filterInventory}
               onChange={(e) => setFilterInventory(e.target.value)}
-              className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 max-w-50"
+              className="w-full sm:w-auto px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 sm:max-w-50"
             >
               <option value="All">Semua Barang</option>
               {equipment.map(item => (
@@ -435,7 +435,72 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="md:hidden space-y-3 p-3">
+          {currentMovements.length > 0 ? currentMovements.map((movement) => (
+            <div key={movement.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-base font-semibold text-gray-900 dark:text-white">{movement.inventoryName || getEquipmentName(movement.inventoryId)}</p>
+                  <p className="mt-1 text-xs font-mono text-blue-600 dark:text-blue-400">{movement.inventoryId}</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {formatDateID(movement.movementDate)}
+                    {movement.createdAt && ` • ${new Date(movement.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB`}
+                  </p>
+                </div>
+                {renderTypeBadge(movement.movementType)}
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-3 rounded-xl bg-gray-50 p-3 dark:bg-gray-900/40">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">Lokasi Sebelum</p>
+                  <div className="mt-1 flex items-center text-sm text-gray-700 dark:text-gray-300">
+                    <MapPin className="w-3.5 h-3.5 mr-2 text-gray-400" />
+                    {movement.fromLocation || '-'}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-400">Lokasi Sekarang</p>
+                  <div className="mt-1 flex items-center text-sm text-gray-700 dark:text-gray-300">
+                    <MapPin className="w-3.5 h-3.5 mr-2 text-gray-400" />
+                    {movement.toLocation || '-'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-2">
+                {movement.movementType === 'Manual' && viewMode === 'latest' && (
+                  <button
+                    onClick={() => handleUndoClick(movement.id)}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-2.5 text-sm font-medium text-orange-700 dark:border-orange-800 dark:bg-orange-900/20 dark:text-orange-300"
+                  >
+                    <RotateCcw className="w-4 h-4" /> Undo
+                  </button>
+                )}
+                {movement.movementType === 'Manual' && (
+                  <button
+                    onClick={() => handleEditClick(movement)}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300"
+                  >
+                    <Edit className="w-4 h-4" /> Edit
+                  </button>
+                )}
+                <button 
+                  onClick={() => setSelectedMovement(movement)}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+                >
+                  <Eye className="w-4 h-4" /> Detail
+                </button>
+              </div>
+            </div>
+          )) : (
+            <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-10 text-center text-gray-500 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-400">
+              <ArrowRightLeft className="mx-auto mb-3 h-12 w-12 text-gray-300" />
+              <p>Tidak ada data perpindahan.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 font-medium">
               <tr>
@@ -525,8 +590,8 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up max-h-[90vh] flex flex-col">
+        <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="mobile-modal-panel bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up max-h-[90vh] flex flex-col">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center">
                 {editingMovementId ? <Edit className="w-5 h-5 mr-2 text-blue-600" /> : <ArrowRightLeft className="w-5 h-5 mr-2 text-blue-600" />}
@@ -537,7 +602,7 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
+            <form onSubmit={handleSubmit} className="mobile-modal-body p-4 sm:p-6 space-y-4">
               <datalist id="people-list">
                 {uniquePeople.map(person => (
                   <option key={person} value={person} />
@@ -621,7 +686,7 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tanggal</label>
                   <input 
@@ -642,7 +707,7 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dari Siapa</label>
                   <input 
@@ -667,7 +732,7 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lokasi Asal</label>
                   <input 
@@ -713,7 +778,7 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
                 />
               </div>
 
-              <div className="pt-4 flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="mobile-modal-actions pt-4 flex justify-end gap-3 border-t border-gray-200 dark:border-gray-700">
                 <button type="button" onClick={() => { setIsModalOpen(false); resetForm(); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
                   Batal
                 </button>
@@ -727,8 +792,8 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
       )}
 
       {selectedMovement && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
+        <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="mobile-modal-panel bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up flex flex-col">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center">
                 <FileText className="w-5 h-5 mr-2 text-blue-600" />
@@ -738,7 +803,7 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="mobile-modal-body p-4 sm:p-6 space-y-4">
               <div className="text-center mb-4">
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">{selectedMovement.inventoryName || getEquipmentName(selectedMovement.inventoryId)}</h2>
                 <p className="text-sm font-mono text-gray-500 mt-1">{selectedMovement.inventoryId}</p>
@@ -784,7 +849,7 @@ const ItemMovements: React.FC<ItemMovementsProps> = ({ role, showToast }) => {
                 )}
               </div>
 
-              <div className="pt-4 flex justify-end">
+              <div className="mobile-modal-actions pt-4 flex justify-end">
                 <button onClick={() => setSelectedMovement(null)} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-200 dark:hover:bg-gray-600">
                   Tutup
                 </button>

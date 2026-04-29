@@ -66,24 +66,24 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
         />
       )}
       <div 
-        className={`w-full px-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus-within:ring-2 focus-within:ring-blue-500 flex justify-between items-center shadow-sm min-h-10.5 ${disabled ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800' : 'cursor-pointer'}`}
+        className={`w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg dark:text-white focus-within:ring-2 focus-within:ring-blue-500 flex justify-between items-center shadow-sm min-h-11 ${disabled ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800' : 'cursor-pointer'}`}
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
-        <span className={`${!selectedOption ? 'text-gray-500 text-sm' : 'truncate text-sm'}`}>
+        <span className={`${!selectedOption ? 'text-gray-500 text-base md:text-sm' : 'truncate text-base md:text-sm'}`}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronDown className="w-4 h-4 text-gray-500 shrink-0 ml-2" />
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-60 flex flex-col overflow-hidden">
+        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl shadow-xl max-h-72 flex flex-col overflow-hidden">
           <div className="p-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 shrink-0">
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 placeholder={searchPlaceholder}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
+                className="w-full pl-9 pr-3 py-2.5 text-base md:text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 autoFocus
@@ -96,7 +96,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
               filteredOptions.map(opt => (
                 <div
                   key={opt.value}
-                  className={`px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer text-sm flex justify-between items-center ${
+                  className={`px-4 py-3 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer text-base md:text-sm flex justify-between items-center ${
                     opt.disabled ? 'opacity-50 cursor-not-allowed bg-gray-50 dark:bg-gray-800' : 
                     value === opt.value ? 'bg-blue-50 dark:bg-gray-700/50 text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-700 dark:text-gray-200'
                   }`}

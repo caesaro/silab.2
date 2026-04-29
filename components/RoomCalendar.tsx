@@ -1053,11 +1053,11 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
 
       {selectedEvent && (
         <div
-          className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          className="mobile-modal-shell fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
           onClick={() => setSelectedEvent(null)}
         >
           <div
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up"
+            className="mobile-modal-panel bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up flex flex-col"
             onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
@@ -1072,7 +1072,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="mobile-modal-body p-4 sm:p-6 space-y-4">
               <div className="flex items-start">
                 <Type className="w-5 h-5 text-gray-400 mr-3 mt-0.5 shrink-0" />
                 <div>
@@ -1114,7 +1114,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
                 </div>
               </div>
             </div>
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
+            <div className="mobile-modal-actions p-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center gap-3 bg-gray-50 dark:bg-gray-700/50">
               {(role === Role.ADMIN || role === Role.LABORAN) &&
               isAuthenticated ? (
                 <div className="flex gap-2">
@@ -1151,8 +1151,8 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
       )}
 
       {isAddEventModalOpen && (
-        <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-full sm:max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up max-h-[90vh] flex flex-col">
+        <div className="mobile-modal-shell fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4">
+          <div className="mobile-modal-panel bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-full sm:max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up max-h-[90vh] flex flex-col">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center">
                 <CalendarIcon className="w-5 h-5 mr-2 text-blue-600" />
@@ -1165,7 +1165,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleSaveEvent} className="p-6 space-y-4">
+            <form onSubmit={handleSaveEvent} className="mobile-modal-body p-4 sm:p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Judul Kegiatan
@@ -1206,8 +1206,8 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Tanggal
                   </label>
@@ -1292,7 +1292,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
                 </div>
               </div>
 
-              <div className="pt-4 flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 mt-2">
+              <div className="mobile-modal-actions pt-4 flex justify-end gap-3 border-t border-gray-200 dark:border-gray-700 mt-2">
                 <button
                   type="button"
                   onClick={() => setIsAddEventModalOpen(false)}
@@ -1319,15 +1319,15 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
       )}
 
       {isDeleteModalOpen && eventToDelete && (
-        <div className="fixed inset-0 z-10000 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
+        <div className="mobile-modal-shell fixed inset-0 z-10000 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="mobile-modal-panel bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up flex flex-col">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20">
               <h3 className="font-bold text-red-800 dark:text-red-400 flex items-center">
                 <Trash2 className="w-5 h-5 mr-2" />
                 Hapus Jadwal
               </h3>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="mobile-modal-body p-4 sm:p-6 space-y-4">
               <p className="text-sm text-gray-600 dark:text-gray-300">
                 Anda akan menghapus jadwal{" "}
                 <strong>"{eventToDelete.summary}"</strong>. Pilih metode
@@ -1399,7 +1399,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
                 </label>
               </div>
 
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="mobile-modal-actions flex justify-end gap-3 pt-2">
                 <button
                   onClick={() => setIsDeleteModalOpen(false)}
                   className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
@@ -1425,8 +1425,8 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
       )}
 
       {isEditEventModalOpen && selectedEvent && (
-        <div className="fixed inset-0 z-10000 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-full sm:max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up max-h-[90vh] flex flex-col">
+        <div className="mobile-modal-shell fixed inset-0 z-10000 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4">
+          <div className="mobile-modal-panel bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-full sm:max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up max-h-[90vh] flex flex-col">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center">
                 <Edit className="w-5 h-5 mr-2 text-blue-600" />
@@ -1439,7 +1439,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleUpdateEvent} className="p-6 space-y-4">
+            <form onSubmit={handleUpdateEvent} className="mobile-modal-body p-4 sm:p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Judul Kegiatan
@@ -1483,8 +1483,8 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Tanggal
                   </label>
@@ -1537,7 +1537,7 @@ const RoomCalendar: React.FC<RoomCalendarProps> = ({
                 </div>
               </div>
 
-              <div className="pt-4 flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 mt-2">
+              <div className="mobile-modal-actions pt-4 flex justify-end gap-3 border-t border-gray-200 dark:border-gray-700 mt-2">
                 <button
                   type="button"
                   onClick={() => setIsEditEventModalOpen(false)}

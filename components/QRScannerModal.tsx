@@ -124,8 +124,8 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-1000 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700">
+    <div className="mobile-modal-shell fixed inset-0 z-1000 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div className="mobile-modal-panel bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700">
         
         {/* Header */}
         <div className="p-6 pb-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
@@ -150,7 +150,7 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
         </div>
 
         {/* Scanner Area */}
-        <div className="flex-1 relative flex items-center justify-center p-6 bg-linear-to-b from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-800">
+        <div className="mobile-modal-body relative flex items-center justify-center p-4 sm:p-6 bg-linear-to-b from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-800">
           
           <div 
             id="scanner-container" 
@@ -211,7 +211,7 @@ const QRScannerModal: React.FC<QRScannerModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-linear-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900/50 flex items-center gap-3">
+        <div className="mobile-modal-actions p-4 border-t border-gray-200 dark:border-gray-700 bg-linear-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900/50 flex items-center gap-3">
           <button
             onClick={handleClose}
             className="px-6 py-3 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors ml-auto"

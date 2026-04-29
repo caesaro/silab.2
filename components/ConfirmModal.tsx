@@ -50,9 +50,9 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   const styles = typeStyles[type];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
-        <div className="p-6 text-center">
+    <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="mobile-modal-panel bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up flex flex-col">
+        <div className="mobile-modal-body p-6 text-center flex flex-col justify-center">
           <div className={`w-12 h-12 rounded-full ${styles.icon} flex items-center justify-center mx-auto mb-4`}>
             <AlertTriangle className={`w-6 h-6 ${styles.iconColor}`} />
           </div>
@@ -62,7 +62,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
             {message}
           </p>
-          <div className="flex justify-center space-x-3">
+          <div className="mobile-modal-actions flex justify-center gap-3">
             <button
               onClick={onClose}
               disabled={isLoading}

@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
-import { LayoutDashboard, Calendar, Box, Monitor, Users, FileText, Settings, Shield, Wrench, CalendarRange, PlusCircle, CalendarDays, GraduationCap, ArrowRightLeft, BookOpen, Cpu, Info, ChevronLeft, ChevronRight, DoorOpen, ClipboardList, ClipboardCheck, Archive, ChevronDown } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Role } from '../types';
-import nocLogo from "../src/assets/NOC.svg"; 
+import {
+  getVisibleMainItems,
+  getVisibleNavigationGroups,
+} from '../lib/navigation';
+import nocLogo from "../src/assets/NOC.svg";
 
 interface SidebarProps {
   currentRole: Role;
@@ -14,65 +18,33 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate, isOpen, isCollapsed = false, onToggleCollapse }) => {
   const [hoveredItem, setHoveredItem] = useState<{ label: string; top: number } | null>(null);
-  const [expandedGroups, setExpandedGroups] = useState(new Set());
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const mainItems = getVisibleMainItems(currentRole);
+  const menuGroups = getVisibleNavigationGroups(currentRole);
 
-  const mainItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: [Role.ADMIN, Role.LABORAN, Role.LEMBAGA_KEMAHASISWAAN, Role.DOSEN, 'Supervisor' as Role, Role.ADMIN_TU] },
-    { id: 'ruangan', label: 'Daftar Ruangan', icon: DoorOpen, roles: [Role.ADMIN, Role.LABORAN, Role.LEMBAGA_KEMAHASISWAAN, Role.DOSEN, 'Supervisor' as Role, Role.ADMIN_TU] },
-    { id: 'pesanan-ruang', label: 'Pesanan Ruang', icon: ClipboardCheck, roles: [Role.ADMIN, Role.LABORAN, 'Supervisor' as Role] },
-    { id: 'inventaris', label: 'Inventaris', icon: Archive, roles: [Role.ADMIN, Role.LABORAN, 'Supervisor' as Role] },
-    { id: 'pemesanan-saya', label: 'Pemesanan Saya', icon: ClipboardList, roles: [Role.LEMBAGA_KEMAHASISWAAN, Role.ADMIN_TU] },
-    { id: 'layanan-tu', label: 'Layanan TU', icon: FileText, roles: [Role.ADMIN, Role.LABORAN, Role.LEMBAGA_KEMAHASISWAAN, Role.DOSEN, 'Supervisor' as Role, Role.USER_TU, Role.ADMIN_TU] },
-  ];
+  useEffect(() => {
+    const activeGroup = menuGroups.find((group) =>
+      group.items.some((item) => item.id === currentPage)
+    );
 
-  const menuGroups = [
-    {
-      id: 'jadwal',
-      title: 'Jadwal',
-      items: [
-      { id: 'jadwal-ruang', label: 'Jadwal Ruang', icon: CalendarRange, roles: [Role.ADMIN, Role.LABORAN, Role.LEMBAGA_KEMAHASISWAAN, Role.DOSEN, 'Supervisor' as Role, Role.ADMIN_TU] },
-      { id: 'jadwal-kuliah', label: 'Jadwal Kuliah', icon: BookOpen, roles: [Role.ADMIN, Role.LABORAN, Role.DOSEN, 'Supervisor' as Role] },
-      { id: 'acara', label: 'Acara', icon: CalendarDays, roles: [Role.ADMIN, Role.LABORAN, 'Supervisor' as Role] },
-      ]
-    },
-    {
-      id: 'manajemen',
-      title: 'Manajemen',
-      items: [
-        { id: 'manajemen-user', label: 'Manajemen User', icon: Users, roles: [Role.ADMIN] },
-      { id: 'manajemen-laboran', label: 'Manajemen Laboran', icon: Wrench, roles: [Role.ADMIN, Role.LABORAN, 'Supervisor' as Role] },
-      { id: 'manajemen-pkl', label: 'Manajemen PKL', icon: GraduationCap, roles: [Role.ADMIN, Role.LABORAN, 'Supervisor' as Role] },
-      { id: 'manajemen-spesifikasi', label: 'Spesifikasi & Software', icon: Cpu, roles: [Role.ADMIN, Role.LABORAN, 'Supervisor' as Role] },
-      ]
-    },
-    {
-      id: 'transaksi',
-      title: 'Transaksi',
-      items: [
-      { id: 'peminjaman-barang', label: 'Peminjaman Barang', icon: Box, roles: [Role.ADMIN, Role.LABORAN, 'Supervisor' as Role] },
-      { id: 'perpindahan-barang', label: 'Perpindahan Barang', icon: ArrowRightLeft, roles: [Role.ADMIN, Role.LABORAN, 'Supervisor' as Role] },
-      ]
-    },
-    {
-      id: 'pengaturan',
-      title: 'Pengaturan',
-      items: [
-        { id: 'pengaturan', label: 'Pengaturan', icon: Settings, roles: [Role.ADMIN] },
-      { id: 'profil', label: 'Profile', icon: Users, roles: [Role.ADMIN, Role.LABORAN, Role.LEMBAGA_KEMAHASISWAAN, Role.DOSEN, 'Supervisor' as Role, Role.USER_TU, Role.ADMIN_TU] },
-      { id: 'tentang', label: 'Tentang', icon: Info, roles: [Role.ADMIN, Role.LABORAN, Role.LEMBAGA_KEMAHASISWAAN, Role.DOSEN, 'Supervisor' as Role, Role.USER_TU, Role.ADMIN_TU] },
-      ]
+    if (!activeGroup) {
+      return;
     }
-  ];
 
-  // Add icons to groups
-  const jadwalIcon = CalendarRange;
-  const manajemenIcon = Users;
-  const transaksiIcon = Box;
-  const pengaturanIcon = Settings;
+    setExpandedGroups((prev) => {
+      if (prev.has(activeGroup.id)) {
+        return prev;
+      }
+
+      const next = new Set(prev);
+      next.add(activeGroup.id);
+      return next;
+    });
+  }, [currentPage, menuGroups]);
 
   return (
-    <aside className={`${isOpen ? 'translate-x-0' : '-translate-x-full'} fixed md:relative md:translate-x-0 z-40 ${isCollapsed ? 'md:w-20' : 'md:w-64'} w-64 h-screen transition-all duration-300 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 print:hidden flex flex-col`}>
-      <div className={`p-6 border-b border-gray-200 dark:border-gray-700 flex items-center ${isCollapsed ? 'justify-center p-4' : 'space-x-3'} shrink-0 min-h-20 transition-all duration-300`}>
+    <aside className={`${isOpen ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-40 h-screen w-[min(20rem,88vw)] bg-white shadow-xl transition-all duration-300 dark:bg-gray-800 md:relative md:translate-x-0 md:shadow-none ${isCollapsed ? 'md:w-20' : 'md:w-64'} border-r border-gray-200 dark:border-gray-700 print:hidden flex flex-col`}>
+      <div className={`border-b border-gray-200 dark:border-gray-700 flex items-center ${isCollapsed ? 'justify-center p-4' : 'space-x-3 p-5 md:p-6'} shrink-0 min-h-20 transition-all duration-300`}>
         <img
           src={nocLogo}
           alt="NOC Logo"
@@ -84,16 +56,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-4 pb-8">
         {/* Main Items */}
         <div className="mb-8">
           <div className={!isCollapsed ? "text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4 px-2" : ''}>
             Utama
           </div>
           <nav className="space-y-1">
-            {mainItems.filter(item => 
-              item.roles.some(r => r.toString().toUpperCase() === currentRole.toString().toUpperCase())
-            ).map((item) => {
+            {mainItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentPage === item.id;
               return (
@@ -107,7 +77,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
                     }
                   }}
                   onMouseLeave={() => setHoveredItem(null)}
-                  className={`w-full flex items-center ${isCollapsed ? 'justify-center px-2' : 'px-4'} py-3 text-sm font-medium rounded-lg transition-all duration-300 group ${
+                  className={`w-full flex min-h-11 items-center ${isCollapsed ? 'justify-center px-2' : 'px-4'} py-3 text-sm font-medium rounded-xl transition-all duration-300 group ${
                     isActive
                       ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                       : 'text-gray-700 dark:text-gray-300 hover:bg-blue-50/50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400'
@@ -123,15 +93,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
 
         {/* Dropdown Groups */}
         {menuGroups.map((group) => {
-          const visibleItems = group.items.filter(item => 
-            item.roles.some(r => r.toString().toUpperCase() === currentRole.toString().toUpperCase())
-          );
-
-          if (visibleItems.length === 0) return null;
-
           const isExpanded = expandedGroups.has(group.id);
-          const isActiveGroup = visibleItems.some(item => currentPage === item.id);
-          const GroupIcon = group.id === 'jadwal' ? jadwalIcon : group.id === 'manajemen' ? manajemenIcon : group.id === 'transaksi' ? transaksiIcon : pengaturanIcon;
+          const isActiveGroup = group.items.some(item => currentPage === item.id);
+          const GroupIcon = group.icon;
 
           return (
             <div key={group.id} className="mb-4">
@@ -160,7 +124,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
                   }
                 }}
                 onMouseLeave={() => setHoveredItem(null)}
-                className={`w-full flex items-center ${isCollapsed ? 'justify-center px-2' : 'px-4'} py-3 text-sm font-medium rounded-lg transition-all duration-300 group ${
+                className={`w-full flex min-h-11 items-center ${isCollapsed ? 'justify-center px-2' : 'px-4'} py-3 text-sm font-medium rounded-xl transition-all duration-300 group ${
                   isActiveGroup
                     ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                     : isExpanded
@@ -174,14 +138,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRole, currentPage, onNavigate,
               </button>
               {isExpanded && !isCollapsed && (
                 <nav className="ml-6 pl-2 space-y-1 mt-1 border-l-2 border-gray-100 dark:border-gray-700">
-                  {visibleItems.map((item) => {
+                  {group.items.map((item) => {
                     const Icon = item.icon;
                     const isActive = currentPage === item.id;
                     return (
                       <button
                         key={item.id}
                         onClick={() => onNavigate(item.id)}
-                        className={`w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 group ${
+                        className={`w-full flex min-h-11 items-center px-4 py-2 text-sm font-medium rounded-xl transition-all duration-300 group ${
                           isActive
                             ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                             : 'text-gray-600 dark:text-gray-400 hover:bg-blue-50/50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400'

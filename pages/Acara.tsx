@@ -348,9 +348,9 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
       </div>
 
       {selectedGroup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-5xl overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up flex flex-col md:flex-row max-h-[90vh]">
-                <div className="w-full md:w-1/2 p-6 overflow-y-auto border-r border-gray-200 dark:border-gray-700">
+        <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+            <div className="mobile-modal-panel bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-5xl overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up flex flex-col md:flex-row max-h-[90vh]">
+                <div className="mobile-modal-body w-full md:w-1/2 p-4 sm:p-6 overflow-y-auto border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-700">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="font-bold text-xl text-gray-900 dark:text-white">Detail Acara</h3>
                         <button onClick={() => setSelectedGroup(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
@@ -406,7 +406,7 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
                             </h4>
                             <p className="text-xs text-gray-500 mb-3">Pilih informasi yang ingin ditampilkan pada gambar:</p>
                             
-                            <div className="grid grid-cols-2 gap-2 mb-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
                                 <label className="flex items-center space-x-2 text-sm cursor-pointer">
                                     <input type="checkbox" checked={shareConfig.title} onChange={() => toggleConfig('title')} className="rounded text-blue-600 focus:ring-blue-500" />
                                     <span className="text-gray-700 dark:text-gray-300">Nama Acara</span>
@@ -447,7 +447,7 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
                     </div>
                 </div>
 
-                <div className="w-full md:w-1/2 bg-gray-100 dark:bg-gray-900 p-6 flex items-center justify-center overflow-hidden relative min-h-100">
+                <div className="w-full md:w-1/2 bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 flex items-center justify-center overflow-hidden relative min-h-100">
                     <div className="absolute top-4 left-4 bg-white/80 dark:bg-black/50 px-2 py-1 rounded text-xs font-bold backdrop-blur-sm z-10">
                         Preview Gambar
                     </div>
@@ -521,7 +521,7 @@ const Acara: React.FC<EventsProps> = ({ showToast, isDarkMode }) => {
                             )}
 
                             {(shareConfig.pic || shareConfig.contact) && (
-                                <div className="pt-4 border-t border-gray-100 dark:border-gray-700 grid grid-cols-2 gap-4">
+                                <div className="pt-4 border-t border-gray-100 dark:border-gray-700 grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     {shareConfig.pic && (
                                         <div>
                                             <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-bold mb-1">Penanggung Jawab</p>

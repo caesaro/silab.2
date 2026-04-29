@@ -82,6 +82,15 @@
   --radius: 0.625rem;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-width: 320px;
+  font-size: 16px;
+}
+
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -101,6 +110,147 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
+}
+
+@media (max-width: 767px) {
+  button,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  button {
+    min-width: 44px;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+
+  .mobile-modal-shell {
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .mobile-modal-panel {
+    width: 100%;
+    max-width: none !important;
+    min-height: 100dvh;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+  }
+
+  .mobile-modal-body {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .mobile-modal-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .mobile-modal-actions > * {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .mobile-table-scroll {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-table-scroll > table {
+    min-width: 42rem;
+  }
+
+  .mobile-data-table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .mobile-data-table thead {
+    display: none;
+  }
+
+  .mobile-data-table,
+  .mobile-data-table tbody,
+  .mobile-data-table tr,
+  .mobile-data-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .mobile-data-table tbody {
+    padding: 0.75rem;
+  }
+
+  .mobile-data-table tr {
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+    border: 1px solid rgb(229 231 235);
+    border-radius: 1rem;
+    background: white;
+  }
+
+  .dark .mobile-data-table tr {
+    border-color: rgb(55 65 81);
+    background: rgb(31 41 55 / 0.65);
+  }
+
+  .mobile-data-table tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .mobile-data-table td {
+    padding: 0.75rem 1rem;
+    white-space: normal;
+  }
+
+  .mobile-data-table td + td {
+    border-top: 1px solid rgb(243 244 246);
+  }
+
+  .dark .mobile-data-table td + td {
+    border-color: rgb(55 65 81);
+  }
+
+  .mobile-data-table td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgb(107 114 128);
+  }
+
+  .dark .mobile-data-table td::before {
+    color: rgb(156 163 175);
+  }
+
+  .mobile-data-table td[colspan]::before {
+    content: none;
+  }
+
+  .mobile-data-table td[data-label="Aksi"] {
+    padding-top: 1rem;
+  }
+
+  .mobile-data-table td[data-label="Aksi"]::before {
+    margin-bottom: 0.5rem;
+  }
+
+  .mobile-data-table td[data-label="Aksi"] > div {
+    justify-content: flex-start !important;
+    flex-wrap: wrap;
+  }
 }
 
 @media print {

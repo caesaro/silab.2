@@ -425,7 +425,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl w-fit">
+      <div className="flex flex-wrap gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl w-full md:w-fit">
         <button
           onClick={() => setActiveTab('admin')}
           className={`px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center ${
@@ -586,7 +586,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
               </h3>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <button onClick={() => onNavigate?.('manajemen-user')} className="flex flex-col items-center p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                   <Users className="w-8 h-8 text-purple-600 dark:text-purple-400 mb-2" />
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Manajemen User</span>
@@ -717,7 +717,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
              </button>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
+            <table className="mobile-data-table w-full text-sm text-left">
               <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 font-medium">
                 <tr>
                   <th className="px-6 py-4">Nama Pengguna</th>
@@ -730,19 +730,19 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {ssoUsers.length > 0 ? ssoUsers.map(user => (
                   <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                    <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                    <td data-label="Nama Pengguna" className="px-6 py-4 font-medium text-gray-900 dark:text-white">
                       {user.name}
                     </td>
-                    <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
+                    <td data-label="Email Google" className="px-6 py-4 text-gray-600 dark:text-gray-300">
                       {user.email}
                     </td>
-                    <td className="px-6 py-4">
+                    <td data-label="Status" className="px-6 py-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${user.status === 'Aktif' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800'}`}>
                         {user.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-gray-600 dark:text-gray-400">{new Date(user.updatedAt).toLocaleString('id-ID')}</td>
-                    <td className="px-6 py-4 text-gray-500 dark:text-gray-500 text-xs">{new Date(user.createdAt).toLocaleDateString('id-ID')}</td>
+                    <td data-label="Terakhir Login" className="px-6 py-4 text-gray-600 dark:text-gray-400">{new Date(user.updatedAt).toLocaleString('id-ID')}</td>
+                    <td data-label="Pertama Bergabung" className="px-6 py-4 text-gray-500 dark:text-gray-500 text-xs">{new Date(user.createdAt).toLocaleDateString('id-ID')}</td>
                   </tr>
                 )) : (
                   <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">Belum ada aktivitas login SSO.</td></tr>
@@ -945,7 +945,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
 
             {/* Error Log Table */}
             <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
+              <table className="mobile-data-table w-full text-sm text-left">
                 <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-50 dark:bg-gray-700/30">
                   <tr>
                     <th className="px-4 py-3">Tipe</th>
@@ -965,23 +965,23 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
                   ) : (
                     errorLogs.map((log) => (
                       <tr key={log.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                        <td className="px-4 py-3">
+                        <td data-label="Tipe" className="px-4 py-3">
                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(log.errorType)}`}>{log.errorType}</span>
                         </td>
-                        <td className="px-4 py-3">
+                        <td data-label="Severity" className="px-4 py-3">
                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSeverityColor(log.severity)}`}>{log.severity}</span>
                         </td>
-                        <td className="px-4 py-3 max-w-xs truncate" title={log.errorMessage}>{log.errorMessage}</td>
-                        <td className="px-4 py-3 font-mono text-xs">{log.method} {log.endpoint}</td>
-                        <td className="px-4 py-3 text-xs">{new Date(log.createdAt).toLocaleString('id-ID')}</td>
-                        <td className="px-4 py-3">
+                        <td data-label="Pesan Error" className="px-4 py-3 max-w-xs truncate" title={log.errorMessage}>{log.errorMessage}</td>
+                        <td data-label="Endpoint" className="px-4 py-3 font-mono text-xs">{log.method} {log.endpoint}</td>
+                        <td data-label="Waktu" className="px-4 py-3 text-xs">{new Date(log.createdAt).toLocaleString('id-ID')}</td>
+                        <td data-label="Status" className="px-4 py-3">
                           {log.isResolved ? (
                             <span className="flex items-center text-green-600 text-xs"><CheckSquare className="w-3 h-3 mr-1" /> Selesai</span>
                           ) : (
                             <span className="flex items-center text-orange-600 text-xs"><Square className="w-3 h-3 mr-1" /> Pending</span>
                           )}
                         </td>
-                        <td className="px-4 py-3">
+                        <td data-label="Aksi" className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <button onClick={() => handleViewDetail(log)} className="text-blue-600 hover:underline text-xs">Detail</button>
                             {!log.isResolved && <button onClick={() => handleResolveLog(log.id)} className="text-green-600 hover:underline text-xs">Resolve</button>}
@@ -995,20 +995,20 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
             </div>
             
             {/* Pagination */}
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               <p className="text-sm text-gray-500">Menampilkan {errorLogs.length} dari {pagination.total} error</p>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between sm:justify-end gap-2">
                 <button 
                   onClick={() => setPagination(prev => ({ ...prev, offset: Math.max(0, prev.offset - prev.limit) }))}
                   disabled={pagination.offset === 0}
-                  className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50"
+                  className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50"
                 >
                   Previous
                 </button>
                 <button 
                   onClick={() => setPagination(prev => ({ ...prev, offset: prev.offset + prev.limit }))}
                   disabled={pagination.offset + pagination.limit >= pagination.total}
-                  className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50"
+                  className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50"
                 >
                   Next
                 </button>
@@ -1020,16 +1020,16 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
 
       {/* Detail Modal */}
       {showDetailModal && selectedLog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+        <div className="mobile-modal-shell fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="mobile-modal-panel bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white">Detail Error</h3>
               <button onClick={() => { setShowDetailModal(false); setSelectedLog(null); }} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-4 overflow-y-auto max-h-[60vh] space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="mobile-modal-body p-4 overflow-y-auto max-h-[60vh] space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-gray-500">Tipe Error</p>
                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(selectedLog.errorType)}`}>{selectedLog.errorType}</span>
@@ -1047,7 +1047,7 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
                   <p className="text-sm dark:text-white">{selectedLog.isResolved ? 'Selesai' : 'Pending'}</p>
                 </div>
                 {selectedLog.endpoint && (
-                  <div className="col-span-2">
+                  <div className="sm:col-span-2">
                     <p className="text-xs text-gray-500">Endpoint</p>
                     <p className="text-sm font-mono dark:text-white">{selectedLog.method} {selectedLog.endpoint}</p>
                   </div>
@@ -1082,13 +1082,13 @@ const Settings: React.FC<SettingsProps> = ({ showToast, onNavigate }) => {
                 </div>
               )}
             </div>
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+            <div className="mobile-modal-actions p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
               {!selectedLog.isResolved && (
                 <button onClick={() => { handleResolveLog(selectedLog.id); setShowDetailModal(false); }} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center">
                   <Check className="w-4 h-4 mr-2" /> Tandai Selesai
                 </button>
               )}
-              <button onClick={() => { setShowDetailModal(false); setSelectedLog(null); }} className="ml-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+              <button onClick={() => { setShowDetailModal(false); setSelectedLog(null); }} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
                 Tutup
               </button>
             </div>

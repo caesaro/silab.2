@@ -19,13 +19,13 @@ const Pagination: React.FC<PaginationProps> = ({
   onItemsPerPageChange
 }) => {
   return (
-    <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white dark:bg-gray-800 rounded-b-xl shadow-sm">
-      <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+    <div className="px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 bg-white dark:bg-gray-800 rounded-b-xl shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
         <span>Tampilkan</span>
         <select
           value={itemsPerPage}
           onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-          className="px-2 py-1 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
+          className="h-11 sm:h-10 px-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-base sm:text-sm dark:text-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
         >
           <option value={5}>5</option>
           <option value={10}>10</option>
@@ -35,12 +35,12 @@ const Pagination: React.FC<PaginationProps> = ({
         </select>
         <span>dari {totalItems} data</span>
       </div>
-      <div className="flex items-center space-x-2">
-        <button onClick={() => onPageChange(Math.max(currentPage - 1, 1))} disabled={currentPage <= 1} className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+      <div className="flex items-center justify-between sm:justify-end gap-2">
+        <button onClick={() => onPageChange(Math.max(currentPage - 1, 1))} disabled={currentPage <= 1} className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors sm:h-10 sm:w-10">
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 px-2">Halaman {currentPage} dari {totalPages || 1}</span>
-        <button onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))} disabled={currentPage >= totalPages || totalPages === 0} className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+        <span className="text-sm font-medium text-center text-gray-700 dark:text-gray-300 px-2 flex-1 sm:flex-none">Halaman {currentPage} dari {totalPages || 1}</span>
+        <button onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))} disabled={currentPage >= totalPages || totalPages === 0} className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors sm:h-10 sm:w-10">
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>

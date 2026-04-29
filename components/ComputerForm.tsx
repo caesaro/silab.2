@@ -29,15 +29,15 @@ const ComputerForm: React.FC<ComputerFormProps> = ({ isOpen, onClose, onSave, in
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-2xl overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
+    <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="mobile-modal-panel bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-2xl overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up flex flex-col">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
           <h3 className="font-bold text-gray-900 dark:text-white">
             {initialData?.id ? 'Edit Komputer' : 'Tambah Komputer'}
           </h3>
           <button onClick={onClose}><X className="w-5 h-5 text-gray-500"/></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 grid grid-cols-2 gap-4 max-h-[80vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="mobile-modal-body p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Nomor PC</label>
             <div className="relative">
@@ -49,7 +49,7 @@ const ComputerForm: React.FC<ComputerFormProps> = ({ isOpen, onClose, onSave, in
             <label className="block text-xs font-medium text-gray-500 mb-1">OS</label>
             <input type="text" value={formData.os || ''} onChange={e => setFormData({...formData, os: e.target.value})} className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Windows 11 Pro"/>
           </div>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <label className="block text-xs font-medium text-gray-500 mb-1">CPU</label>
             <div className="relative">
               <Cpu className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -81,7 +81,7 @@ const ComputerForm: React.FC<ComputerFormProps> = ({ isOpen, onClose, onSave, in
               <input type="text" value={formData.ram || ''} onChange={e => setFormData({...formData, ram: e.target.value})} className="w-full pl-9 pr-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="16 GB DDR4"/>
             </div>
           </div>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <label className="block text-xs font-medium text-gray-500 mb-1">Storage</label>
             <div className="relative">
               <HardDrive className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -109,7 +109,7 @@ const ComputerForm: React.FC<ComputerFormProps> = ({ isOpen, onClose, onSave, in
               <input type="text" value={formData.mouse || ''} onChange={e => setFormData({...formData, mouse: e.target.value})} className="w-full pl-9 pr-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"/>
             </div>
           </div>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <label className="block text-xs font-medium text-gray-500 mb-1">Kondisi</label>
             <select value={formData.condition || 'Baik'} onChange={e => setFormData({...formData, condition: e.target.value as any})} className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
               <option value="Baik">Baik</option>
@@ -117,7 +117,7 @@ const ComputerForm: React.FC<ComputerFormProps> = ({ isOpen, onClose, onSave, in
               <option value="Rusak Berat">Rusak Berat</option>
             </select>
           </div>
-          <div className="col-span-2 flex justify-end gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="mobile-modal-actions col-span-1 sm:col-span-2 flex justify-end gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <button type="button" onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Batal</button>
             <button type="submit" disabled={isSaving} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center disabled:opacity-50">
               {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}

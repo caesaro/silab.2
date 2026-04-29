@@ -7,14 +7,14 @@ const DeleteBookingModal = ({ isOpen, booking, rooms, isDeleting, deleteOption, 
   if (!isOpen || !booking) return null;
   const getRoomName = (roomId: string) => rooms.find((r: Room) => r.id === roomId)?.name || 'Ruangan Tidak Diketahui';
   return (
-    <div className="fixed inset-0 z-80 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
+    <div className="mobile-modal-shell fixed inset-0 z-80 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="mobile-modal-panel bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up flex flex-col">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20">
           <h3 className="font-bold text-red-800 dark:text-red-400 flex items-center">
             <Trash2 className="w-5 h-5 mr-2" /> Hapus Data Peminjaman
           </h3>
         </div>
-        <div className="p-6 space-y-4">
+        <div className="mobile-modal-body p-4 sm:p-6 space-y-4">
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
             <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">⚠️ Peringatan! Tindakan ini tidak dapat dibatalkan.</p>
           </div>
@@ -42,7 +42,7 @@ const DeleteBookingModal = ({ isOpen, booking, rooms, isDeleting, deleteOption, 
               </div>
             </div>
           )}
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="mobile-modal-actions flex justify-end gap-3 pt-2">
             <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Batal</button>
             <button onClick={onConfirm} disabled={isDeleting} className="px-4 py-2 text-sm bg-red-600 text-white hover:bg-red-700 rounded-lg shadow-md flex items-center disabled:opacity-50">
               {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />} Hapus Permanen

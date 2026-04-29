@@ -141,13 +141,13 @@ const BookingDetailModal = ({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="animate-fade-in-up flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800">
+    <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className="mobile-modal-panel animate-fade-in-up flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800">
         {/* ══════════════════════════════════════════════════════════════════
             MODAL HEADER
             Shows title, room/schedule summary chip, status badge, close.
         ══════════════════════════════════════════════════════════════════ */}
-        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-700 dark:bg-gray-800">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-200 bg-white px-4 py-4 sm:px-6 dark:border-gray-700 dark:bg-gray-800">
           {/* Left cluster */}
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/40">
@@ -187,7 +187,7 @@ const BookingDetailModal = ({
         {/* ══════════════════════════════════════════════════════════════════
             SCROLLABLE BODY
         ══════════════════════════════════════════════════════════════════ */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="mobile-modal-body">
           {/* ────────────────────────────────────────────────────────────────
               TOP SECTION — 2-column grid
               Left  → INFORMASI PEMINJAM
@@ -402,7 +402,7 @@ const BookingDetailModal = ({
               Full-width.  The inner card list is independently scrollable so
               the header and footer always stay visible even for long lists.
           ──────────────────────────────────────────────────────────────── */}
-          <div className="border-t border-gray-100 px-6 py-5 dark:border-gray-700">
+          <div className="border-t border-gray-100 px-4 py-5 sm:px-6 dark:border-gray-700">
             {/* Section header */}
             <div className="mb-4 flex items-center justify-between">
               <SectionLabel
@@ -463,68 +463,61 @@ const BookingDetailModal = ({
                     </div>
 
                     {/* ── Schedule table ── */}
-                    <table className="w-full">
-                      <thead>
-                        <tr className="bg-gray-50/80 text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
-                          <th className="w-8 py-2 pl-4 pr-2 text-left">#</th>
-                          <th className="px-3 py-2 text-left">Tanggal</th>
-                          <th className="px-3 py-2 text-left">Mulai</th>
-                          <th className="px-3 py-2 text-left">Selesai</th>
-                          <th className="px-3 py-2 text-left">Durasi</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100 bg-white dark:divide-gray-700/40 dark:bg-gray-900/30">
-                        {scheds.map(
-                          (
-                            s: {
-                              date: string;
-                              startTime: string;
-                              endTime: string;
-                            },
-                            sIdx: number,
-                          ) => (
-                            <tr
-                              key={sIdx}
-                              className="text-xs transition-colors hover:bg-blue-50/50 dark:hover:bg-blue-900/10"
-                            >
-                              {/* Row number */}
-                              <td className="py-2.5 pl-4 pr-2 font-mono tabular-nums text-gray-400">
-                                {sIdx + 1}
-                              </td>
-
-                              {/* Date */}
-                              <td className="px-3 py-2.5">
-                                <span className="inline-flex items-center gap-1.5 text-gray-700 dark:text-gray-300">
-                                  <Calendar className="h-3 w-3 shrink-0 text-gray-400" />
-                                  {formatDateID(s.date)}
-                                </span>
-                              </td>
-
-                              {/* Start time */}
-                              <td className="px-3 py-2.5">
-                                <span className="inline-flex items-center gap-1 font-mono text-gray-700 dark:text-gray-300">
-                                  <Clock className="h-3 w-3 shrink-0 text-gray-400" />
-                                  {s.startTime?.slice(0, 5)}
-                                </span>
-                              </td>
-
-                              {/* End time */}
-                              <td className="px-3 py-2.5 font-mono text-gray-700 dark:text-gray-300">
-                                {s.endTime?.slice(0, 5)}
-                              </td>
-
-                              {/* Duration pill */}
-                              <td className="px-3 py-2.5">
-                                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600 dark:bg-gray-700/60 dark:text-gray-400">
-                                  <Timer className="h-2.5 w-2.5" />
-                                  {computeDuration(s.startTime, s.endTime)}
-                                </span>
-                              </td>
-                            </tr>
-                          ),
-                        )}
-                      </tbody>
-                    </table>
+                    <div className="mobile-table-scroll">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-gray-50/80 text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
+                            <th className="w-8 py-2 pl-4 pr-2 text-left">#</th>
+                            <th className="px-3 py-2 text-left">Tanggal</th>
+                            <th className="px-3 py-2 text-left">Mulai</th>
+                            <th className="px-3 py-2 text-left">Selesai</th>
+                            <th className="px-3 py-2 text-left">Durasi</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 bg-white dark:divide-gray-700/40 dark:bg-gray-900/30">
+                          {scheds.map(
+                            (
+                              s: {
+                                date: string;
+                                startTime: string;
+                                endTime: string;
+                              },
+                              sIdx: number,
+                            ) => (
+                              <tr
+                                key={sIdx}
+                                className="text-xs transition-colors hover:bg-blue-50/50 dark:hover:bg-blue-900/10"
+                              >
+                                <td className="py-2.5 pl-4 pr-2 font-mono tabular-nums text-gray-400">
+                                  {sIdx + 1}
+                                </td>
+                                <td className="px-3 py-2.5">
+                                  <span className="inline-flex items-center gap-1.5 text-gray-700 dark:text-gray-300">
+                                    <Calendar className="h-3 w-3 shrink-0 text-gray-400" />
+                                    {formatDateID(s.date)}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2.5">
+                                  <span className="inline-flex items-center gap-1 font-mono text-gray-700 dark:text-gray-300">
+                                    <Clock className="h-3 w-3 shrink-0 text-gray-400" />
+                                    {s.startTime?.slice(0, 5)}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2.5 font-mono text-gray-700 dark:text-gray-300">
+                                  {s.endTime?.slice(0, 5)}
+                                </td>
+                                <td className="px-3 py-2.5">
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600 dark:bg-gray-700/60 dark:text-gray-400">
+                                    <Timer className="h-2.5 w-2.5" />
+                                    {computeDuration(s.startTime, s.endTime)}
+                                  </span>
+                                </td>
+                              </tr>
+                            ),
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 );
               })}
@@ -534,7 +527,7 @@ const BookingDetailModal = ({
           {/* ────────────────────────────────────────────────────────────────
               BOTTOM SECTION — Surat Permohonan download banner
           ──────────────────────────────────────────────────────────────── */}
-          <div className="border-t border-gray-100 px-6 py-4 dark:border-gray-700">
+          <div className="border-t border-gray-100 px-4 py-4 sm:px-6 dark:border-gray-700">
             <div
               className={`flex items-center justify-between rounded-xl border p-4 transition-colors ${
                 (selectedBooking as any).hasFile
@@ -585,7 +578,7 @@ const BookingDetailModal = ({
             MODAL FOOTER — Action buttons
             Ordered left-to-right: Tutup → secondary → destructive → status
         ══════════════════════════════════════════════════════════════════ */}
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-gray-200 bg-gray-50/80 px-6 py-4 dark:border-gray-700 dark:bg-gray-800/60">
+        <div className="mobile-modal-actions flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-gray-200 bg-gray-50/80 px-4 py-4 sm:px-6 dark:border-gray-700 dark:bg-gray-800/60">
           {/* Always shown */}
           <button
             onClick={() => setSelectedBooking(null)}

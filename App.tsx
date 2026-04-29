@@ -2,12 +2,14 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Role, Notification, ToastMessage } from './types';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
+import MobileBottomNav from './components/MobileBottomNav';
 import Toast from './components/Toast';
 import LoadingScreen from './components/LoadingScreen';
 import ProtectedRoute from './components/ProtectedRoute';
 import { api } from './services/api';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { Megaphone } from 'lucide-react';
+import { getNavigationLabel } from './lib/navigation';
 
 import { APP_FULL_NAME } from './config';
 
@@ -108,6 +110,8 @@ const AppContent: React.FC = () => {
   // Notifications & Toast State
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const hasSidebarNavigation = !isRoleMatch(currentRole, Role.USER_TU);
+  const pageLabel = getNavigationLabel(currentPage);
 
   // Simulate Initial System Load
   useEffect(() => {
@@ -525,7 +529,7 @@ const AppContent: React.FC = () => {
             <div className="flex h-screen overflow-hidden print:h-auto print:overflow-visible print:block">
         
         {/* Mobile Sidebar Overlay */}
-        {isSidebarOpen && !isRoleMatch(currentRole, Role.USER_TU) && (
+        {isSidebarOpen && hasSidebarNavigation && (
           <div 
             className="fixed inset-0 bg-black/50 z-30 md:hidden print:hidden"
             onClick={() => setIsSidebarOpen(false)}
@@ -533,7 +537,7 @@ const AppContent: React.FC = () => {
         )}
 
         {/* Sembunyikan Sidebar untuk Role USER TU */}
-        {!isRoleMatch(currentRole, Role.USER_TU) && (
+        {hasSidebarNavigation && (
           <Sidebar 
           currentRole={currentRole}
           currentPage={currentPage}
@@ -550,9 +554,11 @@ const AppContent: React.FC = () => {
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden print:overflow-visible print:h-auto print:block">
           <TopBar 
             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+            showSidebarToggle={hasSidebarNavigation}
             isDarkMode={isDarkMode}
             toggleDarkMode={toggleDarkMode}
             currentRole={currentRole}
+            pageLabel={pageLabel}
             userName={userName}
             onOpenAi={() => showToast("Fitur AI dinonaktifkan.", "info")}
             onLogout={handleLogout}
@@ -564,7 +570,7 @@ const AppContent: React.FC = () => {
             isMaintenanceMode={isMaintenanceMode}
           />
 
-          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 print:overflow-visible print:h-auto print:p-0 print:block flex flex-col">
+          <main className="flex-1 overflow-y-auto px-3 pt-4 pb-24 sm:px-6 sm:pt-6 sm:pb-24 md:p-6 lg:p-8 print:overflow-visible print:h-auto print:p-0 print:block flex flex-col">
             {announcement?.active && announcement?.message && (
               <div className={`mb-6 p-4 rounded-xl border flex items-start animate-fade-in-up ${
                 announcement.type === 'info' ? 'bg-blue-100 border-blue-200 text-blue-800 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300' :
@@ -584,6 +590,16 @@ const AppContent: React.FC = () => {
               {APP_FULL_NAME} &copy; {new Date().getFullYear()} Sarana dan Prasarana FTI UKSW. All rights reserved.
             </footer>
           </main>
+          <MobileBottomNav
+            currentRole={currentRole}
+            currentPage={currentPage}
+            onNavigate={(page) => {
+              navigate(`/${page}`);
+              setIsSidebarOpen(false);
+            }}
+            onOpenMenu={() => setIsSidebarOpen(true)}
+            showMenuButton={hasSidebarNavigation}
+          />
         </div>
       </div>
           ) : (
