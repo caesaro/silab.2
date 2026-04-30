@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Equipment } from '../types';
+import { Equipment, Role } from '../types';
 import { Search, Plus, Filter, Edit, Trash2, X, Check, AlertCircle, Box, FileSpreadsheet, Download, QrCode, Printer, FileText, ChevronDown, Camera, Loader2, ArrowUpDown, ArrowUp, ArrowDown, MapPin } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import QRCode from "react-qr-code";
@@ -95,10 +95,11 @@ const LabelComponent = ({
 };
 
 interface InventoryProps {
+  role: Role;
   showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void;
 }
 
-const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
+const Inventory: React.FC<InventoryProps> = ({ role, showToast }) => {
   const { items, isLoading, fetchItems } = useInventory();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCondition, setFilterCondition] = useState<'All' | 'Baik' | 'Rusak Ringan' | 'Rusak Berat'>('All');
@@ -136,6 +137,10 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
 
   // Sorting State
   const [sortConfig, setSortConfig] = useState<{ key: keyof Equipment; direction: 'asc' | 'desc' } | null>(null);
+  const canManageInventory = [Role.ADMIN, Role.LABORAN, Role.SUPERVISOR].some(
+    (allowedRole) => allowedRole.toString().toUpperCase() === role.toString().toUpperCase()
+  );
+  const readOnlyMessage = "Akses inventaris untuk role Anda hanya dapat melihat data.";
 
   const renderLabelSizeSelector = () => (
     <div className="flex items-center gap-2">
@@ -216,6 +221,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
   };
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!canManageInventory) return;
     if (e.target.checked) {
         const newItems = currentItems.map(i => i.id);
         setSelectedItems(prev => Array.from(new Set([...prev, ...newItems])));
@@ -225,12 +231,17 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
   };
 
   const handleSelectItem = (id: string, checked: boolean) => {
+      if (!canManageInventory) return;
       setSelectedItems(prev => 
           checked ? [...prev, id] : prev.filter(itemId => itemId !== id)
       );
   };
 
   const handleOpenModal = (item?: Equipment) => {
+    if (!canManageInventory) {
+      showToast(readOnlyMessage, "info");
+      return;
+    }
     if (item) {
       setEditingItem(item);
       setFormData(item);
@@ -245,6 +256,10 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canManageInventory) {
+      showToast(readOnlyMessage, "warning");
+      return;
+    }
     setIsSaving(true);
     try {
       if (editingItem) {
@@ -286,6 +301,10 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
   };
 
   const downloadTemplate = async () => {
+    if (!canManageInventory) {
+      showToast(readOnlyMessage, "info");
+      return;
+    }
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Template');
 
@@ -322,6 +341,10 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
   };
 
   const handleExportExcel = async () => {
+    if (!canManageInventory) {
+      showToast(readOnlyMessage, "info");
+      return;
+    }
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Data Inventaris');
 
@@ -363,6 +386,10 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
   };
 
   const handleExportCSV = () => {
+    if (!canManageInventory) {
+      showToast(readOnlyMessage, "info");
+      return;
+    }
     const headers = ["Kode FTI", "Kode UKSW", "Nama Barang", "Kategori", "Kondisi", "Serial Number", "Lokasi", "Vendor", "Status"];
     const rows = sortedItems.map(item => [
       item.id, item.ukswCode, item.name, item.category, item.condition, item.serialNumber || '-', item.location || '-', item.vendor || '-', item.isAvailable ? 'Tersedia' : 'Dipinjam'
@@ -379,6 +406,10 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
   };
 
   const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!canManageInventory) {
+      showToast(readOnlyMessage, "warning");
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -480,11 +511,19 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
 
   // Delete handlers using ConfirmModal
   const handleDeleteClick = (id: string) => {
+    if (!canManageInventory) {
+      showToast(readOnlyMessage, "warning");
+      return;
+    }
     setDeleteTargetId(id);
     setShowDeleteModal(true);
   };
 
   const confirmDelete = async () => {
+    if (!canManageInventory) {
+      showToast(readOnlyMessage, "warning");
+      return;
+    }
     if (deleteTargetId) {
       setIsDeleting(true);
       try {
@@ -499,6 +538,10 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
   };
 
   const handlePrintMulti = (overrideItems?: Equipment[], overridePaperSize?: 'A4' | 'F4') => {
+    if (!canManageInventory) {
+      showToast(readOnlyMessage, "info");
+      return;
+    }
     const targetItems = overrideItems || items.filter(i => selectedItems.includes(i.id));
     if (targetItems.length === 0) return;
     const activePaperSize = overridePaperSize || paperSize;
@@ -590,6 +633,10 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
   };
 
   const handlePrintSingle = () => {
+    if (!canManageInventory) {
+      showToast(readOnlyMessage, "info");
+      return;
+    }
     if (!qrItem) return;
     
     const dims = getLabelDimensions(labelSize);
@@ -686,12 +733,20 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
   };
 
   const handlePrintSingleToSheet = () => {
+    if (!canManageInventory) {
+      showToast(readOnlyMessage, "info");
+      return;
+    }
     if (!qrItem) return;
     
     handlePrintMulti([qrItem], singleLabelPaperSize);
   };
 
   const handleShowQR = (item: Equipment) => {
+    if (!canManageInventory) {
+      showToast(readOnlyMessage, "info");
+      return;
+    }
     setQrItem(item);
   };
 
@@ -721,6 +776,10 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
   }, [items]);
 
   const handleEditFromDetail = () => {
+      if (!canManageInventory) {
+          showToast(readOnlyMessage, "info");
+          return;
+      }
       if (viewDetailItem) {
           const itemToEdit = viewDetailItem;
           setViewDetailItem(null);
@@ -759,8 +818,11 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
 
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Inventaris Barang</h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm">Kelola daftar aset dan barang FTI</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
+            {canManageInventory ? 'Kelola daftar aset dan barang FTI' : 'Lihat daftar aset dan barang FTI'}
+          </p>
         </div>
+        {canManageInventory && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-3">
             <div className="relative lg:col-span-1">
 
@@ -796,9 +858,15 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                 <Plus className="w-4 h-4 mr-2" /> Tambah Barang
             </button>
         </div>
+        )}
       </div>
 
 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 print:hidden">
+         {!canManageInventory && (
+           <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
+             Anda memiliki akses baca saja pada halaman inventaris. Penambahan, perubahan, penghapusan, export, print, dan scan QR dinonaktifkan.
+           </div>
+         )}
 
          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-stretch lg:items-center mb-6">
 
@@ -851,6 +919,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
 
                     <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-400 font-semibold border-b border-gray-200 dark:border-gray-700 print:bg-gray-200 print:text-black">
                         <tr>
+                            {canManageInventory && (
                             <th className="px-4 py-4 w-12 print:hidden shrink-0">
                                 <input 
                                     type="checkbox"
@@ -865,6 +934,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                                     }}
                                 />
                             </th>
+                            )}
                             <th className="px-4 py-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group" onClick={() => handleSort('name')}>
                                 <div className="flex items-center">Barang <SortIcon columnKey="name" /></div>
                             </th>
@@ -878,13 +948,14 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                                 <div className="flex items-center">Status <SortIcon columnKey="isAvailable" /></div>
                             </th>
 
-                            <th className="px-4 py-4 text-right print:hidden">Aksi</th>
+                            {canManageInventory && <th className="px-4 py-4 text-right print:hidden">Aksi</th>}
                         </tr>
 
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700 print:divide-gray-400">
                         {currentItems.length > 0 ? currentItems.map(item => (
                             <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer" onClick={() => setViewDetailItem(item)}>
+                                {canManageInventory && (
                                 <td className="px-4 py-3 print:hidden shrink-0 w-12" onClick={(e) => e.stopPropagation()}>
                                     <input 
                                         type="checkbox"
@@ -893,6 +964,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                                         onChange={(e) => handleSelectItem(item.id, e.target.checked)}
                                     />
                                 </td>
+                                )}
                                 <td className="px-4 py-3">
                                     <div className="font-bold text-gray-900 dark:text-white text-sm">{item.name}</div>
                                     <div className="text-xs text-gray-500 mt-0.5">{item.category}</div>
@@ -918,6 +990,7 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                                     </span>
                                 </td>
 
+                                {canManageInventory && (
                                 <td className="px-4 py-3 text-right print:hidden" onClick={(e) => e.stopPropagation()}>
 
                                     <div className="flex justify-end space-x-2">
@@ -926,10 +999,11 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                                         <button onClick={() => handleDeleteClick(item.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg dark:hover:bg-red-900/30 transition-colors" title="Hapus"><Trash2 className="w-4 h-4"/></button>
                                     </div>
                                 </td>
+                                )}
                             </tr>
                         )) : (
                            <tr>
-                              <td colSpan={6} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                              <td colSpan={canManageInventory ? 6 : 4} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                                  <div className="flex flex-col items-center justify-center">
                                     <Box className="w-12 h-12 text-gray-300 mb-3" />
                                     <p>Tidak ada barang yang ditemukan.</p>
@@ -1299,9 +1373,11 @@ const Inventory: React.FC<InventoryProps> = ({ showToast }) => {
                       <button onClick={() => setViewDetailItem(null)} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 font-medium text-sm">
                           Tutup
                       </button>
+                      {canManageInventory && (
                       <button onClick={handleEditFromDetail} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm flex items-center justify-center">
                           <Edit className="w-4 h-4 mr-2" /> Edit Barang
                       </button>
+                      )}
                   </div>
               </div>
            </div>

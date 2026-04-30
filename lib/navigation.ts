@@ -75,7 +75,7 @@ export const mainNavigationItems: NavigationItem[] = [
     id: "inventaris",
     label: "Inventaris",
     icon: Archive,
-    roles: [Role.ADMIN, Role.LABORAN, Role.SUPERVISOR],
+    roles: [Role.ADMIN, Role.LABORAN, Role.LEMBAGA_KEMAHASISWAAN, Role.DOSEN, Role.SUPERVISOR],
   },
   {
     id: "pemesanan-saya",
@@ -258,7 +258,6 @@ export const getNavigationLabel = (id: string) =>
 
 export const getMobilePrimaryItems = (currentRole: Role) => {
   const preferredOrder = [
-    "dashboard",
     "ruangan",
     "pesanan-ruang",
     "inventaris",

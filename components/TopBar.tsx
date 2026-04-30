@@ -6,6 +6,7 @@ import { api } from '../services/api';
 interface TopBarProps {
   onToggleSidebar: () => void;
   showSidebarToggle: boolean;
+  isVisible?: boolean;
   isDarkMode: boolean;
   toggleDarkMode: () => void;
   currentRole: Role;
@@ -40,7 +41,7 @@ const iconMap: Record<string, React.ElementType> = {
 };
 
 const TopBar: React.FC<TopBarProps> = ({ 
-  onToggleSidebar, showSidebarToggle, isDarkMode, toggleDarkMode, currentRole, pageLabel, userName, onOpenAi, onLogout, notifications, onMarkAsRead, onMarkAllAsRead, onClearAllNotifications, onNavigate, isMaintenanceMode
+  onToggleSidebar, showSidebarToggle, isVisible = true, isDarkMode, toggleDarkMode, currentRole, pageLabel, userName, onOpenAi, onLogout, notifications, onMarkAsRead, onMarkAllAsRead, onClearAllNotifications, onNavigate, isMaintenanceMode
 }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -113,7 +114,9 @@ const TopBar: React.FC<TopBarProps> = ({
   };
 
   return (
-    <header className="bg-white/95 dark:bg-gray-800/95 border-b border-gray-200 dark:border-gray-700 h-16 flex items-center justify-between px-3 sm:px-6 sticky top-0 z-30 print:hidden backdrop-blur-md">
+    <header className={`mobile-safe-x fixed inset-x-0 top-0 z-40 flex h-12 items-center justify-between border-b border-gray-200 bg-white/95 px-3 backdrop-blur-md transition-transform duration-200 print:hidden dark:border-gray-700 dark:bg-gray-800/95 md:sticky md:h-16 md:px-6 ${
+      isVisible ? "translate-y-0" : "-translate-y-full md:translate-y-0"
+    }`}>
       <div className="flex min-w-0 items-center">
         {showSidebarToggle && (
           <button 
@@ -128,9 +131,6 @@ const TopBar: React.FC<TopBarProps> = ({
         <div className="ml-2 min-w-0 md:hidden">
           <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
             {pageLabel}
-          </p>
-          <p className="truncate text-xs text-gray-500 dark:text-gray-400">
-            {currentRole}
           </p>
         </div>
         

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Role, Notification, ToastMessage } from './types';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
@@ -106,6 +106,8 @@ const AppContent: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
   const [announcement, setAnnouncement] = useState<{active: boolean, message: string, type: string} | null>(null);
+  const [isMobileTopBarVisible, setIsMobileTopBarVisible] = useState(true);
+  const lastMainScrollTop = useRef(0);
 
   // Notifications & Toast State
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -218,6 +220,26 @@ const AppContent: React.FC = () => {
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
+  };
+
+  const handleMainScroll = (e: React.UIEvent<HTMLElement>) => {
+    if (window.innerWidth >= 768) {
+      if (!isMobileTopBarVisible) setIsMobileTopBarVisible(true);
+      return;
+    }
+
+    const nextScrollTop = e.currentTarget.scrollTop;
+    const delta = nextScrollTop - lastMainScrollTop.current;
+
+    if (nextScrollTop <= 24) {
+      setIsMobileTopBarVisible(true);
+    } else if (delta > 10) {
+      setIsMobileTopBarVisible(false);
+    } else if (delta < -10) {
+      setIsMobileTopBarVisible(true);
+    }
+
+    lastMainScrollTop.current = nextScrollTop;
   };
 
   const toggleSidebarCollapse = () => {
@@ -555,6 +577,7 @@ const AppContent: React.FC = () => {
           <TopBar 
             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
             showSidebarToggle={hasSidebarNavigation}
+            isVisible={isMobileTopBarVisible}
             isDarkMode={isDarkMode}
             toggleDarkMode={toggleDarkMode}
             currentRole={currentRole}
@@ -570,9 +593,9 @@ const AppContent: React.FC = () => {
             isMaintenanceMode={isMaintenanceMode}
           />
 
-          <main className="flex-1 overflow-y-auto px-3 pt-4 pb-24 sm:px-6 sm:pt-6 sm:pb-24 md:p-6 lg:p-8 print:overflow-visible print:h-auto print:p-0 print:block flex flex-col">
+          <main onScroll={handleMainScroll} className="flex flex-1 flex-col overflow-y-auto px-4 pb-20 pt-16 sm:px-5 md:p-6 lg:p-8 print:block print:h-auto print:overflow-visible print:p-0">
             {announcement?.active && announcement?.message && (
-              <div className={`mb-6 p-4 rounded-xl border flex items-start animate-fade-in-up ${
+              <div className={`mb-5 flex items-start rounded-xl border p-4 animate-fade-in-up ${
                 announcement.type === 'info' ? 'bg-blue-100 border-blue-200 text-blue-800 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300' :
                 announcement.type === 'warning' ? 'bg-yellow-100 border-yellow-200 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-300' :
                 'bg-red-100 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300'
@@ -631,8 +654,8 @@ const AppContent: React.FC = () => {
             </ProtectedRoute>
           } />
           <Route path="/inventaris" element={
-            <ProtectedRoute currentRole={currentRole} allowedRoles={[Role.ADMIN, Role.LABORAN, 'Supervisor' as Role]} onNavigate={(p: string) => navigate(`/${p}`)}>
-              <Inventaris showToast={showToast} />
+            <ProtectedRoute currentRole={currentRole} allowedRoles={[Role.ADMIN, Role.LABORAN, Role.LEMBAGA_KEMAHASISWAAN, Role.DOSEN, 'Supervisor' as Role]} onNavigate={(p: string) => navigate(`/${p}`)}>
+              <Inventaris role={currentRole} showToast={showToast} />
             </ProtectedRoute>
           } />
           <Route path="/perpindahan-barang" element={
