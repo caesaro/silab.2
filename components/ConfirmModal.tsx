@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, AlertTriangle } from 'lucide-react';
+import { Button } from './ui/button';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -30,24 +31,22 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
     danger: {
       icon: 'bg-red-100 dark:bg-red-900/20',
       iconColor: 'text-red-600 dark:text-red-400',
-      button: 'bg-red-600 hover:bg-red-700',
       border: 'border-red-200 dark:border-red-800'
     },
     warning: {
       icon: 'bg-yellow-100 dark:bg-yellow-900/20',
       iconColor: 'text-yellow-600 dark:text-yellow-400',
-      button: 'bg-yellow-600 hover:bg-yellow-700',
       border: 'border-yellow-200 dark:border-yellow-800'
     },
     info: {
       icon: 'bg-blue-100 dark:bg-blue-900/20',
       iconColor: 'text-blue-600 dark:text-blue-400',
-      button: 'bg-blue-600 hover:bg-blue-700',
       border: 'border-blue-200 dark:border-blue-800'
     }
   };
 
   const styles = typeStyles[type];
+  const confirmVariant = type === 'danger' ? 'destructive' : 'primary';
 
   return (
     <div className="mobile-modal-shell fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -63,17 +62,18 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
             {message}
           </p>
           <div className="mobile-modal-actions flex justify-center gap-3">
-            <button
+            <Button
               onClick={onClose}
               disabled={isLoading}
-              className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
+              variant="secondary"
             >
               {cancelText}
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={onConfirm}
               disabled={isLoading}
-              className={`px-4 py-2 text-sm text-white rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50 flex items-center ${styles.button}`}
+              variant={confirmVariant}
+              className="min-w-32"
             >
               {isLoading && (
                 <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -82,7 +82,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
                 </svg>
               )}
               {confirmText}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

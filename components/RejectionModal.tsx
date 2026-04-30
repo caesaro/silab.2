@@ -1,6 +1,7 @@
 import React from 'react';
 import { Room, BookingStatus } from '../types';
 import { AlertTriangle, XCircle } from 'lucide-react';
+import { Button } from './ui/button';
 
 const RejectionModal = ({ isOpen, booking, rooms, rejectionReason, setRejectionReason, deleteOption, setDeleteOption, onClose, onConfirm }: any) => {
   if (!isOpen || !booking) return null;
@@ -32,7 +33,7 @@ const RejectionModal = ({ isOpen, booking, rooms, rejectionReason, setRejectionR
               <div className="space-y-2">
                 {(['single', 'thisAndFollowing', 'all'] as const).map((opt) => (
                   <label key={opt} className={`flex items-center p-2 border rounded-lg cursor-pointer transition-colors ${deleteOption === opt ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
-                    <input type="radio" name="deleteOption" value={opt} checked={deleteOption === opt} onChange={() => setDeleteOption(opt)} className="mr-3" />
+                    <input type="radio" name="deleteOption" value={opt} checked={deleteOption === opt} onChange={() => setDeleteOption(opt)} className="mr-3 h-4 w-4 accent-red-600 focus:ring-red-500/30" />
                     <div>
                       {opt === 'single' && <p className="text-sm text-gray-900 dark:text-white">Hapus event ini saja</p>}
                       {opt === 'thisAndFollowing' && <p className="text-sm text-gray-900 dark:text-white">Ini dan event selanjutnya</p>}
@@ -44,10 +45,10 @@ const RejectionModal = ({ isOpen, booking, rooms, rejectionReason, setRejectionR
             </div>
           )}
           <div className="mobile-modal-actions flex justify-end gap-3 pt-2">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Batal</button>
-            <button onClick={onConfirm} className="px-4 py-2 text-sm bg-red-600 text-white hover:bg-red-700 rounded-lg shadow-md">
+            <Button onClick={onClose} variant="secondary">Batal</Button>
+            <Button onClick={onConfirm} variant="destructive">
               Simpan & {booking.status === BookingStatus.APPROVED ? 'Batalkan' : 'Tolak'}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { Room, BookingStatus } from '../types';
 import { Trash2, Loader2 } from 'lucide-react';
 import { formatDateID } from '../src/utils/formatters';
+import { Button } from './ui/button';
 
 const DeleteBookingModal = ({ isOpen, booking, rooms, isDeleting, deleteOption, setDeleteOption, onClose, onConfirm }: any) => {
   if (!isOpen || !booking) return null;
@@ -31,7 +32,7 @@ const DeleteBookingModal = ({ isOpen, booking, rooms, isDeleting, deleteOption, 
               <div className="space-y-2">
                 {(['single', 'thisAndFollowing', 'all'] as const).map((opt) => (
                   <label key={opt} className={`flex items-center p-2 border rounded-lg cursor-pointer transition-colors ${deleteOption === opt ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
-                    <input type="radio" name="deleteOption" value={opt} checked={deleteOption === opt} onChange={() => setDeleteOption(opt)} className="mr-3" />
+                    <input type="radio" name="deleteOption" value={opt} checked={deleteOption === opt} onChange={() => setDeleteOption(opt)} className="mr-3 h-4 w-4 accent-red-600 focus:ring-red-500/30" />
                     <div>
                       {opt === 'single' && <p className="text-sm text-gray-900 dark:text-white">Hapus event ini saja</p>}
                       {opt === 'thisAndFollowing' && <p className="text-sm text-gray-900 dark:text-white">Ini dan event selanjutnya</p>}
@@ -43,10 +44,10 @@ const DeleteBookingModal = ({ isOpen, booking, rooms, isDeleting, deleteOption, 
             </div>
           )}
           <div className="mobile-modal-actions flex justify-end gap-3 pt-2">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Batal</button>
-            <button onClick={onConfirm} disabled={isDeleting} className="px-4 py-2 text-sm bg-red-600 text-white hover:bg-red-700 rounded-lg shadow-md flex items-center disabled:opacity-50">
+            <Button onClick={onClose} variant="secondary">Batal</Button>
+            <Button onClick={onConfirm} disabled={isDeleting} variant="destructive">
               {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />} Hapus Permanen
-            </button>
+            </Button>
           </div>
         </div>
       </div>

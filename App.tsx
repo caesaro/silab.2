@@ -1,17 +1,12 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Role, Notification, ToastMessage } from './types';
-import Sidebar from './components/Sidebar';
-import TopBar from './components/TopBar';
-import MobileBottomNav from './components/MobileBottomNav';
+import AppShell from './components/AppShell';
 import Toast from './components/Toast';
 import LoadingScreen from './components/LoadingScreen';
 import ProtectedRoute from './components/ProtectedRoute';
 import { api } from './services/api';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation, Outlet } from 'react-router-dom';
-import { Megaphone } from 'lucide-react';
 import { getNavigationLabel } from './lib/navigation';
-
-import { APP_FULL_NAME } from './config';
 
 // Helper fungsi untuk membersihkan cache PWA (Service Worker) sebelum reload
 const clearCacheAndReload = async () => {
@@ -528,7 +523,7 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'dark' : ''} bg-gray-50 dark:bg-gray-900 transition-colors duration-200 font-sans print:bg-white`}>
+    <div>
       <Routes>
         {/* Route Khusus Login (Tanpa Layout) */}
         <Route path="/login" element={
@@ -548,83 +543,35 @@ const AppContent: React.FC = () => {
 
         <Route element={
           isAuthenticated ? (
-            <div className="flex h-screen overflow-hidden print:h-auto print:overflow-visible print:block">
-        
-        {/* Mobile Sidebar Overlay */}
-        {isSidebarOpen && hasSidebarNavigation && (
-          <div 
-            className="fixed inset-0 bg-black/50 z-30 md:hidden print:hidden"
-            onClick={() => setIsSidebarOpen(false)}
-          />
-        )}
-
-        {/* Sembunyikan Sidebar untuk Role USER TU */}
-        {hasSidebarNavigation && (
-          <Sidebar 
-          currentRole={currentRole}
-          currentPage={currentPage}
-          onNavigate={(page) => {
-            navigate(`/${page}`);
-            setIsSidebarOpen(false);
-          }}
-          isOpen={isSidebarOpen}
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={toggleSidebarCollapse}
-        />
-        )}
-
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden print:overflow-visible print:h-auto print:block">
-          <TopBar 
-            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-            showSidebarToggle={hasSidebarNavigation}
-            isVisible={isMobileTopBarVisible}
-            isDarkMode={isDarkMode}
-            toggleDarkMode={toggleDarkMode}
-            currentRole={currentRole}
-            pageLabel={pageLabel}
-            userName={userName}
-            onOpenAi={() => showToast("Fitur AI dinonaktifkan.", "info")}
-            onLogout={handleLogout}
-            notifications={notifications}
-            onMarkAsRead={markNotificationAsRead}
-            onMarkAllAsRead={markAllNotificationsAsRead}
-            onClearAllNotifications={clearAllNotifications}
-            onNavigate={(page) => navigate(`/${page}`)}
-            isMaintenanceMode={isMaintenanceMode}
-          />
-
-          <main onScroll={handleMainScroll} className="flex flex-1 flex-col overflow-y-auto px-4 pb-20 pt-16 sm:px-5 md:p-6 lg:p-8 print:block print:h-auto print:overflow-visible print:p-0">
-            {announcement?.active && announcement?.message && (
-              <div className={`mb-5 flex items-start rounded-xl border p-4 animate-fade-in-up ${
-                announcement.type === 'info' ? 'bg-blue-100 border-blue-200 text-blue-800 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300' :
-                announcement.type === 'warning' ? 'bg-yellow-100 border-yellow-200 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-300' :
-                'bg-red-100 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300'
-              }`}>
-                <Megaphone className="w-5 h-5 mr-3 mt-0.5 shrink-0" />
-                <p className="text-sm font-medium">{announcement.message}</p>
-              </div>
-            )}
-            <div className="flex-1 animate-fade-in-up transition-all duration-300" key={location.pathname}>
+            <AppShell
+              currentRole={currentRole}
+              currentPage={currentPage}
+              userName={userName}
+              isDarkMode={isDarkMode}
+              isSidebarOpen={isSidebarOpen}
+              isSidebarCollapsed={isSidebarCollapsed}
+              isMaintenanceMode={isMaintenanceMode}
+              isMobileTopBarVisible={isMobileTopBarVisible}
+              hasSidebarNavigation={hasSidebarNavigation}
+              pageLabel={pageLabel}
+              announcement={announcement}
+              notifications={notifications}
+              onCloseSidebar={() => setIsSidebarOpen(false)}
+              onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+              onToggleSidebarCollapse={toggleSidebarCollapse}
+              toggleDarkMode={toggleDarkMode}
+              onOpenAi={() => showToast("Fitur AI dinonaktifkan.", "info")}
+              onLogout={handleLogout}
+              onMarkAsRead={markNotificationAsRead}
+              onMarkAllAsRead={markAllNotificationsAsRead}
+              onClearAllNotifications={clearAllNotifications}
+              onNavigate={(page) => navigate(`/${page}`)}
+              onMainScroll={handleMainScroll}
+            >
               <Suspense fallback={<PageLoader />}>
                 <Outlet />
               </Suspense>
-            </div>
-            <footer className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 text-center text-sm text-gray-500 dark:text-gray-400 print:hidden">
-              {APP_FULL_NAME} &copy; {new Date().getFullYear()} Sarana dan Prasarana FTI UKSW. All rights reserved.
-            </footer>
-          </main>
-          <MobileBottomNav
-            currentRole={currentRole}
-            currentPage={currentPage}
-            onNavigate={(page) => {
-              navigate(`/${page}`);
-              setIsSidebarOpen(false);
-            }}
-            onOpenMenu={() => setIsSidebarOpen(true)}
-            showMenuButton={hasSidebarNavigation}
-          />
-        </div>
-      </div>
+            </AppShell>
           ) : (
             <Navigate to="/login" replace />
           )

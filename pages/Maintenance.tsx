@@ -1,6 +1,7 @@
 import React from 'react';
 import { Construction, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '../components/ui/button';
 
 const Maintenance: React.FC = () => {
   const navigate = useNavigate();
@@ -20,12 +21,13 @@ const Maintenance: React.FC = () => {
           Mohon maaf, kami sedang melakukan pemeliharaan rutin untuk meningkatkan performa sistem. 
           Silakan coba akses kembali beberapa saat lagi.
         </p>
-        <button 
+        <Button 
           onClick={() => window.location.reload()} 
-          className="flex items-center justify-center w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-md hover:shadow-lg"
+          variant="primary"
+          className="w-full justify-center"
         >
           <RefreshCw className="w-4 h-4 mr-2" /> Coba Lagi
-        </button>
+        </Button>
       </div>
       <p className="mt-8 text-sm text-gray-400">CORE.FTI &copy; {new Date().getFullYear()}</p>
     </div>

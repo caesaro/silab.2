@@ -5,6 +5,8 @@
 
 /* Custom Theme Colors */
 @theme {
+  --font-sans: "Plus Jakarta Sans Variable", "Inter", "Segoe UI", sans-serif;
+  --font-brand: "Space Grotesk Variable", "Plus Jakarta Sans Variable", "Segoe UI", sans-serif;
   --color-primary-50: #f0f9ff;
   --color-primary-100: #e0f2fe;
   --color-primary-500: #0ea5e9;
@@ -62,18 +64,18 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.56 0.18 257);
+  --primary-foreground: oklch(0.99 0.01 250);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: oklch(0.61 0.22 24);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --ring: oklch(0.62 0.15 255);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -84,12 +86,61 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  width: 100%;
 }
 
 body {
   min-width: 320px;
   font-size: 16px;
-  line-height: 1.5;
+  line-height: 1.55;
+  overflow-x: hidden;
+  font-family: var(--font-sans);
+  font-feature-settings: "cv03" 1, "cv04" 1, "cv11" 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  background: oklch(0.985 0 0);
+  color: oklch(0.145 0 0);
+}
+
+#root {
+  isolation: isolate;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+img,
+svg,
+canvas {
+  max-width: 100%;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+.font-brand {
+  font-family: var(--font-brand);
+  letter-spacing: -0.04em;
 }
 
 .dark {
@@ -99,18 +150,18 @@ body {
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
+  --primary: oklch(0.66 0.14 255);
+  --primary-foreground: oklch(0.985 0.01 250);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
+  --destructive: oklch(0.69 0.17 24);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --ring: oklch(0.66 0.14 255);
 }
 
 @media (max-width: 767px) {
@@ -140,7 +191,7 @@ body {
 
   .text-xl,
   .text-lg {
-    font-size: 1rem !important;
+    font-size: clamp(1rem, 3.6vw, 1.125rem) !important;
     line-height: 1.45 !important;
   }
 
@@ -156,7 +207,7 @@ body {
   .p-8,
   .px-8,
   .py-8 {
-    padding: 1.25rem !important;
+    padding: 1.125rem !important;
   }
 
   .p-6 {
@@ -174,7 +225,7 @@ body {
   }
 
   .gap-8 {
-    gap: 1.25rem !important;
+    gap: 1rem !important;
   }
 
   .gap-6 {

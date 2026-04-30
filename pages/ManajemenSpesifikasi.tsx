@@ -10,6 +10,8 @@ import ExcelJS from 'exceljs';
 import ComputerForm from '../components/ComputerForm';
 import SoftwareForm from '../components/SoftwareForm';
 import ConfirmModal from '../components/ConfirmModal';
+import { Button, buttonVariants } from '../components/ui/button';
+import { cn } from '../lib/utils';
 
 interface ManajemenSpesifikasiProps {
   role: Role;
@@ -559,9 +561,9 @@ const ManajemenSpesifikasi: React.FC<ManajemenSpesifikasiProps> = ({ role, isDar
         </div>
         {canManage && (
           <div className="flex gap-2">
-            <button onClick={handleDownloadTemplate} disabled={isImporting || isExporting} className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
+            <Button onClick={handleDownloadTemplate} disabled={isImporting || isExporting} variant="secondary" size="sm">
               <Download className="w-4 h-4 mr-2" /> Template
-            </button>
+            </Button>
             {isExporting ? (
               <button disabled className="px-3 py-2 bg-green-700 text-white rounded-lg text-sm flex items-center opacity-70 cursor-not-allowed">
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Mengekspor...
@@ -576,7 +578,7 @@ const ManajemenSpesifikasi: React.FC<ManajemenSpesifikasiProps> = ({ role, isDar
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Mengimport...
               </button>
             ) : (
-              <label className={`px-3 py-2 bg-blue-500 text-white rounded-lg text-sm flex items-center ${isExporting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600 cursor-pointer'}`}>
+              <label className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), isExporting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer')}>
                 <FileSpreadsheet className="w-4 h-4 mr-2" /> Import
                 <input type="file" accept=".xlsx" className="hidden" onChange={handleExcelUpload} disabled={isImporting || isExporting} />
               </label>
@@ -635,7 +637,7 @@ const ManajemenSpesifikasi: React.FC<ManajemenSpesifikasiProps> = ({ role, isDar
             <button 
               onClick={() => setEditingComputer({ pcNumber: '', cpu: '', gpuType: 'Integrated', gpuModel: '', vram: '', ram: '', storage: '', os: '', keyboard: '', mouse: '', monitor: '', condition: 'Baik' })}
               disabled={isImporting || isExporting}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+              className={cn(buttonVariants({ variant: 'primary', size: 'sm' }), 'disabled:cursor-not-allowed')}
             >
               <Plus className="w-4 h-4 mr-2" /> Tambah Komputer
             </button>
@@ -645,7 +647,7 @@ const ManajemenSpesifikasi: React.FC<ManajemenSpesifikasiProps> = ({ role, isDar
           <button 
             onClick={() => setEditingSoftware({ name: '', version: '', licenseType: 'Free', category: '' })}
             disabled={isImporting || isExporting}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+            className={cn(buttonVariants({ variant: 'primary', size: 'sm' }), 'disabled:cursor-not-allowed')}
           >
             <Plus className="w-4 h-4 mr-2" /> Tambah Software
           </button>

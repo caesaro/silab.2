@@ -17,6 +17,7 @@ import fti from "../src/assets/Gedung.jpg";
 import nocLogo from "../src/assets/NOC.svg";
 import { api } from "../services/api";
 import { CLIENT_ID } from "../src/config/google";
+import { APP_VERSION, APP_NAME, APP_FULL_NAME } from "../config";
 
 declare global {
   interface Window {
@@ -410,11 +411,11 @@ const Login: React.FC<LoginProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col lg:flex-row font-sans relative">
+    <div className="relative flex min-h-screen flex-col bg-gray-50 font-sans dark:bg-gray-950 lg:flex-row">
       {/* Dark Mode Toggle */}
       <button
         onClick={toggleDarkMode}
-        className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/20 hover:bg-white/30 text-gray-800 dark:text-white lg:text-white backdrop-blur-sm lg:bg-black/20"
+        className="absolute right-4 top-4 z-50 rounded-full bg-white/25 p-2.5 text-gray-800 backdrop-blur-sm hover:bg-white/35 dark:text-white lg:bg-black/20 lg:text-white"
         title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
       >
         {isDarkMode ? (
@@ -425,50 +426,66 @@ const Login: React.FC<LoginProps> = ({
       </button>
 
       {/* Left Side - Branding & Image */}
-      <div className="lg:w-1/2 bg-blue-700 dark:bg-blue-900 relative overflow-hidden flex flex-col justify-between p-8 sm:p-12 text-white">
+      <div className="relative flex overflow-hidden bg-linear-to-br from-sky-700 via-blue-700 to-slate-900 px-6 py-8 text-white sm:px-10 sm:py-10 lg:w-[52%] lg:px-12 lg:py-12 dark:from-sky-900 dark:via-blue-950 dark:to-slate-950">
         {/* Animated Background */}
         <div
-          className="absolute inset-0 bg-cover bg-center opacity-20 mix-blend-overlay scale-110 animate-bg-pan"
+          className="absolute inset-0 scale-110 bg-cover bg-center opacity-20 mix-blend-overlay animate-bg-pan"
           style={{ backgroundImage: `url(${fti})` }}
         ></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.16),transparent_32%)]"></div>
 
-        <div className="relative z-10">
-          <div className="flex items-center space-x-3 mb-6">
+        <div className="relative z-10 flex min-h-full flex-col justify-between gap-12">
+          <div className="max-w-xl">
+            <div className="mb-8 inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/10 px-4 py-2 backdrop-blur-sm">
             <img
               src={nocLogo}
               alt="NOC Logo"
-              className="w-16 h-16 object-contain"
+              className="h-12 w-12 object-contain sm:h-14 sm:w-14"
             />
-
-            <span className="text-2xl font-bold tracking-wide">CORE.FTI</span>
+              <div>
+                <p className="font-brand text-2xl font-bold tracking-tight sm:text-3xl">{APP_NAME} - UKSW</p>
+                <p className="text-xs font-medium uppercase tracking-[0.22em] text-blue-100/90">{APP_FULL_NAME}</p>
+              </div>
+            </div>
+            <h1 className="max-w-lg text-4xl font-bold leading-[1.05] text-white sm:text-5xl lg:text-6xl">
+              Platform manajemen fasilitas dan layanan administrasi FTI UKSW yang terintegrasi.
+            </h1>
+            <p className="mt-5 max-w-md text-base leading-7 text-blue-100 sm:text-lg">
+              Kelola ruangan, inventaris, jadwal, dan layanan administrasi FTI UKSW dari satu web app yang rapi dan mudah dibaca di semua perangkat.
+            </p>
           </div>
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-4">
-            Campus
-            <br />
-            Operational Resource
-            <br />
-            Environment
-          </h1>
-          <p className="text-blue-100 text-lg max-w-md">
-            Fakultas Teknologi Informasi
-            <br /> Universitas Kristen Satya Wacana
-          </p>
-        </div>
-        <div className="relative z-10 text-sm text-blue-200">
-          &copy; {new Date().getFullYear()} Sarana dan Prasarana FTI UKSW. All rights reserved.
+
+          <div className="grid max-w-xl gap-4 sm:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
+              <p className="text-xs uppercase tracking-[0.16em] text-blue-100/80">Ruangan</p>
+              <p className="mt-2 text-lg font-semibold">Detail ruangan lengkap</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
+              <p className="text-xs uppercase tracking-[0.16em] text-blue-100/80">Inventaris</p>
+              <p className="mt-2 text-lg font-semibold">Aset milik FTI UKSW</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
+              <p className="text-xs uppercase tracking-[0.16em] text-blue-100/80">Layanan</p>
+              <p className="mt-2 text-lg font-semibold">Akses lebih cepat</p>
+            </div>
+          </div>
+
+          <div className="text-sm text-blue-100/80">
+            &copy; {new Date().getFullYear()} Sarana dan Prasarana FTI UKSW. All rights reserved.
+          </div>
         </div>
       </div>
 
       {/* Right Side - Forms */}
-      <div className="lg:w-1/2 flex items-center justify-center p-6 lg:p-12 bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-colors">
-        <div className="w-full max-w-md">
+      <div className="relative flex items-center justify-center bg-white px-5 py-8 text-gray-900 transition-colors dark:bg-gray-900 dark:text-white sm:px-6 lg:w-[48%] lg:px-10">
+        <div className="w-full max-w-lg rounded-[2rem] border border-gray-200 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] dark:border-gray-800 dark:bg-gray-900 sm:p-8">
           {view === "login" && (
             <div className="animate-fade-in-up">
-              <div className="text-center mb-8">
-                <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white">
+              <div className="mb-8 text-center">
+                <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white sm:text-4xl">
                   Selamat Datang
                 </h2>
-                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400">
                   Masuk untuk mengakses layanan CORE.FTI
                 </p>
               </div>
@@ -488,7 +505,7 @@ const Login: React.FC<LoginProps> = ({
                       required
                       value={formData.email}
                       onChange={handleChange}
-                      className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm"
+                      className="block w-full rounded-xl border border-gray-300 py-3 pl-10 pr-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                       placeholder="Email atau Username"
                     />
                   </div>
@@ -508,7 +525,7 @@ const Login: React.FC<LoginProps> = ({
                       // required -> Dihapus agar user bisa submit kosong saat mode reset
                       value={formData.password}
                       onChange={handleChange}
-                      className="block w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm"
+                      className="block w-full rounded-xl border border-gray-300 py-3 pl-10 pr-10 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                       placeholder="••••••••"
                     />
                     <button
@@ -525,7 +542,7 @@ const Login: React.FC<LoginProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center">
                     <input
                       id="remember-me"
@@ -557,7 +574,7 @@ const Login: React.FC<LoginProps> = ({
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-70 transition-colors"
+                  className="flex w-full justify-center rounded-xl border border-transparent bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-70"
                 >
                   {isLoading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -585,7 +602,7 @@ const Login: React.FC<LoginProps> = ({
                       <button
                         type="button"
                         onClick={handleGoogleLogin}
-                        className="w-full flex items-center justify-center px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm bg-white dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-70"
+                        className="flex w-full items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 disabled:opacity-70 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                       >
                         <svg
                           className="h-5 w-5 mr-3"
@@ -638,7 +655,7 @@ const Login: React.FC<LoginProps> = ({
               </button>
 
               <div className="mb-8">
-                <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white">
+                <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white sm:text-4xl">
                   Buat Akun
                 </h2>
                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
@@ -660,7 +677,7 @@ const Login: React.FC<LoginProps> = ({
                       type="text"
                       required
                       onChange={handleChange}
-                      className="block w-full pl-10 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm"
+                      className="block w-full pl-10 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm placeholder-gray-400 dark:placeholder-gray-400"
                       placeholder="John Doe"
                     />
                   </div>
@@ -674,7 +691,7 @@ const Login: React.FC<LoginProps> = ({
                     type="text"
                     required
                     onChange={handleChange}
-                    className="block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm"
+                    className="block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm placeholder-gray-400 dark:placeholder-gray-400"
                     placeholder="682026xxx"
                   />
                 </div>
@@ -687,7 +704,7 @@ const Login: React.FC<LoginProps> = ({
                     type="email"
                     required
                     onChange={handleChange}
-                    className="block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm"
+                    className="block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm placeholder-gray-400 dark:placeholder-gray-400"
                     placeholder="nim@student.uksw.edu"
                   />
                 </div>
@@ -700,11 +717,11 @@ const Login: React.FC<LoginProps> = ({
                     type="text"
                     required
                     onChange={handleChange}
-                    className="block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm"
+                    className="block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm placeholder-gray-400 dark:placeholder-gray-400"
                     placeholder="Username unik"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Password
@@ -715,7 +732,7 @@ const Login: React.FC<LoginProps> = ({
                         type={showPassword ? "text" : "password"}
                         required
                         onChange={handleChange}
-                        className="block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm pr-10"
+                        className="block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm pr-10 placeholder-gray-400 dark:placeholder-gray-400"
                         placeholder="••••••••"
                       />
                       <button
@@ -751,7 +768,7 @@ const Login: React.FC<LoginProps> = ({
                         type={showConfirmPassword ? "text" : "password"}
                         required
                         onChange={handleChange}
-                        className={`block w-full px-3 py-2.5 border ${formData.confirmPassword && formData.password !== formData.confirmPassword ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500"} rounded-lg dark:bg-gray-700 dark:text-white sm:text-sm pr-10`}
+                        className={`block w-full px-3 py-2.5 border ${formData.confirmPassword && formData.password !== formData.confirmPassword ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500"} rounded-lg dark:bg-gray-700 dark:text-white sm:text-sm pr-10 placeholder-gray-400 dark:placeholder-gray-400`}
                         placeholder="••••••••"
                       />
                       <button
@@ -804,7 +821,7 @@ const Login: React.FC<LoginProps> = ({
               </button>
 
               <div className="mb-8">
-                <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white">
+                <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white sm:text-4xl">
                   Lupa Password?
                 </h2>
                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
@@ -826,7 +843,7 @@ const Login: React.FC<LoginProps> = ({
                       type="text"
                       required
                       onChange={handleChange}
-                      className="block w-full pl-10 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm"
+                      className="block w-full pl-10 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm placeholder-gray-400 dark:placeholder-gray-400"
                       placeholder="nama@uksw.edu"
                     />
                   </div>
@@ -836,7 +853,7 @@ const Login: React.FC<LoginProps> = ({
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Verifikasi Keamanan
                   </label>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                     <div className="shrink-0 bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 font-mono text-lg font-bold tracking-widest select-none text-gray-800 dark:text-gray-200">
                       {captcha.num1} + {captcha.num2} = ?
                     </div>
@@ -854,7 +871,7 @@ const Login: React.FC<LoginProps> = ({
                     required
                     value={captchaInput}
                     onChange={(e) => setCaptchaInput(e.target.value)}
-                    className="mt-2 block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm"
+                    className="mt-2 block w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm placeholder-gray-400 dark:placeholder-gray-400"
                     placeholder="Hasil penjumlahan"
                   />
                 </div>
@@ -877,7 +894,7 @@ const Login: React.FC<LoginProps> = ({
           {view === "set-password" && (
             <div className="animate-fade-in-up">
               <div className="mb-8">
-                <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white">
+                <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white sm:text-4xl">
                   Buat Password Baru
                 </h2>
                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
@@ -902,7 +919,7 @@ const Login: React.FC<LoginProps> = ({
                       type="password"
                       required
                       onChange={handleChange}
-                      className="block w-full pl-10 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm"
+                      className="block w-full pl-10 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm placeholder-gray-400 dark:placeholder-gray-400"
                       placeholder="••••••••"
                     />
                     {formData.password && (
@@ -930,7 +947,7 @@ const Login: React.FC<LoginProps> = ({
                       type="password"
                       required
                       onChange={handleChange}
-                      className="block w-full pl-10 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm"
+                      className="block w-full pl-10 px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm placeholder-gray-400 dark:placeholder-gray-400"
                       placeholder="••••••••"
                     />
                   </div>
@@ -950,6 +967,11 @@ const Login: React.FC<LoginProps> = ({
               </form>
             </div>
           )}
+
+          {/* App Version */}
+          <div className="absolute bottom-4 right-6 text-sm text-gray-400 dark:text-gray-600 tracking-wide select-none pointer-events-none">
+            v{APP_VERSION}
+          </div>
         </div>
       </div>
     </div>

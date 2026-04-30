@@ -1,5 +1,7 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { buttonVariants } from './ui/button';
+import { cn } from '../lib/utils';
 
 interface PaginationProps {
   currentPage: number;
@@ -25,7 +27,7 @@ const Pagination: React.FC<PaginationProps> = ({
         <select
           value={itemsPerPage}
           onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-          className="h-11 sm:h-10 px-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-base sm:text-sm dark:text-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
+          className="h-11 cursor-pointer rounded-xl border border-gray-300 bg-white px-3 text-base text-gray-700 shadow-sm outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:focus:border-blue-400 sm:h-10 sm:text-sm"
         >
           <option value={5}>5</option>
           <option value={10}>10</option>
@@ -36,11 +38,11 @@ const Pagination: React.FC<PaginationProps> = ({
         <span>dari {totalItems} data</span>
       </div>
       <div className="flex items-center justify-between sm:justify-end gap-2">
-        <button onClick={() => onPageChange(Math.max(currentPage - 1, 1))} disabled={currentPage <= 1} className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors sm:h-10 sm:w-10">
+        <button onClick={() => onPageChange(Math.max(currentPage - 1, 1))} disabled={currentPage <= 1} className={cn(buttonVariants({ variant: 'secondary', size: 'icon-sm' }), 'text-gray-600 dark:text-gray-300')}>
           <ChevronLeft className="w-4 h-4" />
         </button>
         <span className="text-sm font-medium text-center text-gray-700 dark:text-gray-300 px-2 flex-1 sm:flex-none">Halaman {currentPage} dari {totalPages || 1}</span>
-        <button onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))} disabled={currentPage >= totalPages || totalPages === 0} className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors sm:h-10 sm:w-10">
+        <button onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))} disabled={currentPage >= totalPages || totalPages === 0} className={cn(buttonVariants({ variant: 'secondary', size: 'icon-sm' }), 'text-gray-600 dark:text-gray-300')}>
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>

@@ -4,6 +4,8 @@ import nocLogo from "../src/assets/noc.png";
 import { api } from '../services/api';
 import { Room } from '../types';
 import ConfirmModal from '../components/ConfirmModal';
+import { Button, buttonVariants } from '../components/ui/button';
+import { cn } from '../lib/utils';
 
 interface LabStaff {
   id: string;
@@ -210,15 +212,15 @@ const LaboranManagement: React.FC<LaboranManagementProps> = ({ onNavigate, showT
           <p className="text-gray-500 dark:text-gray-400 text-sm">Kelola data teknisi dan admin laboran</p>
         </div>
         <div className="flex flex-wrap gap-2">
-           <button onClick={handleExportCSV} className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium flex items-center shadow-sm transition-all hover:scale-105">
+           <Button onClick={handleExportCSV} variant="secondary" size="sm">
               <FileSpreadsheet className="w-4 h-4 mr-2" /> Export CSV
-           </button>
-           <button onClick={handlePrint} className="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm font-medium flex items-center shadow-sm transition-all hover:scale-105">
+           </Button>
+           <Button onClick={handlePrint} variant="secondary" size="sm">
               <Printer className="w-4 h-4 mr-2" /> Print Data
-           </button>
-           <button onClick={() => handleOpenModal()} className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center shadow-sm transition-all hover:scale-105">
+           </Button>
+           <Button onClick={() => handleOpenModal()} variant="primary" size="sm">
               <Plus className="w-4 h-4 mr-2" /> Tambah Laboran
-           </button>
+           </Button>
         </div>
       </div>
 
@@ -288,13 +290,13 @@ const LaboranManagement: React.FC<LaboranManagementProps> = ({ onNavigate, showT
                         </td>
                         <td className="px-6 py-4 print:hidden">
                            <div className="flex space-x-2">
-                              <button onClick={() => setViewingStaff(staff)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded dark:hover:bg-blue-900/30 transition-colors" title="Detail">
+                              <button onClick={() => setViewingStaff(staff)} className={cn(buttonVariants({ variant: 'ghost', size: 'icon-xs' }), 'text-blue-600 dark:text-blue-400')} title="Detail">
                                  <Eye className="w-4 h-4" />
                               </button>
-                              <button onClick={() => handleOpenModal(staff)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded dark:hover:bg-blue-900/30 transition-colors" title="Edit">
+                              <button onClick={() => handleOpenModal(staff)} className={cn(buttonVariants({ variant: 'ghost', size: 'icon-xs' }), 'text-blue-600 dark:text-blue-400')} title="Edit">
                                  <Edit className="w-4 h-4" />
                               </button>
-                              <button onClick={() => handleDeleteClick(staff.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded dark:hover:bg-red-900/30 transition-colors" title="Hapus">
+                              <button onClick={() => handleDeleteClick(staff.id)} className={cn(buttonVariants({ variant: 'ghost', size: 'icon-xs' }), 'text-red-600 dark:text-red-400')} title="Hapus">
                                  <Trash2 className="w-4 h-4" />
                               </button>
                            </div>
@@ -323,7 +325,7 @@ const LaboranManagement: React.FC<LaboranManagementProps> = ({ onNavigate, showT
                  <h3 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base">
                     {editingStaff ? 'Edit Data Laboran' : 'Tambah Laboran Baru'}
                  </h3>
-                 <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1">
+                 <button onClick={() => setIsModalOpen(false)} className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }), 'text-gray-500 dark:text-gray-300')}>
                     <X className="w-5 h-5" />
                  </button>
               </div>
@@ -400,12 +402,10 @@ const LaboranManagement: React.FC<LaboranManagementProps> = ({ onNavigate, showT
                     </div>
                  </div>
                  <div className="pt-4 flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 mt-2">
-                    <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                       Batal
-                    </button>
-                    <button type="submit" className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex items-center shadow-md hover:shadow-lg transition-all">
+                    <Button type="button" onClick={() => setIsModalOpen(false)} variant="secondary">Batal</Button>
+                    <Button type="submit" variant="primary">
                        <Check className="w-4 h-4 mr-2" /> Simpan
-                    </button>
+                    </Button>
                  </div>
               </form>
            </div>
@@ -421,7 +421,7 @@ const LaboranManagement: React.FC<LaboranManagementProps> = ({ onNavigate, showT
                     <Users className="w-5 h-5 mr-2 text-blue-600" />
                     Detail Laboran
                  </h3>
-                 <button onClick={() => setViewingStaff(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                 <button onClick={() => setViewingStaff(null)} className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }), 'text-gray-500 dark:text-gray-300')}>
                     <X className="w-5 h-5" />
                  </button>
               </div>
@@ -481,9 +481,9 @@ const LaboranManagement: React.FC<LaboranManagementProps> = ({ onNavigate, showT
                  </div>
               </div>
               <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex justify-end">
-                  <button onClick={() => setViewingStaff(null)} className="px-4 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 transition-colors">
+                  <Button onClick={() => setViewingStaff(null)} variant="secondary">
                       Tutup
-                  </button>
+                  </Button>
               </div>
            </div>
         </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { RoomComputer } from '../types';
 import { X, Save, Loader2, Cpu, HardDrive, Monitor, Keyboard, Mouse } from 'lucide-react';
+import { Button } from './ui/button';
 
 interface ComputerFormProps {
   isOpen: boolean;
@@ -35,7 +36,9 @@ const ComputerForm: React.FC<ComputerFormProps> = ({ isOpen, onClose, onSave, in
           <h3 className="font-bold text-gray-900 dark:text-white">
             {initialData?.id ? 'Edit Komputer' : 'Tambah Komputer'}
           </h3>
-          <button onClick={onClose}><X className="w-5 h-5 text-gray-500"/></button>
+          <Button type="button" onClick={onClose} variant="ghost" size="icon-sm" aria-label="Tutup formulir">
+            <X className="w-5 h-5 text-gray-500" />
+          </Button>
         </div>
         <form onSubmit={handleSubmit} className="mobile-modal-body p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -118,11 +121,11 @@ const ComputerForm: React.FC<ComputerFormProps> = ({ isOpen, onClose, onSave, in
             </select>
           </div>
           <div className="mobile-modal-actions col-span-1 sm:col-span-2 flex justify-end gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Batal</button>
-            <button type="submit" disabled={isSaving} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center disabled:opacity-50">
+            <Button type="button" onClick={onClose} variant="secondary">Batal</Button>
+            <Button type="submit" disabled={isSaving} variant="primary">
               {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
               Simpan
-            </button>
+            </Button>
           </div>
         </form>
       </div>

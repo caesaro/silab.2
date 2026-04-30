@@ -28,13 +28,13 @@ const getColorClasses = (color: string) => {
 const StatCard: React.FC<{ title: string; value: string; icon: React.ElementType; color: string; onClick?: () => void; subtext?: string }> = ({ title, value, icon: Icon, color, onClick, subtext }) => {
   const { bg, text } = getColorClasses(color);
   return (
-    <div onClick={onClick} className={`bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 ${onClick ? 'cursor-pointer hover:shadow-md transition-all hover:scale-[1.02] group' : ''}`}>
+    <div onClick={onClick} className={`rounded-[1.5rem] border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 ${onClick ? 'group cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md' : ''}`}>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{title}</p>
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{value}</h3>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</p>
+          <h3 className="mt-1 text-3xl font-bold text-gray-900 dark:text-white">{value}</h3>
         </div>
-        <div className={`p-3 rounded-lg ${bg} ${onClick ? 'group-hover:scale-110 transition-transform' : ''}`}>
+        <div className={`rounded-2xl p-3 ${bg} ${onClick ? 'transition-transform group-hover:scale-110' : ''}`}>
           <Icon className={`w-6 h-6 ${text}`} />
         </div>
       </div>
@@ -50,12 +50,12 @@ const StatCard: React.FC<{ title: string; value: string; icon: React.ElementType
 const QuickActionCard: React.FC<{ title: string; icon: React.ElementType; color: string; onClick: () => void; description: string }> = ({ title, icon: Icon, color, onClick, description }) => {
     const { bg, text } = getColorClasses(color);
     return (
-        <button onClick={onClick} className="flex flex-col items-start p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all group w-full text-left h-full">
-            <div className={`p-3 rounded-lg ${bg} mb-3 group-hover:scale-110 transition-transform`}>
+        <button onClick={onClick} className="group flex h-full w-full flex-col items-start rounded-[1.35rem] border border-gray-200 bg-white p-5 text-left transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
+            <div className={`mb-3 rounded-2xl p-3 ${bg} transition-transform group-hover:scale-110`}>
                 <Icon className={`w-6 h-6 ${text}`} />
             </div>
-            <h3 className="font-bold text-gray-900 dark:text-white mb-1 text-sm">{title}</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{description}</p>
+            <h3 className="mb-1 text-sm font-bold text-gray-900 dark:text-white">{title}</h3>
+            <p className="line-clamp-2 text-sm text-gray-500 dark:text-gray-400">{description}</p>
         </button>
     );
 };
@@ -220,24 +220,35 @@ const Dashboard: React.FC<DashboardProps> = ({ role, onNavigate }) => {
     return <DashboardSkeleton />;
   }
 
+  const pageHeader = (
+    <div className="flex flex-col gap-4 rounded-[1.75rem] border border-gray-200/80 bg-white/85 p-5 shadow-sm backdrop-blur-sm dark:border-gray-800 dark:bg-gray-900/70 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
+      <div className="max-w-2xl">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">
+          {isSelfServiceRole ? 'Workspace Pengguna' : 'Dashboard'}
+        </p>
+        <h1 className="mt-3 text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">
+          {isSelfServiceRole ? 'Dashboard Saya' : `Halo, ${userName}!`}
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400 sm:text-base">
+          {isSelfServiceRole
+            ? 'Semua aktivitas penting Anda ditampilkan lebih ringkas, sehingga status pengajuan dan akses layanan lebih mudah dipantau.'
+            : `Ringkasan aktivitas laboratorium untuk ${role}, mulai dari pengajuan ruangan hingga kesehatan inventaris.`}
+        </p>
+      </div>
+      <div className="inline-flex w-fit items-center rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/50 dark:text-blue-300">
+        {isSelfServiceRole ? '' : 'Hari ini: '}{new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+      </div>
+    </div>
+  );
+
   // --- RENDER FOR USER (MAHASISWA/DOSEN) ---
   if (isSelfServiceRole) {
     return (
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard Saya</h1>
-            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-              Selamat datang, <span className="font-semibold text-gray-700 dark:text-gray-300">{userName}</span>!
-            </p>
-          </div>
-          <div className="text-sm bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full">
-            {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </div>
-        </div>
+        {pageHeader}
 
         {/* User Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard 
                 title="Total Pengajuan" 
 value={stats.myTotal?.toString() || '0'}
@@ -268,10 +279,10 @@ value={stats.myRejected?.toString() || '0'}
             />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.75fr)]">
             {/* Recent Activity (My Bookings) */}
-            <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+            <div className="overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                <div className="flex flex-col gap-3 border-b border-gray-100 p-6 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">{isDosen ? 'Jadwal Terbaru' : 'Riwayat Pengajuan Terakhir'}</h3>
                 <button onClick={() => onNavigate?.(isDosen ? 'jadwal-kuliah' : 'pemesanan-saya')} className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center">
                         {isDosen ? 'Lihat Jadwal' : 'Lihat Semua'} <ArrowRight className="w-4 h-4 ml-1" />
@@ -279,17 +290,17 @@ value={stats.myRejected?.toString() || '0'}
                 </div>
                 <div className="divide-y divide-gray-100 dark:divide-gray-700">
                     {recentBookings.map((booking) => (
-                        <div key={booking.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-center justify-between">
+                        <div key={booking.id} className="flex flex-col gap-4 p-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/60 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center space-x-4">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${booking.status === BookingStatus.PENDING ? 'bg-yellow-100 text-yellow-600' : booking.status === BookingStatus.APPROVED ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                <div className={`flex h-11 w-11 items-center justify-center rounded-full ${booking.status === BookingStatus.PENDING ? 'bg-yellow-100 text-yellow-600' : booking.status === BookingStatus.APPROVED ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                                     {booking.status === BookingStatus.PENDING ? <Clock className="w-5 h-5" /> : booking.status === BookingStatus.APPROVED ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                     <p className="text-sm font-medium text-gray-900 dark:text-white">{booking.purpose}</p>
                                     <p className="text-xs text-gray-500">{formatDateID(booking.date)} • {booking.startTime}</p>
                                 </div>
                             </div>
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${booking.status === BookingStatus.PENDING ? 'bg-yellow-100 text-yellow-800' : booking.status === BookingStatus.APPROVED ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                            <span className={`inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-medium ${booking.status === BookingStatus.PENDING ? 'bg-yellow-100 text-yellow-800' : booking.status === BookingStatus.APPROVED ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                                 {booking.status}
                             </span>
                         </div>
@@ -311,8 +322,8 @@ value={stats.myRejected?.toString() || '0'}
 
             {/* Quick Actions */}
             <div className="space-y-4">
-                <h3 className="font-bold text-gray-900 dark:text-white px-1">Akses Cepat</h3>
-                <div className="grid grid-cols-1 gap-4">
+                <h3 className="px-1 text-lg font-bold text-gray-900 dark:text-white">Akses Cepat</h3>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-1">
                 <QuickActionCard title="Cari Ruangan" icon={Calendar} color="bg-blue-500" onClick={() => onNavigate?.('ruangan')} description="Lihat daftar ruangan dan fasilitas." />
                 <QuickActionCard title="Cek Jadwal Lab" icon={Clock} color="bg-purple-500" onClick={() => onNavigate?.('jadwal-ruang')} description="Lihat ketersediaan ruangan." />
                 <QuickActionCard title={isDosen ? "Jadwal Kuliah" : "Status Pemesanan"} icon={isDosen ? Calendar : FileText} color="bg-green-500" onClick={() => onNavigate?.(isDosen ? 'jadwal-kuliah' : 'pemesanan-saya')} description={isDosen ? "Lihat jadwal perkuliahan Anda." : "Pantau status pengajuan Anda."} />
@@ -326,17 +337,9 @@ value={stats.myRejected?.toString() || '0'}
   // --- RENDER FOR ADMIN / LABORAN ---
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Halo, {userName}!</h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Ringkasan aktivitas laboratorium untuk {role}</p>
-        </div>
-        <div className="text-sm bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full">
-          Hari ini: {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-        </div>
-      </div>
+      {pageHeader}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard 
             title="Menunggu Verifikasi" 
             value={stats.pendingBookings.toString()} 
@@ -372,10 +375,10 @@ value={stats.myRejected?.toString() || '0'}
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.75fr)]">
         
         {/* Left Column: Charts */}
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col">
+        <div className="flex flex-col rounded-[1.5rem] border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Statistik Penggunaan Ruangan</h3>
           <div className="flex-1 min-h-75">
         {dashboardSummary.roomStats.length > 0 ? (
@@ -410,7 +413,7 @@ value={stats.myRejected?.toString() || '0'}
         {/* Right Column: Status & Quick Actions */}
         <div className="space-y-6">
             {/* Booking Status Pie */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="rounded-[1.5rem] border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Status Pengajuan</h3>
               <div className="h-48 flex items-center justify-center">
             {dashboardSummary.bookings.total > 0 ? (
@@ -444,7 +447,7 @@ value={stats.myRejected?.toString() || '0'}
             </div>
 
             {/* Equipment Condition Pie */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="rounded-[1.5rem] border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Kesehatan Inventaris</h3>
               <div className="h-48 flex items-center justify-center">
                 {dashboardSummary.equipment.total > 0 ? (
@@ -480,10 +483,10 @@ value={stats.myRejected?.toString() || '0'}
       </div>
 
       {/* Bottom Section: Recent & Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.75fr)]">
           {/* Recent Bookings List */}
-          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-              <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+          <div className="overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              <div className="flex flex-col gap-3 border-b border-gray-100 p-6 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">Pengajuan Terbaru</h3>
               <button onClick={() => onNavigate?.('pesanan-ruang')} className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center">
                       Lihat Semua <ArrowRight className="w-4 h-4 ml-1" />
@@ -491,17 +494,17 @@ value={stats.myRejected?.toString() || '0'}
               </div>
               <div className="divide-y divide-gray-100 dark:divide-gray-700">
               {recentBookings.length > 0 ? recentBookings.map((booking) => (
-                      <div key={booking.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-center justify-between">
+                      <div key={booking.id} className="flex flex-col gap-4 p-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/60 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex items-center space-x-4">
-                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${booking.status === BookingStatus.PENDING ? 'bg-yellow-100 text-yellow-600' : booking.status === BookingStatus.APPROVED ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                              <div className={`flex h-11 w-11 items-center justify-center rounded-full ${booking.status === BookingStatus.PENDING ? 'bg-yellow-100 text-yellow-600' : booking.status === BookingStatus.APPROVED ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                                   {booking.status === BookingStatus.PENDING ? <Clock className="w-5 h-5" /> : booking.status === BookingStatus.APPROVED ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
                               </div>
-                              <div>
+                              <div className="min-w-0">
                                   <p className="text-sm font-medium text-gray-900 dark:text-white">{booking.purpose}</p>
                                   <p className="text-xs text-gray-500">{booking.userName} • {formatDateID(booking.date)}</p>
                               </div>
                           </div>
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${booking.status === BookingStatus.PENDING ? 'bg-yellow-100 text-yellow-800' : booking.status === BookingStatus.APPROVED ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                          <span className={`inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-medium ${booking.status === BookingStatus.PENDING ? 'bg-yellow-100 text-yellow-800' : booking.status === BookingStatus.APPROVED ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                               {booking.status}
                           </span>
                       </div>
@@ -515,7 +518,7 @@ value={stats.myRejected?.toString() || '0'}
           </div>
 
           {/* Quick Actions Grid */}
-          <div className="grid grid-cols-2 gap-4 content-start">
+          <div className="grid content-start grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-2">
           <QuickActionCard title="Verifikasi Jadwal" icon={CheckCircle} color="bg-green-500" onClick={() => onNavigate?.('pesanan-ruang')} description="Setujui atau tolak pengajuan ruangan." />
           <QuickActionCard title="Input Peminjaman" icon={Box} color="bg-blue-500" onClick={() => onNavigate?.('peminjaman-barang')} description="Catat peminjaman barang baru." />
           <QuickActionCard title="Tambah User" icon={Users} color="bg-purple-500" onClick={() => onNavigate?.('manajemen-user')} description="Registrasi pengguna baru." />

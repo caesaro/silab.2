@@ -1,6 +1,7 @@
 import React from 'react';
 import { Room } from '../types';
 import { CheckCircle, Wrench, X } from 'lucide-react';
+import { Button } from './ui/button';
 
 interface LabStaff {
   id: string;
@@ -34,7 +35,7 @@ const ApprovalModal = ({ isOpen, booking, rooms, staffList, approvalData, setApp
                   return (
                     <span key={picId} className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
                       {staff?.name}
-                      <button type="button" onClick={() => setApprovalData((prev: any) => ({ ...prev, pic: prev.pic.filter((id: string) => id !== picId) }))} className="ml-1 text-blue-600 hover:text-blue-800">
+                      <button type="button" onClick={() => setApprovalData((prev: any) => ({ ...prev, pic: prev.pic.filter((id: string) => id !== picId) }))} className="ml-1 rounded-full text-blue-600 transition-colors hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30">
                         <X className="w-3 h-3" />
                       </button>
                     </span>
@@ -64,8 +65,8 @@ const ApprovalModal = ({ isOpen, booking, rooms, staffList, approvalData, setApp
             </div>
           </div>
           <div className="mobile-modal-actions flex justify-end gap-3 pt-2">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Batal</button>
-            <button onClick={onConfirm} className="px-4 py-2 text-sm bg-green-600 text-white hover:bg-green-700 rounded-lg shadow-md">Simpan & Setuju</button>
+            <Button onClick={onClose} variant="secondary">Batal</Button>
+            <Button onClick={onConfirm} variant="primary">Simpan & Setuju</Button>
           </div>
         </div>
       </div>

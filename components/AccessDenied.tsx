@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShieldAlert, ArrowLeft, Lock } from 'lucide-react';
+import { Button } from './ui/button';
 
 interface AccessDeniedProps {
   onNavigate: (page: string) => void;
@@ -31,13 +32,14 @@ const AccessDenied: React.FC<AccessDeniedProps> = ({ onNavigate }) => {
         Halaman ini terbatas hanya untuk role tertentu.
       </p>
 
-      <button 
+      <Button 
         onClick={() => onNavigate('dashboard')}
-        className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+        variant="primary"
+        size="lg"
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
         Kembali ke Dashboard
-      </button>
+      </Button>
     </div>
   );
 };

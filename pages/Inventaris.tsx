@@ -11,6 +11,8 @@ import { useInventory } from '../hooks/useInventory';
 import { usePagination } from '../hooks/usePagination';
 import SearchBar from '../components/SearchBar';
 import Pagination from '../components/Pagination';
+import { Button, buttonVariants } from '../components/ui/button';
+import { cn } from '../lib/utils';
 
 const getLabelDimensions = (size: '4x2' | '5x3' | '8x6') => {
     // Using a base DPI for high-quality PNG generation.
@@ -826,9 +828,9 @@ const Inventory: React.FC<InventoryProps> = ({ role, showToast }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-3">
             <div className="relative lg:col-span-1">
 
-                <button onClick={() => setIsExportOpen(!isExportOpen)} className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium flex items-center shadow-sm transition-all hover:scale-105">
+                <Button onClick={() => setIsExportOpen(!isExportOpen)} variant="secondary" size="sm">
                     <Download className="w-4 h-4 mr-2" /> Export <ChevronDown className="w-4 h-4 ml-1" />
-                </button>
+                </Button>
                 {isExportOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden animate-fade-in-up">
                         <button onClick={handleExportExcel} className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center">
@@ -851,12 +853,12 @@ const Inventory: React.FC<InventoryProps> = ({ role, showToast }) => {
             >
                 <Printer className="w-4 h-4 mr-2" /> Cetak Label ({selectedItems.length})
             </button>
-            <button onClick={() => setIsScannerOpen(true)} className="px-3 py-2 bg-gray-800 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-900 dark:hover:bg-gray-600 text-sm font-medium flex items-center shadow-sm transition-all hover:scale-105">
+            <Button onClick={() => setIsScannerOpen(true)} variant="secondary" size="sm">
                 <Camera className="w-4 h-4 mr-2" /> Scan QR
-            </button>
-            <button onClick={() => handleOpenModal()} className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center shadow-sm transition-all hover:scale-105">
+            </Button>
+            <Button onClick={() => handleOpenModal()} variant="primary" size="sm">
                 <Plus className="w-4 h-4 mr-2" /> Tambah Barang
-            </button>
+            </Button>
         </div>
         )}
       </div>
@@ -994,9 +996,9 @@ const Inventory: React.FC<InventoryProps> = ({ role, showToast }) => {
                                 <td className="px-4 py-3 text-right print:hidden" onClick={(e) => e.stopPropagation()}>
 
                                     <div className="flex justify-end space-x-2">
-                                        <button onClick={() => handleShowQR(item)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg dark:text-gray-400 dark:hover:bg-gray-700 transition-colors" title="Lihat QR Code"><QrCode className="w-4 h-4"/></button>
-                                        <button onClick={() => handleOpenModal(item)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg dark:hover:bg-blue-900/30 transition-colors" title="Edit"><Edit className="w-4 h-4"/></button>
-                                        <button onClick={() => handleDeleteClick(item.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg dark:hover:bg-red-900/30 transition-colors" title="Hapus"><Trash2 className="w-4 h-4"/></button>
+                                        <button onClick={() => handleShowQR(item)} className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }), 'text-gray-600 dark:text-gray-400')} title="Lihat QR Code"><QrCode className="w-4 h-4"/></button>
+                                        <button onClick={() => handleOpenModal(item)} className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }), 'text-blue-600 dark:text-blue-400')} title="Edit"><Edit className="w-4 h-4"/></button>
+                                        <button onClick={() => handleDeleteClick(item.id)} className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }), 'text-red-600 dark:text-red-400')} title="Hapus"><Trash2 className="w-4 h-4"/></button>
                                     </div>
                                 </td>
                                 )}
@@ -1033,7 +1035,7 @@ const Inventory: React.FC<InventoryProps> = ({ role, showToast }) => {
                  <h3 className="font-bold text-gray-900 dark:text-white">
                     {editingItem ? 'Edit Barang' : 'Tambah Barang Baru'}
                  </h3>
-                 <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                 <button onClick={() => setIsModalOpen(false)} className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }), 'text-gray-500 dark:text-gray-300')}>
                     <X className="w-5 h-5" />
                  </button>
               </div>
@@ -1166,10 +1168,10 @@ const Inventory: React.FC<InventoryProps> = ({ role, showToast }) => {
                     <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
                        Batal
                     </button>
-                    <button type="submit" disabled={isSaving} className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex items-center shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                    <Button type="submit" disabled={isSaving} variant="primary">
                        {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
                        {isSaving ? 'Menyimpan...' : 'Simpan'}
-                    </button>
+                    </Button>
                  </div>
               </form>
               ) : (
@@ -1184,7 +1186,7 @@ const Inventory: React.FC<InventoryProps> = ({ role, showToast }) => {
                         </p>
                         <button 
                             onClick={downloadTemplate}
-                            className="text-xs bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center w-fit"
+                            className={cn(buttonVariants({ variant: 'secondary', size: 'xs' }), 'w-fit text-blue-600 dark:text-blue-400')}
                         >
                             <Download className="w-3 h-3 mr-1.5" /> Unduh Template Excel
                         </button>
@@ -1278,10 +1280,10 @@ const Inventory: React.FC<InventoryProps> = ({ role, showToast }) => {
                         </label>
                         {renderLabelSizeSelector()}
                         {renderPaperSizeSelector(paperSize, setPaperSize)}
-                        <button onClick={() => handlePrintMulti()} className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex items-center">
+                        <Button onClick={() => handlePrintMulti()} variant="primary">
                             <Printer className="w-4 h-4 mr-2" /> Cetak
-                        </button>
-                        <button onClick={() => setIsPrintModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                        </Button>
+                        <button onClick={() => setIsPrintModalOpen(false)} className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }), 'text-gray-500 dark:text-gray-300')}>
                             <X className="w-5 h-5" />
                         </button>
                     </div>
@@ -1324,7 +1326,7 @@ const Inventory: React.FC<InventoryProps> = ({ role, showToast }) => {
                     <Box className="w-5 h-5 mr-2 text-blue-600" />
                     Detail Barang
                  </h3>
-                 <button onClick={() => setViewDetailItem(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                 <button onClick={() => setViewDetailItem(null)} className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }), 'text-gray-500 dark:text-gray-300')}>
                     <X className="w-5 h-5" />
                  </button>
               </div>
@@ -1374,9 +1376,9 @@ const Inventory: React.FC<InventoryProps> = ({ role, showToast }) => {
                           Tutup
                       </button>
                       {canManageInventory && (
-                      <button onClick={handleEditFromDetail} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm flex items-center justify-center">
+                      <Button onClick={handleEditFromDetail} variant="primary" className="flex-1 justify-center">
                           <Edit className="w-4 h-4 mr-2" /> Edit Barang
-                      </button>
+                      </Button>
                       )}
                   </div>
               </div>
@@ -1401,7 +1403,7 @@ const Inventory: React.FC<InventoryProps> = ({ role, showToast }) => {
                     <QrCode className="w-5 h-5 mr-2 text-blue-600" />
                     Label Barang
                  </h3>
-                 <button onClick={() => setQrItem(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                 <button onClick={() => setQrItem(null)} className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }), 'text-gray-500 dark:text-gray-300')}>
                     <X className="w-5 h-5" />
                  </button>
               </div>
@@ -1425,9 +1427,9 @@ const Inventory: React.FC<InventoryProps> = ({ role, showToast }) => {
                       <button onClick={handlePrintSingleToSheet} className="px-4 py-2 text-sm bg-purple-600 text-white hover:bg-purple-700 rounded-lg flex items-center shadow-md">
                           <Printer className="w-4 h-4 mr-2" /> Cetak ke Kertas ({singleLabelPaperSize})
                       </button>
-                      <button onClick={handlePrintSingle} className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex items-center shadow-md">
+                      <Button onClick={handlePrintSingle} variant="primary">
                           <Download className="w-4 h-4 mr-2" /> Download PNG
-                      </button>
+                      </Button>
                   </div>
               </div>
            </div>

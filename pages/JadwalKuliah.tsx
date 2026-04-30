@@ -6,6 +6,8 @@ import { TableSkeleton } from '../components/Skeleton';
 import SearchableSelect, { SelectOption } from '../components/SearchableSelect';
 import SearchBar from '../components/SearchBar';
 import { useGoogleCalendar } from '../hooks/useGoogleCalendar';
+import { Button, buttonVariants } from '../components/ui/button';
+import { cn } from '../lib/utils';
 
 declare global {
   interface Window {
@@ -837,10 +839,10 @@ const handleDownloadTemplate = async () => {
               </button>
             </div>
           )}
-          <button onClick={handleDownloadTemplate} className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium flex items-center shadow-sm transition-all hover:scale-105">
+          <Button onClick={handleDownloadTemplate} variant="secondary" size="sm">
             <Download className="w-4 h-4 mr-2" /> Template
-          </button>
-          <label className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium flex items-center shadow-sm transition-all hover:scale-105 cursor-pointer">
+          </Button>
+          <label className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'cursor-pointer')}>
             <FileSpreadsheet className="w-4 h-4 mr-2" /> Import
             <input type="file" accept=".xlsx" className="hidden" onChange={handleExcelUpload} />
           </label>
@@ -848,15 +850,15 @@ const handleDownloadTemplate = async () => {
             <button 
               onClick={() => setBulkDeleteModal({ isOpen: true, semester: filterSemester || 'Ganjil', academicYear: filterAcademicYear || (academicYears.length > 0 ? academicYears[0] : '') })} 
               disabled={!googleApi.isAuthenticated}
-              className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium flex items-center shadow-sm transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              className={cn(buttonVariants({ variant: 'destructive', size: 'sm' }), 'disabled:hover:scale-100')}
               title={!googleApi.isAuthenticated ? "Login Google admin terlebih dahulu" : ""}
             >
               <Trash2 className="w-4 h-4 mr-2" /> Hapus Semua
             </button>
           )}
-          <button onClick={() => handleOpenModal()} className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center shadow-sm transition-all hover:scale-105">
+          <Button onClick={() => handleOpenModal()} variant="primary" size="sm">
              <Plus className="w-4 h-4 mr-2" /> Tambah Jadwal
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -961,10 +963,10 @@ const handleDownloadTemplate = async () => {
                         <span className="text-xs font-bold text-blue-600 dark:text-blue-400">{schedule.courseCode}</span>
                       </div>
                       <div className="flex space-x-1">
-                        <button onClick={() => handleOpenModal(schedule)} className="p-1 text-blue-600 hover:bg-blue-100 rounded dark:hover:bg-blue-900/30">
+                        <button onClick={() => handleOpenModal(schedule)} className={cn(buttonVariants({ variant: 'ghost', size: 'icon-xs' }), 'text-blue-600 dark:text-blue-400')}>
                           <Edit className="w-3 h-3" />
                         </button>
-                        <button onClick={() => handleDelete(schedule.id)} className="p-1 text-red-600 hover:bg-red-100 rounded dark:hover:bg-red-900/30">
+                        <button onClick={() => handleDelete(schedule.id)} className={cn(buttonVariants({ variant: 'ghost', size: 'icon-xs' }), 'text-red-600 dark:text-red-400')}>
                           <Trash2 className="w-3 h-3" />
                         </button>
                       </div>
@@ -1009,7 +1011,7 @@ const handleDownloadTemplate = async () => {
                  <h3 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base">
                     {editingSchedule ? 'Edit Jadwal Kuliah' : 'Tambah Jadwal Kuliah'}
                  </h3>
-                 <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1">
+                 <button onClick={() => setIsModalOpen(false)} className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }), 'text-gray-500 dark:text-gray-300')}>
                     <X className="w-5 h-5" />
                  </button>
               </div>
@@ -1142,12 +1144,10 @@ const handleDownloadTemplate = async () => {
                  </div>
 
                  <div className="pt-4 flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 mt-2">
-                    <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                       Batal
-                    </button>
-                    <button type="submit" className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex items-center shadow-md hover:shadow-lg transition-all">
+                    <Button type="button" onClick={() => setIsModalOpen(false)} variant="secondary">Batal</Button>
+                    <Button type="submit" variant="primary">
                        <Check className="w-4 h-4 mr-2" /> Simpan
-                    </button>
+                    </Button>
                  </div>
               </form>
            </div>
@@ -1159,7 +1159,7 @@ const handleDownloadTemplate = async () => {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in-up">
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex justify-between items-center">
               <h3 className="font-bold text-gray-900 dark:text-white">Lengkapi Data Import</h3>
-              <button onClick={() => setBulkModal(prev => ({ ...prev, isOpen: false }))} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1">
+              <button onClick={() => setBulkModal(prev => ({ ...prev, isOpen: false }))} className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }), 'text-gray-500 dark:text-gray-300')}>
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1244,10 +1244,10 @@ const handleDownloadTemplate = async () => {
                 *Nilai default ini hanya digunakan jika kolom di Excel kosong.
               </p>
               <div className="pt-4 flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 mt-4">
-                <button type="button" onClick={() => setBulkModal(prev => ({ ...prev, isOpen: false }))} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Batal</button>
-                <button type="submit" className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex items-center shadow-md">
+                <Button type="button" onClick={() => setBulkModal(prev => ({ ...prev, isOpen: false }))} variant="secondary">Batal</Button>
+                <Button type="submit" variant="primary">
                   Import {bulkModal.pendingSchedules.length} Jadwal
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -1277,8 +1277,8 @@ const handleDownloadTemplate = async () => {
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-300 pt-2">Apakah Anda ingin tetap menyimpan jadwal ini?</p>
               <div className="flex justify-end gap-3 pt-2">
-                <button onClick={conflictModal.onCancel} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Batal</button>
-                <button onClick={conflictModal.onConfirm} className="px-4 py-2 text-sm bg-yellow-600 text-white hover:bg-yellow-700 rounded-lg shadow-md flex items-center">Ya, Lanjutkan</button>
+                <Button onClick={conflictModal.onCancel} variant="secondary">Batal</Button>
+                <Button onClick={conflictModal.onConfirm} variant="primary">Ya, Lanjutkan</Button>
               </div>
             </div>
           </div>
@@ -1292,7 +1292,7 @@ const handleDownloadTemplate = async () => {
               <h3 className="font-bold text-red-800 dark:text-red-400 flex items-center">
                 <Trash2 className="w-5 h-5 mr-2" /> Hapus Jadwal Massal
               </h3>
-              <button onClick={() => setBulkDeleteModal(prev => ({ ...prev, isOpen: false }))} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1">
+              <button onClick={() => setBulkDeleteModal(prev => ({ ...prev, isOpen: false }))} className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }), 'text-gray-500 dark:text-gray-300')}>
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1335,10 +1335,10 @@ const handleDownloadTemplate = async () => {
                 </select>
               </div>
               <div className="pt-4 flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-700 mt-4">
-                <button type="button" onClick={() => setBulkDeleteModal(prev => ({ ...prev, isOpen: false }))} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Batal</button>
-                <button type="submit" disabled={isLoading} className="px-4 py-2 text-sm bg-red-600 text-white hover:bg-red-700 rounded-lg flex items-center shadow-md disabled:opacity-50">
+                <Button type="button" onClick={() => setBulkDeleteModal(prev => ({ ...prev, isOpen: false }))} variant="secondary">Batal</Button>
+                <Button type="submit" disabled={isLoading} variant="destructive">
                   {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />} Hapus Semua
-                </button>
+                </Button>
               </div>
             </form>
           </div>

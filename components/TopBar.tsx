@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { startTransition, useDeferredValue, useEffect, useState } from 'react';
 import { Menu, Moon, Sun, Bell, Search, LogOut, User, ChevronDown, Check, Box, MapPin, CheckCheck, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 import { Role, Notification } from '../types';
 import { api } from '../services/api';
+import { APP_FULL_NAME, APP_NAME } from '../config';
 
 interface TopBarProps {
   onToggleSidebar: () => void;
@@ -53,28 +54,39 @@ const TopBar: React.FC<TopBarProps> = ({
   // 3. Gunakan tipe data yang eksplisit
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const deferredSearchQuery = useDeferredValue(searchQuery.trim());
 
   // Debounce Search
   useEffect(() => {
+    if (deferredSearchQuery.length < 2) {
+      setSearchResults([]);
+      setIsSearchOpen(false);
+      return;
+    }
+
+    const abortController = new AbortController();
     const delayDebounceFn = setTimeout(async () => {
-      if (searchQuery.length >= 2) {
-        try {
-          const res = await api(`/api/search?q=${encodeURIComponent(searchQuery)}`);
-          if (res.ok) {
-            setSearchResults(await res.json());
+      try {
+        const res = await api(`/api/search?q=${encodeURIComponent(deferredSearchQuery)}`, { signal: abortController.signal });
+        if (res.ok) {
+          const results = await res.json();
+          startTransition(() => {
+            setSearchResults(results);
             setIsSearchOpen(true);
-          }
-        } catch (e) {
+          });
+        }
+      } catch (e: any) {
+        if (e?.name !== 'AbortError') {
           console.error("Search error", e);
         }
-      } else {
-        setSearchResults([]);
-        setIsSearchOpen(false);
       }
-    }, 500); // Tunggu 500ms setelah user berhenti mengetik
+    }, 250);
 
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery]);
+    return () => {
+      abortController.abort();
+      clearTimeout(delayDebounceFn);
+    };
+  }, [deferredSearchQuery]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
@@ -114,54 +126,54 @@ const TopBar: React.FC<TopBarProps> = ({
   };
 
   return (
-    <header className={`mobile-safe-x fixed inset-x-0 top-0 z-40 flex h-12 items-center justify-between border-b border-gray-200 bg-white/95 px-3 backdrop-blur-md transition-transform duration-200 print:hidden dark:border-gray-700 dark:bg-gray-800/95 md:sticky md:h-16 md:px-6 ${
+    <header className={`mobile-safe-x fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-gray-200 bg-white/92 px-3 backdrop-blur-xl transition-transform duration-200 print:hidden dark:border-gray-800 dark:bg-gray-900/92 md:sticky md:h-18 md:px-6 ${
       isVisible ? "translate-y-0" : "-translate-y-full md:translate-y-0"
     }`}>
-      <div className="flex min-w-0 items-center">
+      <div className="flex min-w-0 items-center gap-2 md:gap-4">
         {showSidebarToggle && (
           <button 
             onClick={onToggleSidebar} 
-            className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 md:hidden"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 md:hidden"
             aria-label="Toggle Sidebar"
           >
             <Menu className="w-6 h-6" />
           </button>
         )}
 
-        <div className="ml-2 min-w-0 md:hidden">
+        <div className="min-w-0 md:hidden">
           <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
             {pageLabel}
           </p>
         </div>
         
         {/* Global Search */}
-        <div className="hidden md:flex items-center ml-4 relative">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3" />
+        <div className="relative ml-2 hidden items-center md:flex">
+          <Search className="absolute left-3 h-4 w-4 text-gray-400" />
           <input 
             type="text"
             placeholder="Cari User, Ruangan, Barang..." 
             value={searchQuery}
             onChange={handleSearch}
             onFocus={() => searchQuery.length > 1 && setIsSearchOpen(true)}
-            className="h-11 w-72 rounded-full border-none bg-gray-100 pl-10 pr-4 text-sm text-gray-900 transition-all focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
+            className="h-11 w-64 rounded-full border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 transition-all focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-500/30 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-blue-500 dark:focus:bg-gray-900 lg:w-80 xl:w-96"
           />
           
           {/* Search Results Dropdown */}
           {isSearchOpen && searchResults.length > 0 && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setIsSearchOpen(false)}></div>
-              <div className="absolute top-full left-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50 animate-fade-in-up">
+              <div className="absolute left-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl animate-fade-in-up dark:border-gray-700 dark:bg-gray-800">
                  <div className="py-2">
-                    <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase bg-gray-50 dark:bg-gray-700/50">Hasil Pencarian</p>
+                    <p className="bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:bg-gray-700/50">Hasil Pencarian</p>
                     {searchResults.map((result, idx) => {
                       const IconComponent = iconMap[result.icon] || Search;
                       return (
                       <button 
                         key={idx}
                         onClick={() => handleResultClick(result.page)}
-                        className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center group border-b border-gray-100 dark:border-gray-700 last:border-0"
+                        className="group flex w-full items-center border-b border-gray-100 px-4 py-3 text-left hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700 last:border-0"
                       >
-                         <IconComponent className="w-4 h-4 text-gray-400 mr-3 group-hover:text-blue-500" />
+                         <IconComponent className="mr-3 h-4 w-4 text-gray-400 group-hover:text-blue-500" />
                          <div className="flex-1">
                             <div className="flex justify-between items-center">
                                 <p className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-blue-600">{result.name}</p>
@@ -185,10 +197,10 @@ const TopBar: React.FC<TopBarProps> = ({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-2.5">
 
         {isMaintenanceMode && (
-          <div className="hidden sm:flex items-center px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full text-xs font-bold animate-pulse border border-red-200 dark:border-red-800" title="Maintenance Mode Sedang Aktif">
+          <div className="hidden items-center rounded-full border border-red-200 bg-red-100 px-3 py-1 text-xs font-bold text-red-600 animate-pulse dark:border-red-800 dark:bg-red-900/30 dark:text-red-400 sm:flex" title="Maintenance Mode Sedang Aktif">
             <AlertTriangle className="w-3.5 h-3.5 mr-1" />
             Maintenance
           </div>
@@ -198,7 +210,7 @@ const TopBar: React.FC<TopBarProps> = ({
         <div className="relative">
             <button 
               onClick={() => setIsNotifOpen(!isNotifOpen)}
-              className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
               aria-label="Notifications"
             >
               <Bell className="w-5 h-5" />
@@ -210,7 +222,7 @@ const TopBar: React.FC<TopBarProps> = ({
             {isNotifOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setIsNotifOpen(false)}></div>
-                <div className="absolute right-0 mt-2 w-[calc(100vw-1.25rem)] max-w-sm bg-white dark:bg-gray-800 rounded-2xl shadow-xl py-1 border border-gray-200 dark:border-gray-700 z-20 overflow-hidden">
+                <div className="absolute right-0 z-20 mt-2 w-[calc(100vw-1.25rem)] max-w-sm overflow-hidden rounded-3xl border border-gray-200 bg-white py-1 shadow-xl dark:border-gray-700 dark:bg-gray-800">
                   <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/30">
                     <div className="flex justify-between items-center mb-3">
                       <div className="flex items-center gap-2">
@@ -273,7 +285,7 @@ const TopBar: React.FC<TopBarProps> = ({
 
         <button 
           onClick={toggleDarkMode} 
-          className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-2xl text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
           aria-label="Toggle Dark Mode"
         >
           {isDarkMode ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5" />}
@@ -283,7 +295,7 @@ const TopBar: React.FC<TopBarProps> = ({
         <div className="relative">
           <button 
             onClick={() => setIsProfileOpen(!isProfileOpen)}
-            className="flex min-h-11 items-center space-x-2 rounded-2xl px-2 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="flex min-h-11 items-center space-x-2 rounded-2xl px-2 py-1.5 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
             aria-label="User Menu"
           >
             <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 overflow-hidden">
@@ -298,7 +310,7 @@ const TopBar: React.FC<TopBarProps> = ({
           {isProfileOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setIsProfileOpen(false)}></div>
-              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-2xl shadow-lg py-1 border border-gray-200 dark:border-gray-700 z-20">
+              <div className="absolute right-0 z-20 mt-2 w-56 rounded-2xl border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
                 <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                   <p className="text-sm text-gray-900 dark:text-white font-medium">Signed in as</p>
                   <p className="text-xs text-gray-500 truncate">{currentRole === Role.LEMBAGA_KEMAHASISWAAN || currentRole === Role.DOSEN ? 'student@uksw.edu' : 'admin@uksw.edu'}</p>
