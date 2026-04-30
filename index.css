@@ -113,6 +113,11 @@ body {
   isolation: isolate;
 }
 
+.mobile-modal-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
 button,
 input,
 select,
@@ -280,11 +285,6 @@ p {
     min-height: 100dvh;
     max-height: 100dvh !important;
     border-radius: 0 !important;
-  }
-
-  .mobile-modal-body {
-    flex: 1;
-    overflow-y: auto;
   }
 
   .mobile-modal-actions {
